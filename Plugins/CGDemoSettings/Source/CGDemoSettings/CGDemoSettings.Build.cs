@@ -1,23 +1,15 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 using UnrealBuildTool;
-using System.IO;
 
-public class CurveBuilder : ModuleRules
+public class CGDemoSettings : ModuleRules
 {
-	public CurveBuilder(ReadOnlyTargetRules Target) : base(Target)
+	public CGDemoSettings(ReadOnlyTargetRules Target) : base(Target)
 	{
 		PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
-
-		//string DoubleWorldDir = Path.Combine(ModuleDirectory, "../DoubleWorld/");
-		string CurvesDir = Path.Combine(ModuleDirectory, "Curves");
-		string UtilsDir = Path.Combine(ModuleDirectory, "Utils");
-
+		
 		PublicIncludePaths.AddRange(
 			new string[] {
-                UtilsDir,
-                CurvesDir,
-				//DoubleWorldDir,
 				// ... add public include paths required here ...
 			}
 			);
@@ -33,8 +25,8 @@ public class CurveBuilder : ModuleRules
 		PublicDependencyModuleNames.AddRange(
 			new string[]
 			{
-				"Core",
-                //"DoubleWorld",
+				"Core", "CoreUObject", "Engine", "InputCore",
+				"ProceduralMeshComponent",
 				// ... add other public dependencies that you statically link with here ...
 			}
 			);

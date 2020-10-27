@@ -8,7 +8,7 @@ public class CurveBuilderTest : ModuleRules
 	{
 		PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
 	
-		PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore", "CurveBuilder" });
+		PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore", "CurveBuilder", "CGDemoSettings" });
 
 		PrivateDependencyModuleNames.AddRange(new string[] { });
 

@@ -14,6 +14,10 @@
 		{
 			"Name": "CurveBuilder",
 			"Enabled": true
+		},
+		{
+			"Name": "CGDemoSettings",
+			"Enabled": true
 		}
 	]
 }

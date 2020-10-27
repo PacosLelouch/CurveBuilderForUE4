@@ -1,23 +1,18 @@
-#include "BezierCurve.h"
 // Copyright 2020 PacosLelouch, Inc. All Rights Reserved.
 // https://github.com/PacosLelouch/
 
+#include "BezierCurve.h"
+
 #pragma once
 
-// Horner's Algorithm
+// The de Casteljau Algorithm (or Horner's Algorithm if necessary)
 template<int32 Dim, int32 Degree>
 inline TVectorX<Dim> TBezierCurve<Dim, Degree>::GetPosition(double T) const
 {
-	double U = 1.0 - T;
-	double Combination = 1; 
-	double TN = 1; 
-	TVectorX<Dim> Tmp = CtrlPoints[0].NonHomogeneous() * U;
-	for (int32 i = 1; i < Degree; ++i) { 
-		TN = TN * T; 
-		Combination *= static_cast<double>(Degree - i + 1) / i; 
-		Tmp = (Tmp + TN*Combination*CtrlPoints[i].NonHomogeneous()) * U;
-	} 
-	return (Tmp + TN*T*CtrlPoints[Degree].NonHomogeneous());
+	//if (Dim >= 5) {
+	//	return GetPositionDirectly(T);
+	//}
+	return GetPositionIteratively(T);
 }
 
 // Tangent not normalized. D(i) = (n / (t1 - t0)) * (P(i+1) - P(i))
@@ -27,7 +22,7 @@ inline TVectorX<Dim> TBezierCurve<Dim, Degree>::GetTangent(double T) const
 	if (constexpr(Degree <= 1)) {
 		return TVectorX<Dim+1>(CtrlPoints[1] - CtrlPoints[0]).NonHomogeneous();
 	}
-	TBezierCurve<Dim, CLAMP_DEGREE(Degree)> Hodograph;
+	TBezierCurve<Dim, CLAMP_DEGREE(Degree-1)> Hodograph;
 	CreateHodograph(Hodograph);
 	return Hodograph.GetPosition(T);
 }
@@ -38,10 +33,10 @@ inline double TBezierCurve<Dim, Degree>::GetPrincipalCurvature(double T, int32 P
 	if (constexpr(Degree <= 1)) {
 		return 0.0;
 	}
-	TBezierCurve<Dim, CLAMP_DEGREE(Degree)> Hodograph;
+	TBezierCurve<Dim, CLAMP_DEGREE(Degree-1)> Hodograph;
 	CreateHodograph(Hodograph);
 
-	TBezierCurve<Dim, CLAMP_DEGREE(Degree-1)> Hodograph2;
+	TBezierCurve<Dim, CLAMP_DEGREE(Degree-2)> Hodograph2;
 	Hodograph.CreateHodograph(Hodograph2);
 
 	return TVectorX<Dim>::PrincipalCurvature(Hodograph.GetPosition(T), Hodograph2.GetPosition(T), Principal);
@@ -53,10 +48,10 @@ inline double TBezierCurve<Dim, Degree>::GetCurvature(double T) const
 	if (constexpr(Degree <= 1)) {
 		return 0.0;
 	}
-	TBezierCurve<Dim, CLAMP_DEGREE(Degree)> Hodograph;
+	TBezierCurve<Dim, CLAMP_DEGREE(Degree-1)> Hodograph;
 	CreateHodograph(Hodograph);
 
-	TBezierCurve<Dim, CLAMP_DEGREE(Degree-1)> Hodograph2;
+	TBezierCurve<Dim, CLAMP_DEGREE(Degree-2)> Hodograph2;
 	Hodograph.CreateHodograph(Hodograph2);
 
 	return TVectorX<Dim>::Curvature(Hodograph.GetPosition(T), Hodograph2.GetPosition(T));
@@ -68,9 +63,9 @@ inline void TBezierCurve<Dim, Degree>::ToPolynomialForm(TVectorX<Dim+1>* OutPoly
 {
 	TVectorX<Dim+1> DTable[Degree + 1];
 	TVectorX<Dim+1>::CopyArray(DTable, CtrlPoints, Degree + 1);
-	//FMemory::Memcpy(DTable, CtrlPoints, (Degree + 1) * sizeof(TVectorX<Dim + 1>));
 	double Combination = 1;
 	OutPolyForm[0] = CtrlPoints[0];
+	OutPolyForm[0].WeightToOne();
 	OutPolyForm[0].Last() = 1.;
 	for (int32 i = 1; i <= Degree; ++i) {
 		for (int32 j = 0; j <= Degree - i; ++j) {
@@ -78,16 +73,29 @@ inline void TBezierCurve<Dim, Degree>::ToPolynomialForm(TVectorX<Dim+1>* OutPoly
 		}
 		Combination *= static_cast<double>(Degree - i + 1) / i;
 		OutPolyForm[i] = DTable[0] * Combination;
-		OutPolyForm[0].Last() = 1.;
+		OutPolyForm[i].WeightToOne();
+		OutPolyForm[i].Last() = 1.;
 	}
 }
 
 template<int32 Dim, int32 Degree>
-inline void TBezierCurve<Dim, Degree>::CreateHodograph(TSplineCurveBase<Dim, CLAMP_DEGREE(Degree)>& OutHodograph) const
+inline void TBezierCurve<Dim, Degree>::CreateHodograph(TSplineCurveBase<Dim, CLAMP_DEGREE(Degree-1)>& OutHodograph) const
 {
 	for (int32 i = 0; i < Degree; ++i) {
-		OutHodograph.SetPoint(i, TVectorX<Dim>(CtrlPoints[i + 1] - CtrlPoints[i]));
+		OutHodograph.SetPoint(i, TVectorX<Dim>(CtrlPoints[i + 1] - CtrlPoints[i]), 1.);
 	}
+}
+
+template<int32 Dim, int32 Degree>
+inline void TBezierCurve<Dim, Degree>::ElevateFrom(const TSplineCurveBase<Dim, CLAMP_DEGREE(Degree-1)>& InCurve) const
+{
+	constexpr int32 FromDegree = CLAMP_DEGREE(Degree-1);
+	CtrlPoints[0] = InCurve.GetPointHomogeneous(0);
+	for (int32 i = 1; i < Degree ++i) {
+		double Alpha = static_cast<double>(i) / (Degree);
+		CtrlPoints[i] = InCurve.GetPointHomogeneous(i - 1)*Alpha + InCurve.GetPointHomogeneous(i)*(1-Alpha);
+	}
+	CtrlPoints[Degree] = InCurve.GetPointHomogeneous(FromDegree);
 }
 
 // The de Casteljau Algorithm 
@@ -96,7 +104,7 @@ inline void TBezierCurve<Dim, Degree>::Split(TBezierCurve<Dim, Degree>& OutFirst
 {
 	double U = 1.0 - T;
 	constexpr int32 DoubleDegree = Degree << 1;
-	constexpr int32 HalfDegree = Degree >> 1;
+	//constexpr int32 HalfDegree = Degree >> 1;
 	TVectorX<Dim+1> SplitCtrlPoints[DoubleDegree + 1];
 	TVectorX<Dim+1>::CopyArray(SplitCtrlPoints, CtrlPoints, Degree + 1);
 	//SplitCtrlPoints[0] = CtrlPoints[0];
@@ -112,4 +120,38 @@ inline void TBezierCurve<Dim, Degree>::Split(TBezierCurve<Dim, Degree>& OutFirst
 	// Split(i,j): P(0,0), P(0,1), ..., P(0,n); P(0,n), P(1,n-1), ..., P(n,0).
 	OutFirst = TBezierCurve<Dim, Degree>(SplitCtrlPoints);
 	OutSecond = TBezierCurve<Dim, Degree>(SplitCtrlPoints + Degree);
+}
+
+// Horner's Algorithm
+template<int32 Dim, int32 Degree>
+inline TVectorX<Dim> TBezierCurve<Dim, Degree>::GetPositionDirectly(double T) const
+{
+	double U = 1.0 - T;
+	double Combination = 1;
+	double TN = 1;
+	TVectorX<Dim> Tmp = CtrlPoints[0].NonHomogeneous() * U;
+	for (int32 i = 1; i < Degree; ++i) {
+		TN = TN * T;
+		Combination *= static_cast<double>(Degree - i + 1) / i;
+		Tmp = (Tmp + TN*Combination*CtrlPoints[i].NonHomogeneous()) * U;
+	}
+	return Tmp + TN*T*CtrlPoints[Degree].NonHomogeneous();
+}
+
+// The de Casteljau Algorithm 
+template<int32 Dim, int32 Degree>
+inline TVectorX<Dim> TBezierCurve<Dim, Degree>::GetPositionIteratively(double T) const
+{
+	double U = 1.0 - T;
+	constexpr int32 DoubleDegree = Degree << 1;
+	TVectorX<Dim+1> CalCtrlPoints[Degree + 1];
+	TVectorX<Dim+1>::CopyArray(CalCtrlPoints, CtrlPoints, Degree + 1);
+	//SplitCtrlPoints[0] = CtrlPoints[0];
+	//SplitCtrlPoints[DoubleDegree] = CtrlPoints[Degree];
+	for (int32 j = 1; j <= Degree; ++j) {
+		for (int32 i = 0; i <= Degree - j; ++i) {
+			CalCtrlPoints[i] = CalCtrlPoints[i] * U + CalCtrlPoints[i + 1] * T;
+		}
+	}
+	return CalCtrlPoints[0].NonHomogeneous();
 }

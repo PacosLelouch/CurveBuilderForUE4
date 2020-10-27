@@ -1,6 +1,7 @@
-#include "PolynomialCurve.h"
 // Copyright 2020 PacosLelouch, Inc. All Rights Reserved.
 // https://github.com/PacosLelouch/
+
+#include "PolynomialCurve.h"
 
 #pragma once
 
@@ -21,7 +22,7 @@ inline TVectorX<Dim> TPolynomialCurve<Dim, Degree>::GetTangent(double T) const
 	if (constexpr(Degree <= 1)) {
 		return TVectorX<Dim+1>(CtrlPoints[1] - CtrlPoints[0]).NonHomogeneous();
 	}
-	TPolynomialCurve<Dim, CLAMP_DEGREE(Degree)> Hodograph;
+	TPolynomialCurve<Dim, CLAMP_DEGREE(Degree-1)> Hodograph;
 	CreateHodograph(Hodograph);
 	return Hodograph.GetPosition(T);
 }
@@ -32,10 +33,10 @@ inline double TPolynomialCurve<Dim, Degree>::GetPrincipalCurvature(double T, int
 	if (constexpr(Degree <= 1)) {
 		return 0.0;
 	}
-	TPolynomialCurve<Dim, CLAMP_DEGREE(Degree)> Hodograph;
+	TPolynomialCurve<Dim, CLAMP_DEGREE(Degree-1)> Hodograph;
 	CreateHodograph(Hodograph);
 
-	TPolynomialCurve<Dim, CLAMP_DEGREE(Degree-1)> Hodograph2;
+	TPolynomialCurve<Dim, CLAMP_DEGREE(Degree-2)> Hodograph2;
 	Hodograph.CreateHodograph(Hodograph2);
 
 	return TVectorX<Dim>::PrincipalCurvature(Hodograph.GetPosition(T), Hodograph2.GetPosition(T), Principal);
@@ -47,10 +48,10 @@ inline double TPolynomialCurve<Dim, Degree>::GetCurvature(double T) const
 	if (constexpr(Degree <= 1)) {
 		return 0.0;
 	}
-	TPolynomialCurve<Dim, CLAMP_DEGREE(Degree)> Hodograph;
+	TPolynomialCurve<Dim, CLAMP_DEGREE(Degree-1)> Hodograph;
 	CreateHodograph(Hodograph);
 
-	TPolynomialCurve<Dim, CLAMP_DEGREE(Degree-1)> Hodograph2;
+	TPolynomialCurve<Dim, CLAMP_DEGREE(Degree-2)> Hodograph2;
 	Hodograph.CreateHodograph(Hodograph2);
 
 	return TVectorX<Dim>::Curvature(Hodograph.GetPosition(T), Hodograph2.GetPosition(T));
@@ -64,12 +65,23 @@ inline void TPolynomialCurve<Dim, Degree>::ToPolynomialForm(TVectorX<Dim + 1>* O
 }
 
 template<int32 Dim, int32 Degree>
-inline void TPolynomialCurve<Dim, Degree>::CreateHodograph(TSplineCurveBase<Dim, CLAMP_DEGREE(Degree)>& OutHodograph) const
+inline void TPolynomialCurve<Dim, Degree>::CreateHodograph(TSplineCurveBase<Dim, CLAMP_DEGREE(Degree-1)>& OutHodograph) const
 {
 	double Coefficient = 1;
 	for (int32 i = 0; i < Degree; ++i) {
 		Coefficient *= static_cast<double>(i + 1);
 		OutHodograph.SetPoint(i, TVectorX<Dim>(CtrlPoints[i + 1] * Coefficient));
+	}
+}
+
+template<int32 Dim, int32 Degree>
+inline void TPolynomialCurve<Dim, Degree>::ElevateFrom(const TSplineCurveBase<Dim, CLAMP_DEGREE(Degree-1)>& InCurve) const
+{
+	CtrlPoints[Degree] = TVectorX<Dim+1>();
+	CtrlPoints[Degree].Last() = 1.;
+	constexpr int32 FromDegree = CLAMP_DEGREE(Degree-1);
+	for (int32 i = 0; i <= FromDegree; ++i) {
+		CtrlPoints[i] = InCurve.GetPointHomogeneous(i);
 	}
 }
 
