@@ -6,6 +6,7 @@
 #include "GameFramework/GameModeBase.h"
 #include "PolynomialCurve.h"
 #include "BezierCurve.h"
+#include "RationalBezierCurve.h"
 #include "CurveBuilderTestGameModeBase.generated.h"
 
 /**
@@ -21,4 +22,6 @@ public:
 	TPolynomialCurve<2> Poly2;
 	TBezierCurve<3> Bezier3;
 	TBezierCurve<2> Bezier2;
+	TRationalBezierCurve<3> RationalBezier3;
+	TRationalBezierCurve<2> RationalBezier2;
 };

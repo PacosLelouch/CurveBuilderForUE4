@@ -21,8 +21,8 @@ public:
 	virtual double GetPrincipalCurvature(double T, int32 Principal = 0) const override;
 	virtual double GetCurvature(double T) const override;
 	virtual void ToPolynomialForm(TVectorX<Dim+1> OutPolyForm[Degree + 1]) const override;
-	virtual void CreateHodograph(TSplineCurveBase<Dim, CLAMP_DEGREE(Degree-1)>& OutHodograph) const override;
-	virtual void ElevateFrom(const TSplineCurveBase<Dim, CLAMP_DEGREE(Degree-1)>& InCurve) const override;
+	virtual void CreateHodograph(TSplineCurveBase<Dim, CLAMP_DEGREE(Degree-1, 0)>& OutHodograph) const override;
+	virtual void ElevateFrom(const TSplineCurveBase<Dim, CLAMP_DEGREE(Degree-1, 0)>& InCurve) override;
 
 public:
 	void Split(TRationalBezierCurve<Dim, Degree>& OutFirst, TRationalBezierCurve<Dim, Degree>& OutSecond, double T = 0.5);

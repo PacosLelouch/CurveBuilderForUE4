@@ -8,47 +8,38 @@
 #include "CoreMinimal.h"
 
 
-using FVec2 = FVector2D;
-using FVec3 = FVector;
-using FVec4 = FVector4;
-using FMat = FMatrix;
-using FBox2 = FBox2D;
-using FBox3 = FBox;
+using F_Vec2 = FVector2D;
+using F_Vec3 = FVector;
+using F_Vec4 = FVector4;
+using F_Mat = FMatrix;
+using F_Box2 = FBox2D;
+using F_Box3 = FBox;
+using F_Rotator = FRotator;
+using F_Quat = FQuat;
+using F_Transform2 = FTransform2D;
+using F_Transform3 = FTransform;
 
 // Start Vector
 
-#define GENERATED_TEMPLATE_VECTOR_BODY(Dim) \
-	using FVec##Dim::FVec##Dim; \
-	FORCEINLINE TVectorX() : FVec##Dim(EForceInit::ForceInit) {} \
-	FORCEINLINE explicit TVectorX(EForceInit Force) : FVec##Dim(Force) {} \
-	FORCEINLINE TVectorX(const FVec##Dim& TV) : FVec##Dim(TV) {} \
-	FORCEINLINE TVectorX(const TVectorX& TV) : FVec##Dim((const FVec##Dim&)TV) {} \
-	FORCEINLINE TVectorX& operator=(const TVectorX& TV) { (FVec##Dim&)*this = (const FVec##Dim&)TV; return *this; } \
-	FORCEINLINE operator FVec##Dim&(){ return (FVec##Dim&)*this; } \
-	FORCEINLINE operator const FVec##Dim&() const { return (const FVec##Dim&)*this; } \
-	FORCEINLINE operator FVec##Dim() const { return (FVec##Dim)*this; } \
-	FORCEINLINE auto& Component(int32 i){ return *((&X) + i); } \
-	FORCEINLINE auto Component(int32 i) const { return (&X)[i]; } \
-	FORCEINLINE auto& operator[](int32 i){ return (&X)[i]; } \
-	FORCEINLINE auto operator[](int32 i) const { return (&X)[i]; } \
-	FORCEINLINE auto& Last() { return (&X)[Dim - 1]; } \
-	FORCEINLINE auto Last() const { return (&X)[Dim - 1]; } \
-	FORCEINLINE void WeightToOne() \
+#define GENERATED_VECTOR_LIBRARY_FUNCTIONS(Dim) \
+	FORCEINLINE static auto& Last(FType& V) { return V[Dim - 1]; } \
+	FORCEINLINE static auto Last(const FType& V) { return V[Dim - 1]; } \
+	FORCEINLINE static void WeightToOne(FType& V) \
 	{ \
-		if(!FMath::IsNearlyZero(Last())) \
+		if(!FMath::IsNearlyZero(V[Dim - 1])) \
 		{ \
-			double InvWeight = 1. / Last(); \
+			double InvWeight = 1. / V[Dim - 1]; \
 			for(int32 i = 0; i < Dim; ++i) \
 			{ \
-				Component(i) *= InvWeight; \
+				V[i] *= InvWeight; \
 			} \
 		} \
 	} \
-	FORCEINLINE static void SetArray(TVectorX<Dim>* Dst, uint8 Byte, SIZE_T Size) \
-		{ FMemory::Memset(Dst, Byte, Size * sizeof(TVectorX<Dim>)); } \
-	FORCEINLINE static void CopyArray(TVectorX<Dim>* Dst, const TVectorX<Dim>* Src, SIZE_T Size) \
-		{ FMemory::Memcpy(Dst, Src, Size * sizeof(TVectorX<Dim>)); } \
-	FORCEINLINE static double PrincipalCurvature(const TVectorX<Dim>& DP, const TVectorX<Dim>& DDP, int32 Principal) \
+	FORCEINLINE static void SetArray(FType* Dst, uint8 Byte, SIZE_T Size) \
+		{ FMemory::Memset(Dst, Byte, Size * sizeof(FType)); } \
+	FORCEINLINE static void CopyArray(FType* Dst, const FType* Src, SIZE_T Size) \
+		{ FMemory::Memcpy(Dst, Src, Size * sizeof(FType)); } \
+	FORCEINLINE static double PrincipalCurvature(const FType& DP, const FType& DDP, int32 Principal) \
 	{ \
 		double Nu = 0., De = 0.; \
 		int32 i = Principal % Dim; \
@@ -63,7 +54,7 @@ using FBox3 = FBox;
 		return Nu / De;  \
 	} \
 	/** https://www.zhihu.com/question/356547555?sort=created */ \
-	FORCEINLINE static double Curvature(const TVectorX<Dim>& DP, const TVectorX<Dim>& DDP) \
+	FORCEINLINE static double Curvature(const FType& DP, const FType& DDP) \
 	{ \
 		double Nu = 0., De = 0.; \
 		for(int32 i = 0; i < Dim; ++i) \
@@ -80,66 +71,65 @@ using FBox3 = FBox;
 		return Nu / De;  \
 	} 
 
-
-//FORCEINLINE TVectorX& operator=(const TVectorX<Dim-1>& TV) { (FVec##Dim&)*this = (const FVec##Dim&)TV; (&this->X)[Dim - 1] = 1.; return *this; } \
-
-
 template<int32 Dim>
-struct TVectorX;
-
-template <int32 Dim>
-struct TIsPODType<TVectorX<Dim> > { enum { Value = true }; };
+struct TVecLib;
 
 template<>
-struct TVectorX<2> : public FVec2
-{
-	GENERATED_TEMPLATE_VECTOR_BODY(2)
-		FORCEINLINE TVectorX<3> Homogeneous(double Weight = 1.) const;
-};
-template<>
-struct TVectorX<3> : public FVec3
-{
-	GENERATED_TEMPLATE_VECTOR_BODY(3)
-		FORCEINLINE TVectorX<2> NonHomogeneous() const
+struct TVecLib<2> {
+	using FType = F_Vec2;
+	using FTypeHomogeneous = F_Vec3;
+	GENERATED_VECTOR_LIBRARY_FUNCTIONS(2)
+
+	FORCEINLINE static FTypeHomogeneous Homogeneous(const FType& V, double Weight = 1.)
 	{
-		double Weight = Last();
 		if (FMath::IsNearlyZero(Weight)) {
-			return TVectorX<2>(X, Y);
+			return FTypeHomogeneous(V.X, V.Y, 0.);
+		}
+		return FTypeHomogeneous(V.X*Weight, V.Y*Weight, Weight);
+	}
+};
+
+template<>
+struct TVecLib<3> {
+	using FType = F_Vec3;
+	using FTypeHomogeneous = F_Vec4;
+	using FTypeProjection = F_Vec2;
+	GENERATED_VECTOR_LIBRARY_FUNCTIONS(3)
+
+	FORCEINLINE static FTypeHomogeneous Homogeneous(const FType& V, double Weight = 1.)
+	{
+		if (FMath::IsNearlyZero(Weight)) {
+			return FTypeHomogeneous(V.X, V.Y, V.Z, 0.);
+		}
+		return FTypeHomogeneous(V.X*Weight, V.Y*Weight, V.Z*Weight, Weight);
+	}
+
+	FORCEINLINE static FTypeProjection Projection(const FType& V)
+	{
+		double Weight = V[2];
+		if (FMath::IsNearlyZero(Weight)) {
+			return FTypeProjection(V.X, V.Y);
 		}
 		double InvWeight = 1. / Weight;
-		return TVectorX<2>(X*InvWeight, Y*InvWeight);
+		return FTypeProjection(V.X*InvWeight, V.Y*InvWeight);
 	}
-	FORCEINLINE TVectorX<4> Homogeneous(double Weight = 1.) const;
 };
+
 template<>
-struct TVectorX<4> : public FVec4
-{
-	GENERATED_TEMPLATE_VECTOR_BODY(4)
-		FORCEINLINE TVectorX<3> NonHomogeneous() const
+struct TVecLib<4> {
+	using FType = F_Vec4;
+	using FTypeProjection = F_Vec3;
+	GENERATED_VECTOR_LIBRARY_FUNCTIONS(4)
+
+	FORCEINLINE static FTypeProjection Projection(const FType& V)
 	{
-		double Weight = Last();
+		double Weight = V[3];
 		if (FMath::IsNearlyZero(Weight)) {
-			return TVectorX<3>(X, Y, Z);
+			return FTypeProjection(V.X, V.Y, V.Z);
 		}
 		double InvWeight = 1. / Weight;
-		return TVectorX<3>(X*InvWeight, Y*InvWeight, Z*InvWeight);
+		return FTypeProjection(V.X*InvWeight, V.Y*InvWeight, V.Z*InvWeight);
 	}
 };
-
-TVectorX<3> TVectorX<2>::Homogeneous(double Weight) const
-{
-	if (FMath::IsNearlyZero(Weight)) {
-		return TVectorX<3>(X, Y, 0.);
-	}
-	return TVectorX<3>(X*Weight, Y*Weight, Weight);
-}
-
-TVectorX<4> TVectorX<3>::Homogeneous(double Weight) const
-{
-	if (FMath::IsNearlyZero(Weight)) {
-		return TVectorX<4>(X, Y, Z, 0.);
-	}
-	return TVectorX<4>(X*Weight, Y*Weight, Z*Weight, Weight);
-}
 
 // End Vector
