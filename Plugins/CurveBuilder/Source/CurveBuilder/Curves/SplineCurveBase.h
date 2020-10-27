@@ -26,15 +26,19 @@ public:
 	FORCEINLINE TSplineCurveBase(const TVectorX<Dim>* InPoints)
 	{
 		for (int32 i = 0; i <= Degree; ++i) {
-			CtrlPoints[i] = InPoints[i];
-			CtrlPoints[i].Last() = 1.;
+			for (int32 j = 0; j < Dim; ++j) {
+				CtrlPoints[i][j] = InPoints[i][j];
+			}
+			TVecLib<Dim+1>::Last(CtrlPoints[i]) = 1.;
 		}
 	}
 	FORCEINLINE TSplineCurveBase(const TArray<TVectorX<Dim> >& InPoints)
 	{
 		for (int32 i = 0; i <= Degree; ++i) {
-			CtrlPoints[i] = InPoints[i];
-			CtrlPoints[i].Last() = 1.;
+			for (int32 j = 0; j < Dim; ++j) {
+				CtrlPoints[i][j] = InPoints[i][j];
+			}
+			TVecLib<Dim+1>::Last(CtrlPoints[i]) = 1.;
 		}
 	}
 	FORCEINLINE TSplineCurveBase(const TArray<TVectorX<Dim+1>>& InPoints)

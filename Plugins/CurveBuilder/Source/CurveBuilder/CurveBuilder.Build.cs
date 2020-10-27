@@ -34,6 +34,7 @@ public class CurveBuilder : ModuleRules
 			new string[]
 			{
 				"Core",
+				"CGDemoSettings",
                 //"DoubleWorld",
 				// ... add other public dependencies that you statically link with here ...
 			}

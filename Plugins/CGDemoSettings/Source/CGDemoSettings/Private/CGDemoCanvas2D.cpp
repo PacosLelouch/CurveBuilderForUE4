@@ -61,14 +61,23 @@ void ACGDemoCanvas2D::Tick(float DeltaTime)
 
 bool ACGDemoCanvas2D::TraceRay(float& Distance, FVector& HitPoint, const FVector& Pos, const FVector& Dir)
 {
-	if (Dir.X <= 0) {
+	auto InvWeightWithCheck = [](auto W) { return (FMath::IsNearlyZero(W) ? 1 : 1 / W); };
+	const FTransform& CanvasToWorld = ActorToWorld();
+	const FTransform& WorldToCanvas = CanvasToWorld.Inverse();
+	FVector4 LocalPos4 = WorldToCanvas.TransformFVector4(FVector4(Pos, 1));
+	FVector4 LocalDir4 = WorldToCanvas.TransformFVector4(FVector4(Dir, 0));
+	FVector LocalPos = LocalPos4 * InvWeightWithCheck(LocalPos4.W);
+	FVector LocalDir = LocalDir4 * InvWeightWithCheck(LocalDir4.W);
+	if (LocalDir.X <= 0) {
 		return false;
 	}
-	Distance = (CanvasPlaneX - Pos.X) / Dir.X;
+	Distance = (CanvasPlaneX - LocalPos.X) / LocalDir.X;
 	if (Distance <= 0) {
 		return false;
 	}
-	HitPoint = Pos + Dir * Distance;
+	const FVector& LocalHitPoint = LocalPos + LocalDir * Distance;
+	const FVector4& HitPoint4 = CanvasToWorld.TransformFVector4(FVector4(LocalHitPoint, 1));
+	HitPoint = HitPoint4 * InvWeightWithCheck(HitPoint4.W);
 	FVector2D HitPoint2D(HitPoint.Y, HitPoint.Z);
 	if (CanvasBoxYZ.Min.X > HitPoint2D.X ||
 		CanvasBoxYZ.Min.Y > HitPoint2D.Y ||
