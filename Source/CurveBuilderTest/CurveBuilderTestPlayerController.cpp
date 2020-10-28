@@ -35,12 +35,12 @@ void ACurveBuilderTestPlayerController::BindOnKey1Released()
 
 void ACurveBuilderTestPlayerController::BindOnKey2Released()
 {
-	OnCtrlAndKey1Released.AddDynamic(this, &ACurveBuilderTestPlayerController::ChangeToBezierCurve);
+	OnCtrlAndKey2Released.AddDynamic(this, &ACurveBuilderTestPlayerController::ChangeToBezierCurve);
 }
 
 void ACurveBuilderTestPlayerController::BindOnKey3Released()
 {
-	OnCtrlAndKey1Released.AddDynamic(this, &ACurveBuilderTestPlayerController::ChangeToRationalBezierCurve);
+	OnCtrlAndKey3Released.AddDynamic(this, &ACurveBuilderTestPlayerController::ChangeToRationalBezierCurve);
 }
 
 void ACurveBuilderTestPlayerController::BindOnKey4Released()
@@ -50,7 +50,7 @@ void ACurveBuilderTestPlayerController::BindOnKey4Released()
 
 void ACurveBuilderTestPlayerController::BindOnKey5Released()
 {
-	OnCtrlAndKey1Released.AddDynamic(this, &ACurveBuilderTestPlayerController::ChangeToAllCurves);
+	OnCtrlAndKey5Released.AddDynamic(this, &ACurveBuilderTestPlayerController::ChangeToAllCurves);
 }
 
 void ACurveBuilderTestPlayerController::BindOnKey0Released()
@@ -97,9 +97,9 @@ void ACurveBuilderTestPlayerController::AddControlPoint(FKey Key, FVector2D Mous
 		return;
 	}
 	Canvas2D->DisplayPoints[0].Array.Add(HitPoint);
-	ControlPoints.Add(Canvas2D->FromCanvasPoint(HitPoint));
+	ControlPoints.Add(FVector(Canvas2D->FromCanvasPoint(HitPoint) * ParamsInput.CurrentWeight, ParamsInput.CurrentWeight));
 	if ((ControlPoints.Num() & 3) == 0) { // Num % 4 == 0
-		FVector2D* Data = ControlPoints.GetData() + (ControlPoints.Num() - 4);
+		FVector* Data = ControlPoints.GetData() + (ControlPoints.Num() - 4);
 		Curves.Add(MakeTuple(ECurveType::Polynomial, TSharedPtr<FPlanarCurve3>(new FPlanarPolynomialCurve3(Data))));
 		Curves.Add(MakeTuple(ECurveType::Bezier, TSharedPtr<FPlanarCurve3>(new FPlanarBezierCurve3(Data))));
 		Curves.Add(MakeTuple(ECurveType::RationalBezier, TSharedPtr<FPlanarCurve3>(new FPlanarRationalBezierCurve3(Data))));

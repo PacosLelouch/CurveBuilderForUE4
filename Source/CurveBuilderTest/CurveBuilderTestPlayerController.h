@@ -54,7 +54,7 @@ public:
 	void OnParamsInputChanged();
 
 public:
-	double SamplePointDT = 1;
+	double SamplePointDT = 1. / 256.;
 
 	int32 MaxSamplePointsNum = 0;
 
@@ -65,7 +65,7 @@ public:
 
 	TArray<TPair<ECurveType, TSharedPtr<FPlanarCurve3> > > Curves;
 
-	TArray<FVector2D> ControlPoints;
+	TArray<FVector> ControlPoints;
 
 public:
 	UPROPERTY(BlueprintReadWrite)
