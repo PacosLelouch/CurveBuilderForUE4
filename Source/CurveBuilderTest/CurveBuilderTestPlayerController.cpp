@@ -15,12 +15,6 @@ void ACurveBuilderTestPlayerController::BeginPlay()
 {
 	Super::BeginPlay();
 	MaxSamplePointsNum = FMath::CeilToInt((Canvas2D->CanvasBoxYZ.Max.Y - Canvas2D->CanvasBoxYZ.Min.Y) / SamplePointDT) + 1;
-	//for (FOccluderVertexArray& VArray : Canvas2D->DisplayPoints) {
-	//	VArray.Reserve(MaxSamplePointsNum);
-	//}
-	//for (FOccluderVertexArray& VArray : Canvas2D->DisplayLines) {
-	//	VArray.Reserve(MaxSamplePointsNum);
-	//}
 }
 
 void ACurveBuilderTestPlayerController::BindOnRightMouseButtonReleased()
@@ -69,7 +63,7 @@ void ACurveBuilderTestPlayerController::ClearCanvas()
 	UE_LOG(LogTemp, Warning, TEXT("Clear Canvas"));
 	Canvas2D->DisplayPoints[0].Array.Empty(MaxSamplePointsNum);
 	for (int32 Layer = 0; Layer < Curves.Num(); ++Layer) {
-		const TPair<ECurveType, TSharedPtr<FPlanarCurve3> >& CurvePair = Curves[Layer];
+		const TPair<ECurveType, TSharedPtr<FSpatialCurve3> >& CurvePair = Curves[Layer];
 		Canvas2D->DisplayLines[Layer].Array.Empty(MaxSamplePointsNum);
 	}
 	Canvas2D->ClearDrawing();
@@ -100,9 +94,9 @@ void ACurveBuilderTestPlayerController::AddControlPoint(FKey Key, FVector2D Mous
 	ControlPoints.Add(FVector(Canvas2D->FromCanvasPoint(HitPoint) * ParamsInput.CurrentWeight, ParamsInput.CurrentWeight));
 	if ((ControlPoints.Num() & 3) == 0) { // Num % 4 == 0
 		FVector* Data = ControlPoints.GetData() + (ControlPoints.Num() - 4);
-		Curves.Add(MakeTuple(ECurveType::Polynomial, TSharedPtr<FPlanarCurve3>(new FPlanarPolynomialCurve3(Data))));
-		Curves.Add(MakeTuple(ECurveType::Bezier, TSharedPtr<FPlanarCurve3>(new FPlanarBezierCurve3(Data))));
-		Curves.Add(MakeTuple(ECurveType::RationalBezier, TSharedPtr<FPlanarCurve3>(new FPlanarRationalBezierCurve3(Data))));
+		Curves.Add(MakeTuple(ECurveType::Polynomial, TSharedPtr<FSpatialCurve3>(new FSpatialPolynomialCurve3(Data))));
+		Curves.Add(MakeTuple(ECurveType::Bezier, TSharedPtr<FSpatialCurve3>(new FSpatialBezierCurve3(Data))));
+		Curves.Add(MakeTuple(ECurveType::RationalBezier, TSharedPtr<FSpatialCurve3>(new FSpatialRationalBezierCurve3(Data))));
 	}
 	ResampleCurve();
 }
@@ -167,11 +161,11 @@ void ACurveBuilderTestPlayerController::ResampleCurve()
 	}
 
 	for (int32 Layer = 0; Layer < Curves.Num(); ++Layer) {
-		TPair<ECurveType, TSharedPtr<FPlanarCurve3> >& CurvePair = Curves[Layer];
+		TPair<ECurveType, TSharedPtr<FSpatialCurve3> >& CurvePair = Curves[Layer];
 		if (!EnabledTypes.Contains(CurvePair.Key)) {
 			continue;
 		}
-		TSharedPtr<FPlanarCurve3>& CurvePtr = CurvePair.Value;
+		TSharedPtr<FSpatialCurve3>& CurvePtr = CurvePair.Value;
 		TArray<TTuple<double, double> > SampleResults;
 		for (double T = 0.; T <= 1.; T += SamplePointDT) {
 			auto Pos = CurvePtr->GetPosition(T);

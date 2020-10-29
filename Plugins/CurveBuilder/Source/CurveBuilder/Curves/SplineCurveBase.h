@@ -21,7 +21,10 @@ public:
 	FORCEINLINE TSplineCurveBase(EForceInit Force = EForceInit::ForceInit) 
 	{
 		TVecLib<Dim+1>::SetArray(CtrlPoints, 0, Degree + 1);
-		//FMemory::Memset(CtrlPoints, 0, (Degree + 1) * sizeof(TVectorX<Dim+1>));
+	}
+	FORCEINLINE TSplineCurveBase(const TSplineCurveBase<Dim, Degree>& Curve)
+	{
+		TVecLib<Dim+1>::CopyArray(CtrlPoints, Curve.CtrlPoints, Degree + 1);
 	}
 	FORCEINLINE TSplineCurveBase(const TVectorX<Dim>* InPoints)
 	{
@@ -60,6 +63,17 @@ public:
 			TVecLib<Dim+1>::SetArray(CtrlPoints, 0, Degree + 1);
 		}
 	}
+	FORCEINLINE TSplineCurveBase<Dim, Degree>& operator=(const TSplineCurveBase<Dim, Degree>& Curve)
+	{
+		TVecLib<Dim+1>::CopyArray(CtrlPoints, Curve.CtrlPoints, Degree + 1);
+		return *this;
+	}
+
+	FORCEINLINE void Reverse()
+	{
+		Algo::Reverse(CtrlPoints, Degree + 1);
+	}
+
 	FORCEINLINE int32 CurveDim() const { return Dim; }
 	FORCEINLINE int32 CurveDimHomogeneous() const { return Dim + 1; }
 	FORCEINLINE int32 CurveDegree() const { return Degree; }

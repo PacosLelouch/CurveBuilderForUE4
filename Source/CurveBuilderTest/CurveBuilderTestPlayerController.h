@@ -8,10 +8,10 @@
 #include "CurveCollection.h"
 #include "CurveBuilderTestPlayerController.generated.h"
 
-using FPlanarCurve3 = typename TSplineCurveBase<2, 3>;
-using FPlanarPolynomialCurve3 = typename TPolynomialCurve<2, 3>;
-using FPlanarBezierCurve3 = typename TBezierCurve<2, 3>;
-using FPlanarRationalBezierCurve3 = typename TRationalBezierCurve<2, 3>;
+using FSpatialCurve3 = typename TSplineCurveBase<3, 3>;
+using FSpatialPolynomialCurve3 = typename TPolynomialCurve<3, 3>;
+using FSpatialBezierCurve3 = typename TBezierCurve<3, 3>;
+using FSpatialRationalBezierCurve3 = typename TRationalBezierCurve<3, 3>;
 
 USTRUCT(BlueprintType)
 struct CURVEBUILDERTEST_API FCurveBuilderTestParamsInput
@@ -63,7 +63,7 @@ public:
 	UPROPERTY(BlueprintReadOnly)
 	ECurveType CurveType = ECurveType::Bezier;
 
-	TArray<TPair<ECurveType, TSharedPtr<FPlanarCurve3> > > Curves;
+	TArray<TPair<ECurveType, TSharedPtr<FSpatialCurve3> > > Curves;
 
 	TArray<FVector> ControlPoints;
 

@@ -12,11 +12,15 @@ public class CurveBuilder : ModuleRules
 		//string DoubleWorldDir = Path.Combine(ModuleDirectory, "../DoubleWorld/");
 		string CurvesDir = Path.Combine(ModuleDirectory, "Curves");
 		string UtilsDir = Path.Combine(ModuleDirectory, "Utils");
+		string BezierOpetationsDir = Path.Combine(ModuleDirectory, "BezierOpetations");
+		string ThirdPartyDir = Path.Combine(ModuleDirectory, "ThirdParty");
 
 		PublicIncludePaths.AddRange(
 			new string[] {
-                UtilsDir,
-                CurvesDir,
+				UtilsDir,
+				CurvesDir,
+				BezierOpetationsDir,
+				ThirdPartyDir,
 				//DoubleWorldDir,
 				// ... add public include paths required here ...
 			}
@@ -34,8 +38,7 @@ public class CurveBuilder : ModuleRules
 			new string[]
 			{
 				"Core",
-				"CGDemoSettings",
-                //"DoubleWorld",
+				//"DoubleWorld",
 				// ... add other public dependencies that you statically link with here ...
 			}
 			);
