@@ -7,6 +7,7 @@
 #include "UObject/ConstructorHelpers.h"
 #include "CurveOperations/BezierOperations.h"
 #include "Logging/LogMacros.h"
+#include "Engine.h"
 
 DECLARE_LOG_CATEGORY_EXTERN(LogCtrl, Warning, All);
 
@@ -94,10 +95,14 @@ void ABezierConcatPlayerController::AddControlPoint(const FVector& HitPoint)
 			Canvas2D->DisplayPoints[Layer].Array.Add(DrawPoint);
 			Canvas2D->DisplayPolygons[Layer].Array.Add(DrawPoint);
 		}
-		UE_LOG(LogCtrl, Warning, TEXT("Tangent:\n [(%s), (%s)]"), 
+		FString TangentStr = FString::Printf(TEXT("Tangent:\n [(%s), (%s)]"),
 			*LastCurve.GetTangent(1).ToString(), *NewCurve.GetTangent(0).ToString());
-		UE_LOG(LogCtrl, Warning, TEXT("Curvature:\n [(%.3lf), (%.3lf)]"), 
+		FString CurvatureStr = FString::Printf(TEXT("Curvature:\n [(%.3lf), (%.3lf)]"),
 			LastCurve.GetPrincipalCurvature(1, 0), NewCurve.GetPrincipalCurvature(0, 0));
+		GEngine->AddOnScreenDebugMessage(0, 5.0f, FColor(0, 128, 255), TangentStr);
+		GEngine->AddOnScreenDebugMessage(1, 5.0f, FColor(0, 128, 255), CurvatureStr);
+		UE_LOG(LogCtrl, Warning, TEXT("%s"), *TangentStr);
+		UE_LOG(LogCtrl, Warning, TEXT("%s"), *CurvatureStr);
 	}
 	if (ConcatType == EConcatType::ToCurve && (ControlPoints.Num() & 7) == 0) {
 		const FSpatialBezierCurve3& LastFirst = *(FSpatialBezierCurve3*)Curves.Last(1).Get<1>().Get();
@@ -113,16 +118,22 @@ void ABezierConcatPlayerController::AddControlPoint(const FVector& HitPoint)
 			}
 			Curves.Emplace(MakeTuple(ECurveType::Bezier, TSharedPtr<FSpatialCurve3>(new FSpatialBezierCurve3(NewCurve))));
 		}
-		UE_LOG(LogCtrl, Warning, TEXT("Tangent:\n [(%s), (%s)]\n [(%s), (%s)]\n [(%s), (%s)]\n [(%s), (%s)] "),
-			*LastFirst.GetTangent(1).ToString(), *NewCurves[0].GetTangent(0).ToString(),
-			*NewCurves[0].GetTangent(1).ToString(), *NewCurves[1].GetTangent(0).ToString(),
-			*NewCurves[1].GetTangent(1).ToString(), *NewCurves[2].GetTangent(0).ToString(),
-			*NewCurves[2].GetTangent(1).ToString(), *LastSecond.GetTangent(0).ToString());
-		UE_LOG(LogCtrl, Warning, TEXT("Curvature:\n [(%.3lf), (%.3lf)]\n [(%.3lf), (%.3lf)]\n [(%.3lf), (%.3lf)]\n [(%.3lf), (%.3lf)]"),
-			LastFirst.GetPrincipalCurvature(1, 0), NewCurves[0].GetPrincipalCurvature(0, 0), 
-			NewCurves[0].GetPrincipalCurvature(1, 0), NewCurves[1].GetPrincipalCurvature(0, 0),
-			NewCurves[1].GetPrincipalCurvature(1, 0), NewCurves[2].GetPrincipalCurvature(0, 0),
-			NewCurves[2].GetPrincipalCurvature(1, 0), LastSecond.GetPrincipalCurvature(0, 0));
+		FString TangentStr = FString::Printf(TEXT("Tangent:\n [(%s), (%s)]\n [(%s), (%s)]\n [(%s), (%s)]\n [(%s), (%s)] "),
+				*LastFirst.GetTangent(1).ToString(), *NewCurves[0].GetTangent(0).ToString(),
+				*NewCurves[0].GetTangent(1).ToString(), *NewCurves[1].GetTangent(0).ToString(),
+				*NewCurves[1].GetTangent(1).ToString(), *NewCurves[2].GetTangent(0).ToString(),
+				*NewCurves[2].GetTangent(1).ToString(), *LastSecond.GetTangent(0).ToString()
+			);
+		FString CurvatureStr = FString::Printf(TEXT("Curvature:\n [(%.3lf), (%.3lf)]\n [(%.3lf), (%.3lf)]\n [(%.3lf), (%.3lf)]\n [(%.3lf), (%.3lf)]"),
+				LastFirst.GetPrincipalCurvature(1, 0), NewCurves[0].GetPrincipalCurvature(0, 0),
+				NewCurves[0].GetPrincipalCurvature(1, 0), NewCurves[1].GetPrincipalCurvature(0, 0),
+				NewCurves[1].GetPrincipalCurvature(1, 0), NewCurves[2].GetPrincipalCurvature(0, 0),
+				NewCurves[2].GetPrincipalCurvature(1, 0), LastSecond.GetPrincipalCurvature(0, 0)
+			);
+		GEngine->AddOnScreenDebugMessage(0, 5.0f, FColor(0, 128, 255), TangentStr);
+		GEngine->AddOnScreenDebugMessage(1, 5.0f, FColor(0, 128, 255), CurvatureStr);
+		UE_LOG(LogCtrl, Warning, TEXT("%s"), *TangentStr);
+		UE_LOG(LogCtrl, Warning, TEXT("%s"), *CurvatureStr);
 	}
 	ResampleCurve();
 }
