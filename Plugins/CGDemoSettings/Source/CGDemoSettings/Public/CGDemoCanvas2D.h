@@ -94,7 +94,9 @@ public:
 		FLayerConfig::DefaultLayerOffset * (2 * FLayerConfig::DefaultMaxLayerCount + 1),
 		FLayerConfig::DefaultLayerOffset,
 		FLayerConfig::DefaultMaxLayerCount,
-		{ FLinearColor::White }
+		{ 
+			FLinearColor::White,
+		}
 	};
 
 	UPROPERTY(EditAnywhere, Category = "Canvas2D")
@@ -117,7 +119,10 @@ public:
 		FLayerConfig::DefaultLayerOffset,
 		FLayerConfig::DefaultLayerOffset,
 		FLayerConfig::DefaultMaxLayerCount,
-		{ FLinearColor(0.5, 0.5, 0.5, 0.5) }
+		{ 
+			FLinearColor(0.5, 0.5, 0.5, 0.5),
+			FLinearColor(1.0, 1.0, 0.5, 0.5),
+		}
 	};
 
 	UPROPERTY(EditAnywhere, Category = "Canvas2D")

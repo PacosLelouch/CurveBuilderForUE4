@@ -51,12 +51,12 @@ public:
 	virtual void BindOnLeftCtrlReleased();
 	virtual void BindOnRightCtrlReleased();
 	virtual void BindOnRightMouseButtonReleased();
-	virtual void BindOnKey1Released();
-	virtual void BindOnKey2Released();
-	virtual void BindOnKey3Released();
-	virtual void BindOnKey4Released();
-	virtual void BindOnKey5Released();
-	virtual void BindOnKey0Released();
+	virtual void BindOnCtrlAndKey1Released();
+	virtual void BindOnCtrlAndKey2Released();
+	virtual void BindOnCtrlAndKey3Released();
+	virtual void BindOnCtrlAndKey4Released();
+	virtual void BindOnCtrlAndKey5Released();
+	virtual void BindOnCtrlAndKey0Released();
 public:
 	bool bPressedCtrl = false;
 

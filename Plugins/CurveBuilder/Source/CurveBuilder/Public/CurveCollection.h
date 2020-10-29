@@ -3,9 +3,9 @@
 
 #pragma once
 
-#include "PolynomialCurve.h"
-#include "BezierCurve.h"
-#include "RationalBezierCurve.h"
+#include "Curves/PolynomialCurve.h"
+#include "Curves/BezierCurve.h"
+#include "Curves/RationalBezierCurve.h"
 #include "CoreMinimal.h"
 #include "CurveCollection.generated.h"
 

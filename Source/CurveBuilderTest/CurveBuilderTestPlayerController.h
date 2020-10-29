@@ -36,12 +36,12 @@ public:
 	virtual void BeginPlay() override;
 
 	virtual void BindOnRightMouseButtonReleased() override;
-	virtual void BindOnKey1Released() override;
-	virtual void BindOnKey2Released() override;
-	virtual void BindOnKey3Released() override;
-	virtual void BindOnKey4Released() override;
-	virtual void BindOnKey5Released() override;
-	virtual void BindOnKey0Released() override;
+	virtual void BindOnCtrlAndKey1Released() override;
+	virtual void BindOnCtrlAndKey2Released() override;
+	virtual void BindOnCtrlAndKey3Released() override;
+	virtual void BindOnCtrlAndKey4Released() override;
+	virtual void BindOnCtrlAndKey5Released() override;
+	virtual void BindOnCtrlAndKey0Released() override;
 
 public:
 	UFUNCTION(BlueprintCallable)
@@ -71,9 +71,13 @@ public:
 	UPROPERTY(BlueprintReadWrite)
 	FCurveBuilderTestParamsInput ParamsInput;
 
+protected:
+	virtual void AddControlPoint(const FVector& HitPoint);
+
+	void ResampleCurve();
 private:
 	UFUNCTION()
-	void AddControlPoint(FKey Key, FVector2D MouseScreenPos, EInputEvent InputEvent, APlayerController* Ctrl);
+	virtual void AddControlPointEvent(FKey Key, FVector2D MouseScreenPos, EInputEvent InputEvent, APlayerController* Ctrl);
 
 	UFUNCTION()
 	void ChangeToPolynomialCurve(FKey Key, EInputEvent Event, APlayerController* Ctrl);
@@ -89,6 +93,4 @@ private:
 
 	UFUNCTION()
 	void ClearCanvasEvent(FKey Key, EInputEvent Event, APlayerController* Ctrl);
-
-	void ResampleCurve();
 };

@@ -170,10 +170,10 @@ void ACGDemoCanvas2D::DrawPoints(int32 Layer)
 
 void ACGDemoCanvas2D::DrawLines(int32 Layer)
 {
+	Layer = Layer % LineLayerConfig.MaxLayerCount;
 	if (DisplayLines[Layer].Array.Num() < 2) {
 		return;
 	}
-	Layer = Layer % LineLayerConfig.MaxLayerCount;
 	const TArray<FLinearColor>& LineColors = LineLayerConfig.LayerColors;
 	DrawLinesPMC->SetMaterial(Layer, VertexColorMaterial);
 	float LineExtent = LineSize * 0.5;
@@ -221,17 +221,48 @@ void ACGDemoCanvas2D::DrawLines(int32 Layer)
 
 void ACGDemoCanvas2D::DrawPolygons(int32 Layer)
 {
-	if (DisplayPolygons.Num() < 3) {
+	Layer = Layer % PolygonLayerConfig.MaxLayerCount;
+	if (DisplayPolygons[Layer].Array.Num() < 3) {
 		return;
 	}
 	DrawPolygonsPMC->SetMaterial(Layer, VertexColorMaterial);
-	Layer = Layer % PolygonLayerConfig.MaxLayerCount;
 	const TArray<FLinearColor>& PolygonColors = PolygonLayerConfig.LayerColors;
 	if (DisplayLines[Layer].Array.Num() < 2) {
 		return;
 	}
 	float PolygonOffset = PolygonLayerConfig.StartLayerOffset + PolygonLayerConfig.LayerOffsetStep * Layer;
-	// Not implemented.
+
+	FProcMeshSection Section;
+	Section.bEnableCollision = false;
+	Section.bSectionVisible = true;
+	int32 FanNum = DisplayPolygons[Layer].Array.Num() - 2;
+	Section.ProcVertexBuffer.SetNum(DisplayPolygons[Layer].Array.Num());
+	Section.ProcIndexBuffer.SetNum(FanNum * 3);
+	for (int32 i = 0; i < DisplayPolygons[Layer].Array.Num(); ++i) {
+		Section.ProcVertexBuffer[i].Position = DisplayPolygons[Layer].Array[i] + Normal * PolygonOffset;
+		Section.SectionLocalBox += Section.ProcVertexBuffer[i].Position;
+	}
+	for (int32 i = 0; i < FanNum; ++i) {
+		int32 I0 = 0;
+		int32 I1 = i + 1;
+		int32 I2 = i + 2;
+
+		int32 StartI = i * 3;
+
+		Section.ProcIndexBuffer[StartI] = I0;
+		Section.ProcIndexBuffer[StartI + 1] = I1;
+		Section.ProcIndexBuffer[StartI + 2] = I2;
+		Section.ProcIndexBuffer[StartI] = I0;
+		Section.ProcIndexBuffer[StartI + 1] = I2;
+		Section.ProcIndexBuffer[StartI + 2] = I1;
+	}
+	for (int32 i = 0; i < Section.ProcVertexBuffer.Num(); ++i) {
+		Section.ProcVertexBuffer[i].Normal = Normal;
+		Section.ProcVertexBuffer[i].Tangent = { Tangent, false };
+		Section.ProcVertexBuffer[i].Color = (Layer < PolygonColors.Num() ? PolygonColors[Layer] : PolygonColors.Last()).ToFColor(false);
+	}
+
+	DrawPolygonsPMC->SetProcMeshSection(Layer, Section);
 }
 
 void ACGDemoCanvas2D::ClearDrawing()

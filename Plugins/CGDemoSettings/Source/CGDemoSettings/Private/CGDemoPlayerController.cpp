@@ -40,12 +40,12 @@ void ACGDemoPlayerController::BeginPlay()
 	BindOnLeftCtrlReleased();
 	BindOnRightCtrlReleased();
 
-	BindOnKey1Released();
-	BindOnKey2Released();
-	BindOnKey3Released();
-	BindOnKey4Released();
-	BindOnKey5Released();
-	BindOnKey0Released();
+	BindOnCtrlAndKey1Released();
+	BindOnCtrlAndKey2Released();
+	BindOnCtrlAndKey3Released();
+	BindOnCtrlAndKey4Released();
+	BindOnCtrlAndKey5Released();
+	BindOnCtrlAndKey0Released();
 }
 
 void ACGDemoPlayerController::PressLeftCtrl()
@@ -153,28 +153,28 @@ void ACGDemoPlayerController::BindOnRightMouseButtonReleased()
 	OnRightMouseButtonReleased.AddDynamic(this, &ACGDemoPlayerController::TestRightMouseButton);
 }
 
-void ACGDemoPlayerController::BindOnKey1Released()
+void ACGDemoPlayerController::BindOnCtrlAndKey1Released()
 {
 	OnCtrlAndKey1Released.AddDynamic(this, &ACGDemoPlayerController::TestKey1Button);
 }
 
-void ACGDemoPlayerController::BindOnKey2Released()
+void ACGDemoPlayerController::BindOnCtrlAndKey2Released()
 {
 }
 
-void ACGDemoPlayerController::BindOnKey3Released()
+void ACGDemoPlayerController::BindOnCtrlAndKey3Released()
 {
 }
 
-void ACGDemoPlayerController::BindOnKey4Released()
+void ACGDemoPlayerController::BindOnCtrlAndKey4Released()
 {
 }
 
-void ACGDemoPlayerController::BindOnKey5Released()
+void ACGDemoPlayerController::BindOnCtrlAndKey5Released()
 {
 }
 
-void ACGDemoPlayerController::BindOnKey0Released()
+void ACGDemoPlayerController::BindOnCtrlAndKey0Released()
 {
 }
 

@@ -4,8 +4,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "LinearAlgebraUtils.h"
-#include "NumericalCalculationUtils.h"
+#include "Utils/LinearAlgebraUtils.h"
+#include "Utils/NumericalCalculationUtils.h"
 #include "Containers/StaticArray.h"
 #include "HAL/UnrealMemory.h"
 
@@ -74,10 +74,10 @@ public:
 		Algo::Reverse(CtrlPoints, Degree + 1);
 	}
 
-	FORCEINLINE int32 CurveDim() const { return Dim; }
-	FORCEINLINE int32 CurveDimHomogeneous() const { return Dim + 1; }
-	FORCEINLINE int32 CurveDegree() const { return Degree; }
-	FORCEINLINE int32 CtrlPointsNum() const { return Degree + 1; }
+	FORCEINLINE static constexpr int32 CurveDim() { return Dim; }
+	FORCEINLINE static constexpr int32 CurveDimHomogeneous() { return Dim + 1; }
+	FORCEINLINE static constexpr int32 CurveDegree() { return Degree; }
+	FORCEINLINE static constexpr int32 CtrlPointsNum() { return Degree + 1; }
 
 	FORCEINLINE F_Box2 GetBox(const F_Mat& ProjectMatrix) const
 	{
@@ -107,7 +107,7 @@ public:
 		}
 		TVecLib<Dim+1>::Last(CtrlPoints[i]) = Weight;
 	}
-	FORCEINLINE TVectorX<Dim> GetPoint(int32 i) const { return TVector<Dim+1>::Projection(CtrlPoints[i]); }
+	FORCEINLINE TVectorX<Dim> GetPoint(int32 i) const { return TVecLib<Dim+1>::Projection(CtrlPoints[i]); }
 	FORCEINLINE void SetPointHomogeneous(int32 i, const TVectorX<Dim+1>& P)
 	{
 		CtrlPoints[i] = P;

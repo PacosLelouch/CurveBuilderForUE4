@@ -6,9 +6,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/GameModeBase.h"
 #include "CGDemoGameModeBase.h"
-#include "PolynomialCurve.h"
-#include "BezierCurve.h"
-#include "RationalBezierCurve.h"
+#include "CurveCollection.h"
 #include "CurveBuilderTestGameModeBase.generated.h"
 
 /**

@@ -10,16 +10,12 @@ public class CurveBuilder : ModuleRules
 		PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
 
 		//string DoubleWorldDir = Path.Combine(ModuleDirectory, "../DoubleWorld/");
-		string CurvesDir = Path.Combine(ModuleDirectory, "Curves");
-		string UtilsDir = Path.Combine(ModuleDirectory, "Utils");
-		string BezierOpetationsDir = Path.Combine(ModuleDirectory, "BezierOpetations");
+		string BaseDir = Path.Combine(Path.Combine(ModuleDirectory, "Source"), ModuleDirectory);
 		string ThirdPartyDir = Path.Combine(ModuleDirectory, "ThirdParty");
 
 		PublicIncludePaths.AddRange(
 			new string[] {
-				UtilsDir,
-				CurvesDir,
-				BezierOpetationsDir,
+				BaseDir,
 				ThirdPartyDir,
 				//DoubleWorldDir,
 				// ... add public include paths required here ...
