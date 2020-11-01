@@ -20,12 +20,14 @@ ASplineTestPlayerController::ASplineTestPlayerController(const FObjectInitialize
 void ASplineTestPlayerController::BeginPlay()
 {
 	Super::BeginPlay();
-	CurveType = ECurveType::Bezier;
+	MaxSamplePointsNum = FMath::CeilToInt((Canvas2D->CanvasBoxYZ.Max.Y - Canvas2D->CanvasBoxYZ.Min.Y) / SamplePointDT) + 1;
+	Splines.Empty();
+	Splines.AddDefaulted();
 }
 
 void ASplineTestPlayerController::BindOnRightMouseButtonReleased()
 {
-	Super::BindOnRightMouseButtonReleased();
+	OnRightMouseButtonReleased.AddDynamic(this, &ASplineTestPlayerController::AddControlPointEvent);
 }
 
 void ASplineTestPlayerController::BindOnCtrlAndKey1Released()
@@ -61,7 +63,7 @@ void ASplineTestPlayerController::BindOnCtrlAndKey0Released()
 void ASplineTestPlayerController::BindOnEnterReleased()
 {
 	Super::BindOnEnterReleased();
-	//TODO: Add a new spline.
+	Splines.AddDefaulted();
 }
 
 void ASplineTestPlayerController::ChangeConcatType(ESplineConcatType Type)
@@ -70,18 +72,26 @@ void ASplineTestPlayerController::ChangeConcatType(ESplineConcatType Type)
 	ClearCanvas();
 }
 
+void ASplineTestPlayerController::ClearCanvas()
+{
+	ClearCanvasImpl();
+}
+
+void ASplineTestPlayerController::OnParamsInputChanged()
+{
+}
+
 void ASplineTestPlayerController::AddControlPoint(const FVector& HitPoint)
 {
 	auto HitPointToControlPoint = [this](const FVector& P) -> FVector {
-		return FVector(Canvas2D->FromCanvasPoint(P) * ParamsInput.CurrentWeight, ParamsInput.CurrentWeight);
+		static constexpr double Weight = 1.;
+		return FVector(Canvas2D->FromCanvasPoint(P) * Weight, Weight);
 	};
-	auto ControlPointToHitPoint = [this](const FVector& P) -> FVector {
-		return Canvas2D->ToCanvasPoint(TVecLib<3>::Projection(P));
-	};
-	Canvas2D->DisplayPoints[Curves.Num()].Array.Add(HitPoint);
-	Canvas2D->DisplayPolygons[Curves.Num()].Array.Add(HitPoint);
+	Canvas2D->DisplayPoints[Splines.Num() - 1].Array.Add(HitPoint);
 	FVector EndPoint = HitPointToControlPoint(HitPoint);
 	ControlPoints.Add(EndPoint);
+	Splines.Last().AddPointAtLast(EndPoint);
+
 	//if ((ConcatType == ESplineConcatType::ToPoint && ControlPoints.Num() == 4) ||
 	//	(ConcatType == ESplineConcatType::ToCurve && (ControlPoints.Num() & 3) == 0)) { // Num % 4 == 0
 	//	FVector* Data = ControlPoints.GetData() + (ControlPoints.Num() - 4);
@@ -141,6 +151,69 @@ void ASplineTestPlayerController::AddControlPoint(const FVector& HitPoint)
 	//	UE_LOG(LogSplineCtrl, Warning, TEXT("%s"), *CurvatureStr);
 	//}
 	ResampleCurve();
+}
+
+void ASplineTestPlayerController::ClearCanvasImpl()
+{
+	UE_LOG(LogTemp, Warning, TEXT("Clear Canvas"));
+	for (int32 Layer = 0; Layer < Canvas2D->DisplayPoints.Num(); ++Layer) {
+		Canvas2D->DisplayPoints[Layer].Array.Empty(MaxSamplePointsNum);
+	}
+	for (int32 Layer = 0; Layer < Canvas2D->DisplayLines.Num(); ++Layer) {
+		Canvas2D->DisplayLines[Layer].Array.Empty(MaxSamplePointsNum);
+	}
+	for (int32 Layer = 0; Layer < Canvas2D->DisplayPolygons.Num(); ++Layer) {
+		Canvas2D->DisplayPolygons[Layer].Array.Empty(MaxSamplePointsNum);
+	}
+	Canvas2D->ClearDrawing();
+	ControlPoints.Empty(0);
+	Splines.Empty(0);
+	Splines.AddDefaulted();
+}
+
+void ASplineTestPlayerController::ResampleCurve()
+{
+	UE_LOG(LogSplineCtrl, Warning, TEXT("Splines Num = %d, CtrlPoints Num = %d"),
+		Splines.Num(), ControlPoints.Num());
+	for (int32 i = 0; i < Splines.Num(); ++i) {
+		UE_LOG(LogSplineCtrl, Warning, TEXT("Splines[%d] Num = %d"),
+			i, Splines[i].GetCtrlPointNum());
+		Canvas2D->DrawPoints(i);
+
+		TArray<FVector4> SpCtrlPoints; TArray<double> SpParams;
+		Splines[i].GetOpenFormPointsAndParams(SpCtrlPoints, SpParams);
+		for (int32 j = 0; j < SpCtrlPoints.Num(); ++j) {
+			UE_LOG(LogSplineCtrl, Warning, TEXT("Splines[%d].Points[%d] = <%s, %.6lf>"),
+				i, j, *SpCtrlPoints[j].ToString(), SpParams[j]);
+		}
+
+		if (Splines[i].GetCtrlPointNum() < 2) {
+			continue;
+		}
+		const auto& ParamRange = Splines[i].GetParamRange();
+		for (double T = ParamRange.Get<0>(); T <= ParamRange.Get<1>(); T += SamplePointDT) {
+			FVector LinePoint = Canvas2D->ToCanvasPoint(TVecLib<3>::Projection(Splines[i].GetPosition(T)));
+			Canvas2D->DisplayLines[i].Array.Add(LinePoint);
+		}
+		Canvas2D->DrawLines(i);
+	}
+}
+
+void ASplineTestPlayerController::AddControlPointEvent(FKey Key, FVector2D MouseScreenPos, EInputEvent InputEvent, APlayerController* Ctrl)
+{
+	FVector WorldPos, WorldDir;
+	Ctrl->DeprojectScreenPositionToWorld(MouseScreenPos.X, MouseScreenPos.Y, WorldPos, WorldDir);
+	float Distance = 0;
+	FVector HitPoint(0, 0, 0);
+	bool bHit = TraceToCanvas(Distance, HitPoint, WorldPos, WorldDir);
+	UE_LOG(LogTemp, Warning, TEXT("Right Mouse Button Released: %s, %s. %s"),
+		*WorldPos.ToCompactString(), *WorldDir.ToCompactString(), (bHit ? TEXT("true") : TEXT("false")));
+	UE_LOG(LogTemp, Warning, TEXT("Hit Point: %s. Distance: %.3lf"),
+		*HitPoint.ToCompactString(), Distance);
+	if (!bHit) {
+		return;
+	}
+	AddControlPoint(HitPoint);
 }
 
 void ASplineTestPlayerController::ChangeConcatTypeToPoint(FKey Key, EInputEvent Event, APlayerController* Ctrl)

@@ -31,7 +31,7 @@ enum class ESplineConcatType : uint8
  *
  */
 UCLASS()
-class CURVEBUILDERTEST_API ASplineTestPlayerController : public ACurveBuilderTestPlayerController
+class CURVEBUILDERTEST_API ASplineTestPlayerController : public ACGDemoPlayerController2D
 {
 	GENERATED_BODY()
 public:
@@ -52,19 +52,37 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void ChangeConcatType(ESplineConcatType Type);
 
-	//UFUNCTION(BlueprintCallable)
-	//void OnParamsInputChanged();
+	UFUNCTION(BlueprintCallable)
+	void ClearCanvas();
+
+	UFUNCTION(BlueprintCallable)
+	void OnParamsInputChanged();
 
 public:
+	double SamplePointDT = 1. / 256.;
+
+	int32 MaxSamplePointsNum = 0;
+
+	TArray<FVector> ControlPoints;
 
 	UPROPERTY(BlueprintReadOnly)
 	ESplineConcatType ConcatType = ESplineConcatType::ToPoint;
+
+	//UPROPERTY(BlueprintReadWrite)
+	//FCurveBuilderTestParamsInput ParamsInput;
 public:
 
 protected:
-	virtual void AddControlPoint(const FVector& HitPoint) override;
+	virtual void AddControlPoint(const FVector& HitPoint);
+
+	virtual void ClearCanvasImpl();
+
+	void ResampleCurve();
 
 private:
+
+	UFUNCTION()
+	void AddControlPointEvent(FKey Key, FVector2D MouseScreenPos, EInputEvent InputEvent, APlayerController* Ctrl);
 
 	UFUNCTION()
 	void ChangeConcatTypeToPoint(FKey Key, EInputEvent Event, APlayerController* Ctrl);
@@ -72,7 +90,7 @@ private:
 	UFUNCTION()
 	void ChangeConcatTypeToCurve(FKey Key, EInputEvent Event, APlayerController* Ctrl);
 public:
-	void Test() {
+	void TestCopy() {
 		if (Splines.Num() > 0) {
 			FSpatialBSpline3 NewSpline(Splines.Last());
 		}

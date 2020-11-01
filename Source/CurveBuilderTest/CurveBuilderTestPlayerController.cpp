@@ -60,19 +60,7 @@ void ACurveBuilderTestPlayerController::ChangeCurveType(ECurveType Type)
 
 void ACurveBuilderTestPlayerController::ClearCanvas()
 {
-	UE_LOG(LogTemp, Warning, TEXT("Clear Canvas"));
-	for (int32 Layer = 0; Layer < Canvas2D->DisplayPoints.Num(); ++Layer) {
-		Canvas2D->DisplayPoints[Layer].Array.Empty(MaxSamplePointsNum);
-	}
-	for (int32 Layer = 0; Layer < Canvas2D->DisplayLines.Num(); ++Layer) {
-		Canvas2D->DisplayLines[Layer].Array.Empty(MaxSamplePointsNum);
-	}
-	for (int32 Layer = 0; Layer < Canvas2D->DisplayPolygons.Num(); ++Layer) {
-		Canvas2D->DisplayPolygons[Layer].Array.Empty(MaxSamplePointsNum);
-	}
-	Canvas2D->ClearDrawing();
-	ControlPoints.Empty(0);
-	Curves.Empty(0);
+	ClearCanvasImpl();
 }
 
 void ACurveBuilderTestPlayerController::AddControlPoint(const FVector& HitPoint)
@@ -86,6 +74,23 @@ void ACurveBuilderTestPlayerController::AddControlPoint(const FVector& HitPoint)
 		Curves.Add(MakeTuple(ECurveType::RationalBezier, TSharedPtr<FSpatialCurve3>(new FSpatialRationalBezierCurve3(Data))));
 	}
 	ResampleCurve();
+}
+
+void ACurveBuilderTestPlayerController::ClearCanvasImpl()
+{
+	UE_LOG(LogTemp, Warning, TEXT("Clear Canvas"));
+	for (int32 Layer = 0; Layer < Canvas2D->DisplayPoints.Num(); ++Layer) {
+		Canvas2D->DisplayPoints[Layer].Array.Empty(MaxSamplePointsNum);
+	}
+	for (int32 Layer = 0; Layer < Canvas2D->DisplayLines.Num(); ++Layer) {
+		Canvas2D->DisplayLines[Layer].Array.Empty(MaxSamplePointsNum);
+	}
+	for (int32 Layer = 0; Layer < Canvas2D->DisplayPolygons.Num(); ++Layer) {
+		Canvas2D->DisplayPolygons[Layer].Array.Empty(MaxSamplePointsNum);
+	}
+	Canvas2D->ClearDrawing();
+	ControlPoints.Empty(0);
+	Curves.Empty(0);
 }
 
 void ACurveBuilderTestPlayerController::ResampleCurve()

@@ -58,8 +58,6 @@ public:
 
 	int32 MaxSamplePointsNum = 0;
 
-	TArray<FVector> FunctionPoints;
-
 	UPROPERTY(BlueprintReadOnly)
 	ECurveType CurveType = ECurveType::Bezier;
 
@@ -73,6 +71,8 @@ public:
 
 protected:
 	virtual void AddControlPoint(const FVector& HitPoint);
+
+	virtual void ClearCanvasImpl();
 
 	void ResampleCurve();
 private:

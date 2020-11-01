@@ -39,7 +39,10 @@ public:
 
 public:
 	FPointNode* FindNodeByParam(double Param, int32 NthNode = 0) const;
+
 	FPointNode* FindNodeByPosition(const TVectorX<Dim>& Point, int32 NthNode = 0) const;
+
+	void GetOpenFormPointsAndParams(TArray<TVectorX<Dim+1> >& CtrlPoints, TArray<double>& Params) const;
 
 public:
 	virtual void CreateHodograph(TClampedBSpline<Dim, CLAMP_DEGREE(Degree-1, 0)>& OutHodograph) const;
@@ -53,9 +56,9 @@ public:
 	virtual void AddPointWithParamWithoutChangingShape(double Param);
 
 public:
-	virtual void AddPointAtLast(const TVectorX<Dim>& Point, TOptional<double> Param, double Weight = 1.) override;
+	virtual void AddPointAtLast(const TVectorX<Dim>& Point, TOptional<double> Param = TOptional<double>(), double Weight = 1.) override;
 
-	virtual void AddPointAt(const TVectorX<Dim>& Point, TOptional<double> Param, int32 Index = 0, double Weight = 1.) override;
+	virtual void AddPointAt(const TVectorX<Dim>& Point, TOptional<double> Param = TOptional<double>(), int32 Index = 0, double Weight = 1.) override;
 
 	virtual void RemovePointAt(int32 Index = 0) override;
 
@@ -83,8 +86,6 @@ public:
 
 protected:
 	TDoubleLinkedList<TClampedBSplineControlPoint<Dim> > CtrlPointsList;
-
-	void GetOpenFormPointsAndParams(TArray<TVectorX<Dim+1> >& CtrlPoints, TArray<double>& Params) const;
 
 	TVectorX<Dim> DeBoorAlgorithm(double T, const TArray<TVectorX<Dim+1> >& CtrlPoints, const TArray<double>& Params) const;
 };
