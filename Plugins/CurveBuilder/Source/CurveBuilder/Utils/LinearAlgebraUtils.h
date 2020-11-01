@@ -6,7 +6,9 @@
 //#include "CoreTypes.h"
 //#include "CoreFwd.h"
 #include "CoreMinimal.h"
+#include "Math/TransformCalculus2D.h"
 
+#define CLAMP_DEGREE(Degree,Minimum) ((Degree) > (Minimum) ? (Degree) : (Minimum))
 
 using F_Vec2 = FVector2D;
 using F_Vec3 = FVector;
@@ -22,6 +24,7 @@ using F_Transform3 = FTransform;
 // Start Vector
 
 #define GENERATED_VECTOR_LIBRARY_FUNCTIONS(Dim) \
+	FORCEINLINE static const auto& Zero() { static const FType ZeroVector = FType(EForceInit::ForceInit); return ZeroVector; } \
 	FORCEINLINE static auto& Last(FType& V) { return V[Dim - 1]; } \
 	FORCEINLINE static auto Last(const FType& V) { return V[Dim - 1]; } \
 	FORCEINLINE static void WeightToOne(FType& V) \
@@ -131,5 +134,8 @@ struct TVecLib<4> {
 		return FTypeProjection(V.X*InvWeight, V.Y*InvWeight, V.Z*InvWeight);
 	}
 };
+
+template<int32 Dim>
+using TVectorX = typename TVecLib<Dim>::FType;
 
 // End Vector

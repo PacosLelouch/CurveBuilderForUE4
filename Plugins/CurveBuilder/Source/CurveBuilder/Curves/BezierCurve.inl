@@ -20,7 +20,7 @@ template<int32 Dim, int32 Degree>
 inline TVectorX<Dim> TBezierCurve<Dim, Degree>::GetTangent(double T) const
 {
 	if (constexpr(Degree <= 1)) {
-		return TVecLib<Dim+1>::Projection(CtrlPoints[1] - CtrlPoints[0]);
+		return TVecLib<Dim+1>::Projection(CtrlPoints[1]) - TVecLib<Dim+1>::Projection(CtrlPoints[0]);
 	}
 	TBezierCurve<Dim, CLAMP_DEGREE(Degree-1, 0)> Hodograph;
 	CreateHodograph(Hodograph);

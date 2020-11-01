@@ -4,7 +4,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "CurveBuilderTestPlayerController.h"
+#include "../CurveBuilderTestPlayerController.h"
 #include "BezierConcatPlayerController.generated.h"
 
 //USTRUCT(BlueprintType)

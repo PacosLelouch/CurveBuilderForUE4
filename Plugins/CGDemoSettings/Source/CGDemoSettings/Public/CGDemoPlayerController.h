@@ -33,7 +33,6 @@ public:
 	virtual void BeginPlay() override;
 
 public:
-
 	void PressLeftCtrl();
 	void PressRightCtrl();
 	void ReleaseLeftCtrl();
@@ -45,6 +44,7 @@ public:
 	void ReleaseKey4();
 	void ReleaseKey5();
 	void ReleaseKey0();
+	void ReleaseEnter();
 
 	virtual void BindOnLeftCtrlPressed();
 	virtual void BindOnRightCtrlPressed();
@@ -57,6 +57,7 @@ public:
 	virtual void BindOnCtrlAndKey4Released();
 	virtual void BindOnCtrlAndKey5Released();
 	virtual void BindOnCtrlAndKey0Released();
+	virtual void BindOnEnterReleased();
 public:
 	bool bPressedCtrl = false;
 
@@ -84,6 +85,9 @@ public:
 	FOnKeyEventHandler OnCtrlAndKey5Released;
 	UPROPERTY(BlueprintAssignable)
 	FOnKeyEventHandler OnCtrlAndKey0Released;
+
+	UPROPERTY(BlueprintAssignable)
+	FOnKeyEventHandler OnEnterReleased;
 
 private:
 	UFUNCTION()

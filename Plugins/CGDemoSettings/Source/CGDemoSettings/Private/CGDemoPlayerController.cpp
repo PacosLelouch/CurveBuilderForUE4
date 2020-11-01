@@ -29,6 +29,8 @@ void ACGDemoPlayerController::SetupInputComponent()
 	InputComponent->BindKey(EKeys::Four, IE_Released, this, &ACGDemoPlayerController::ReleaseKey4);
 	InputComponent->BindKey(EKeys::Five, IE_Released, this, &ACGDemoPlayerController::ReleaseKey5);
 	InputComponent->BindKey(EKeys::Zero, IE_Released, this, &ACGDemoPlayerController::ReleaseKey0);
+
+	InputComponent->BindKey(EKeys::Enter, IE_Released, this, &ACGDemoPlayerController::ReleaseEnter);
 }
 
 void ACGDemoPlayerController::BeginPlay()
@@ -46,6 +48,8 @@ void ACGDemoPlayerController::BeginPlay()
 	BindOnCtrlAndKey4Released();
 	BindOnCtrlAndKey5Released();
 	BindOnCtrlAndKey0Released();
+
+	BindOnEnterReleased();
 }
 
 void ACGDemoPlayerController::PressLeftCtrl()
@@ -132,6 +136,13 @@ void ACGDemoPlayerController::ReleaseKey0()
 	}
 }
 
+void ACGDemoPlayerController::ReleaseEnter()
+{
+	if (OnEnterReleased.IsBound()) {
+		OnEnterReleased.Broadcast(EKeys::Enter, IE_Released, this);
+	}
+}
+
 void ACGDemoPlayerController::BindOnLeftCtrlPressed()
 {
 }
@@ -175,6 +186,10 @@ void ACGDemoPlayerController::BindOnCtrlAndKey5Released()
 }
 
 void ACGDemoPlayerController::BindOnCtrlAndKey0Released()
+{
+}
+
+void ACGDemoPlayerController::BindOnEnterReleased()
 {
 }
 

@@ -6,13 +6,7 @@
 #include "CoreMinimal.h"
 #include "Utils/LinearAlgebraUtils.h"
 #include "Utils/NumericalCalculationUtils.h"
-#include "Containers/StaticArray.h"
-#include "HAL/UnrealMemory.h"
-
-#define CLAMP_DEGREE(Degree,Minimum) ((Degree) > (Minimum) ? (Degree) : (Minimum))
-
-template<int32 Dim>
-using TVectorX = typename TVecLib<Dim>::FType;
+//#include "Containers/StaticArray.h"
 
 template<int32 Dim, int32 Degree = 3>
 class TSplineCurveBase
@@ -54,6 +48,7 @@ public:
 		TVecLib<Dim+1>::CopyArray(CtrlPoints, InPoints, Degree + 1);
 		//FMemory::Memcpy(CtrlPoints, InPoints, (Degree + 1) * sizeof(TVectorX<Dim+1>));
 	}
+	virtual ~TSplineCurveBase() {}
 	FORCEINLINE void Reset(const TVectorX<Dim+1>* InPoints)
 	{
 		if (InPoints) {
@@ -77,7 +72,7 @@ public:
 	FORCEINLINE static constexpr int32 CurveDim() { return Dim; }
 	FORCEINLINE static constexpr int32 CurveDimHomogeneous() { return Dim + 1; }
 	FORCEINLINE static constexpr int32 CurveDegree() { return Degree; }
-	FORCEINLINE static constexpr int32 CtrlPointsNum() { return Degree + 1; }
+	FORCEINLINE static constexpr int32 CurveRank() { return Degree + 1; }
 
 	FORCEINLINE F_Box2 GetBox(const F_Mat& ProjectMatrix) const
 	{

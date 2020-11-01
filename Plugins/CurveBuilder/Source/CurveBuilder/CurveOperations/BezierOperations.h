@@ -5,7 +5,7 @@
 
 #include "CoreMinimal.h"
 #include "Curves/BezierCurve.h"
-#include "Splines/Splines.h"
+#include "Splines/BezierString.h"
 //#include "Eigen/LU"
 //#include "Eigen/Dense"
 

@@ -85,8 +85,8 @@ void ABezierConcatPlayerController::AddControlPoint(const FVector& HitPoint)
 	if (ConcatType == EConcatType::ToPoint && ControlPoints.Num() > 4) {
 		Canvas2D->DisplayPoints[Curves.Num()].Array.Pop();
 		Canvas2D->DisplayPolygons[Curves.Num()].Array.Pop();
-		const FSpatialBezierCurve3& LastCurve = *(FSpatialBezierCurve3*)Curves.Last(0).Get<1>().Get();
-		FSpatialBezierCurve3& NewCurve = *(FSpatialBezierCurve3*)Curves.Emplace_GetRef(MakeTuple(ECurveType::Bezier, TSharedPtr<FSpatialCurve3>(new FSpatialBezierCurve3))).Get<1>().Get();
+		const FSpatialBezierCurve3& LastCurve = *static_cast<FSpatialBezierCurve3*>(Curves.Last(0).Get<1>().Get());
+		FSpatialBezierCurve3& NewCurve = *static_cast<FSpatialBezierCurve3*>(Curves.Emplace_GetRef(MakeTuple(ECurveType::Bezier, TSharedPtr<FSpatialCurve3>(new FSpatialBezierCurve3))).Get<1>().Get());
 		int32 Layer = Curves.Num();
 
 		TBezierOperationsDegree3<FSpatialBezierCurve3::CurveDim()>::ConnectFromCurveToPointC2(NewCurve, LastCurve, EndPoint);
@@ -95,9 +95,9 @@ void ABezierConcatPlayerController::AddControlPoint(const FVector& HitPoint)
 			Canvas2D->DisplayPoints[Layer].Array.Add(DrawPoint);
 			Canvas2D->DisplayPolygons[Layer].Array.Add(DrawPoint);
 		}
-		FString TangentStr = FString::Printf(TEXT("Tangent:\n [(%s), (%s)]"),
-			*LastCurve.GetTangent(1).ToString(), *NewCurve.GetTangent(0).ToString());
-		FString CurvatureStr = FString::Printf(TEXT("Curvature:\n [(%.3lf), (%.3lf)]"),
+		FString TangentStr = FString::Printf(TEXT("Tangent:\n [(%s)->%.6f, (%s)->%.6f]"),
+			*LastCurve.GetTangent(1).ToString(), LastCurve.GetTangent(1).Size(), *NewCurve.GetTangent(0).ToString(), NewCurve.GetTangent(0).Size());
+		FString CurvatureStr = FString::Printf(TEXT("Curvature:\n [(%.6lf), (%.6lf)]"),
 			LastCurve.GetPrincipalCurvature(1, 0), NewCurve.GetPrincipalCurvature(0, 0));
 		GEngine->AddOnScreenDebugMessage(0, 5.0f, FColor(0, 128, 255), TangentStr);
 		GEngine->AddOnScreenDebugMessage(1, 5.0f, FColor(0, 128, 255), CurvatureStr);
@@ -124,7 +124,7 @@ void ABezierConcatPlayerController::AddControlPoint(const FVector& HitPoint)
 				*NewCurves[1].GetTangent(1).ToString(), *NewCurves[2].GetTangent(0).ToString(),
 				*NewCurves[2].GetTangent(1).ToString(), *LastSecond.GetTangent(0).ToString()
 			);
-		FString CurvatureStr = FString::Printf(TEXT("Curvature:\n [(%.3lf), (%.3lf)]\n [(%.3lf), (%.3lf)]\n [(%.3lf), (%.3lf)]\n [(%.3lf), (%.3lf)]"),
+		FString CurvatureStr = FString::Printf(TEXT("Curvature:\n [(%.6lf), (%.6lf)]\n [(%.6lf), (%.6lf)]\n [(%.6lf), (%.6lf)]\n [(%.6lf), (%.6lf)]"),
 				LastFirst.GetPrincipalCurvature(1, 0), NewCurves[0].GetPrincipalCurvature(0, 0),
 				NewCurves[0].GetPrincipalCurvature(1, 0), NewCurves[1].GetPrincipalCurvature(0, 0),
 				NewCurves[1].GetPrincipalCurvature(1, 0), NewCurves[2].GetPrincipalCurvature(0, 0),
