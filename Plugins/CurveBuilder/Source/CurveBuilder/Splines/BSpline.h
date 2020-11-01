@@ -37,10 +37,6 @@ public:
 		return CtrlPointsList.Num();
 	}
 
-	FORCEINLINE TVectorX<Dim> GetPoint(int32 i) const { return TVecLib<Dim+1>::Projection(CtrlPointsList[i]); }
-
-	FORCEINLINE TVectorX<Dim+1> GetPointHomogeneous(int32 i) const { return CtrlPointsList[i]; }
-
 public:
 	FPointNode* FindNodeByParam(double Param, int32 NthNode = 0) const;
 	FPointNode* FindNodeByPosition(const TVectorX<Dim>& Point, int32 NthNode = 0) const;
