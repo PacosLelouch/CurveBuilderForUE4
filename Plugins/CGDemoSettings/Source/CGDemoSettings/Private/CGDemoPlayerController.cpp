@@ -16,7 +16,13 @@ ACGDemoPlayerController::ACGDemoPlayerController(const FObjectInitializer& Objec
 void ACGDemoPlayerController::SetupInputComponent()
 {
 	Super::SetupInputComponent();
+	InputComponent->BindKey(EKeys::LeftMouseButton, IE_Pressed, this, &ACGDemoPlayerController::PressLeftMouseButton);
+	InputComponent->BindKey(EKeys::RightMouseButton, IE_Pressed, this, &ACGDemoPlayerController::PressRightMouseButton);
+	InputComponent->BindKey(EKeys::MiddleMouseButton, IE_Pressed, this, &ACGDemoPlayerController::PressMiddleMouseButton);
+
+	InputComponent->BindKey(EKeys::LeftMouseButton, IE_Released, this, &ACGDemoPlayerController::ReleaseLeftMouseButton);
 	InputComponent->BindKey(EKeys::RightMouseButton, IE_Released, this, &ACGDemoPlayerController::ReleaseRightMouseButton);
+	InputComponent->BindKey(EKeys::MiddleMouseButton, IE_Released, this, &ACGDemoPlayerController::ReleaseMiddleMouseButton);
 
 	InputComponent->BindKey(EKeys::LeftControl, IE_Pressed, this, &ACGDemoPlayerController::PressLeftCtrl);
 	InputComponent->BindKey(EKeys::RightControl, IE_Pressed, this, &ACGDemoPlayerController::PressRightCtrl);
@@ -35,7 +41,13 @@ void ACGDemoPlayerController::SetupInputComponent()
 
 void ACGDemoPlayerController::BeginPlay()
 {
+	BindOnLeftMouseButtonPressed();
+	BindOnRightMouseButtonPressed();
+	BindOnMiddleMouseButtonPressed();
+
+	BindOnLeftMouseButtonReleased();
 	BindOnRightMouseButtonReleased();
+	BindOnMiddleMouseButtonReleased();
 
 	BindOnLeftCtrlPressed();
 	BindOnRightCtrlPressed();
@@ -84,12 +96,62 @@ void ACGDemoPlayerController::ReleaseRightCtrl()
 	}
 }
 
+void ACGDemoPlayerController::PressLeftMouseButton()
+{
+	if (OnLeftMouseButtonPressed.IsBound()) {
+		float MouseX, MouseY;
+		if (GetMousePosition(MouseX, MouseY)) {
+			OnLeftMouseButtonPressed.Broadcast(EKeys::LeftMouseButton, FVector2D(MouseX, MouseY), IE_Pressed, this);
+		}
+	}
+}
+
+void ACGDemoPlayerController::PressRightMouseButton()
+{
+	if (OnRightMouseButtonPressed.IsBound()) {
+		float MouseX, MouseY;
+		if (GetMousePosition(MouseX, MouseY)) {
+			OnRightMouseButtonPressed.Broadcast(EKeys::RightMouseButton, FVector2D(MouseX, MouseY), IE_Pressed, this);
+		}
+	}
+}
+
+void ACGDemoPlayerController::PressMiddleMouseButton()
+{
+	if (OnMiddleMouseButtonPressed.IsBound()) {
+		float MouseX, MouseY;
+		if (GetMousePosition(MouseX, MouseY)) {
+			OnMiddleMouseButtonPressed.Broadcast(EKeys::MiddleMouseButton, FVector2D(MouseX, MouseY), IE_Pressed, this);
+		}
+	}
+}
+
+void ACGDemoPlayerController::ReleaseLeftMouseButton()
+{
+	if (OnLeftMouseButtonReleased.IsBound()) {
+		float MouseX, MouseY;
+		if (GetMousePosition(MouseX, MouseY)) {
+			OnLeftMouseButtonReleased.Broadcast(EKeys::LeftMouseButton, FVector2D(MouseX, MouseY), IE_Released, this);
+		}
+	}
+}
+
 void ACGDemoPlayerController::ReleaseRightMouseButton()
 {
 	if (OnRightMouseButtonReleased.IsBound()) {
 		float MouseX, MouseY;
 		if (GetMousePosition(MouseX, MouseY)) {
 			OnRightMouseButtonReleased.Broadcast(EKeys::RightMouseButton, FVector2D(MouseX, MouseY), IE_Released, this);
+		}
+	}
+}
+
+void ACGDemoPlayerController::ReleaseMiddleMouseButton()
+{
+	if (OnMiddleMouseButtonReleased.IsBound()) {
+		float MouseX, MouseY;
+		if (GetMousePosition(MouseX, MouseY)) {
+			OnMiddleMouseButtonReleased.Broadcast(EKeys::MiddleMouseButton, FVector2D(MouseX, MouseY), IE_Released, this);
 		}
 	}
 }
@@ -159,9 +221,34 @@ void ACGDemoPlayerController::BindOnRightCtrlReleased()
 {
 }
 
+void ACGDemoPlayerController::BindOnLeftMouseButtonPressed()
+{
+	OnLeftMouseButtonPressed.AddDynamic(this, &ACGDemoPlayerController::TestLeftMouseButtonPressed);
+}
+
+void ACGDemoPlayerController::BindOnRightMouseButtonPressed()
+{
+	OnRightMouseButtonPressed.AddDynamic(this, &ACGDemoPlayerController::TestRightMouseButtonPressed);
+}
+
+void ACGDemoPlayerController::BindOnMiddleMouseButtonPressed()
+{
+	OnMiddleMouseButtonPressed.AddDynamic(this, &ACGDemoPlayerController::TestMiddleMouseButtonPressed);
+}
+
+void ACGDemoPlayerController::BindOnLeftMouseButtonReleased()
+{
+	OnLeftMouseButtonReleased.AddDynamic(this, &ACGDemoPlayerController::TestLeftMouseButtonReleased);
+}
+
 void ACGDemoPlayerController::BindOnRightMouseButtonReleased()
 {
-	OnRightMouseButtonReleased.AddDynamic(this, &ACGDemoPlayerController::TestRightMouseButton);
+	OnRightMouseButtonReleased.AddDynamic(this, &ACGDemoPlayerController::TestRightMouseButtonReleased);
+}
+
+void ACGDemoPlayerController::BindOnMiddleMouseButtonReleased()
+{
+	OnMiddleMouseButtonReleased.AddDynamic(this, &ACGDemoPlayerController::TestMiddleMouseButtonReleased);
 }
 
 void ACGDemoPlayerController::BindOnCtrlAndKey1Released()
@@ -193,11 +280,51 @@ void ACGDemoPlayerController::BindOnEnterReleased()
 {
 }
 
-void ACGDemoPlayerController::TestRightMouseButton(FKey Key, FVector2D MouseScreenPos, EInputEvent InputEvent, APlayerController* Ctrl)
+void ACGDemoPlayerController::TestLeftMouseButtonPressed(FKey Key, FVector2D MouseScreenPos, EInputEvent InputEvent, APlayerController* Ctrl)
+{
+	FVector WorldPos, WorldDir;
+	Ctrl->DeprojectScreenPositionToWorld(MouseScreenPos.X, MouseScreenPos.Y, WorldPos, WorldDir);
+	UE_LOG(LogTemp, Warning, TEXT("Left Mouse Button Pressed: %s, %s"),
+		*WorldPos.ToCompactString(), *WorldDir.ToCompactString());
+}
+
+void ACGDemoPlayerController::TestRightMouseButtonPressed(FKey Key, FVector2D MouseScreenPos, EInputEvent InputEvent, APlayerController* Ctrl)
+{
+	FVector WorldPos, WorldDir;
+	Ctrl->DeprojectScreenPositionToWorld(MouseScreenPos.X, MouseScreenPos.Y, WorldPos, WorldDir);
+	UE_LOG(LogTemp, Warning, TEXT("Right Mouse Button Pressed: %s, %s"),
+		*WorldPos.ToCompactString(), *WorldDir.ToCompactString());
+}
+
+void ACGDemoPlayerController::TestMiddleMouseButtonPressed(FKey Key, FVector2D MouseScreenPos, EInputEvent InputEvent, APlayerController* Ctrl)
+{
+	FVector WorldPos, WorldDir;
+	Ctrl->DeprojectScreenPositionToWorld(MouseScreenPos.X, MouseScreenPos.Y, WorldPos, WorldDir);
+	UE_LOG(LogTemp, Warning, TEXT("Middle Mouse Button Pressed: %s, %s"),
+		*WorldPos.ToCompactString(), *WorldDir.ToCompactString());
+}
+
+void ACGDemoPlayerController::TestLeftMouseButtonReleased(FKey Key, FVector2D MouseScreenPos, EInputEvent InputEvent, APlayerController* Ctrl)
+{
+	FVector WorldPos, WorldDir;
+	Ctrl->DeprojectScreenPositionToWorld(MouseScreenPos.X, MouseScreenPos.Y, WorldPos, WorldDir);
+	UE_LOG(LogTemp, Warning, TEXT("Left Mouse Button Released: %s, %s"),
+		*WorldPos.ToCompactString(), *WorldDir.ToCompactString());
+}
+
+void ACGDemoPlayerController::TestRightMouseButtonReleased(FKey Key, FVector2D MouseScreenPos, EInputEvent InputEvent, APlayerController* Ctrl)
 {
 	FVector WorldPos, WorldDir;
 	Ctrl->DeprojectScreenPositionToWorld(MouseScreenPos.X, MouseScreenPos.Y, WorldPos, WorldDir);
 	UE_LOG(LogTemp, Warning, TEXT("Right Mouse Button Released: %s, %s"), 
+		*WorldPos.ToCompactString(), *WorldDir.ToCompactString());
+}
+
+void ACGDemoPlayerController::TestMiddleMouseButtonReleased(FKey Key, FVector2D MouseScreenPos, EInputEvent InputEvent, APlayerController* Ctrl)
+{
+	FVector WorldPos, WorldDir;
+	Ctrl->DeprojectScreenPositionToWorld(MouseScreenPos.X, MouseScreenPos.Y, WorldPos, WorldDir);
+	UE_LOG(LogTemp, Warning, TEXT("Middle Mouse Button Released: %s, %s"),
 		*WorldPos.ToCompactString(), *WorldDir.ToCompactString());
 }
 

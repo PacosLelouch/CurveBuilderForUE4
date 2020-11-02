@@ -15,12 +15,21 @@ inline TClampedBSpline<Dim, Degree>::TClampedBSpline(const TClampedBSpline<Dim, 
 }
 
 template<int32 Dim, int32 Degree>
+inline TClampedBSpline<Dim, Degree>& TClampedBSpline<Dim, Degree>::operator=(const TClampedBSpline<Dim, Degree>& InSpline)
+{
+	for (const auto& Pos : InSpline.CtrlPointsList) {
+		CtrlPointsList.AddTail(Pos);
+	}
+	return *this;
+}
+
+template<int32 Dim, int32 Degree>
 inline typename TClampedBSpline<Dim, Degree>::FPointNode* TClampedBSpline<Dim, Degree>::FindNodeByParam(double Param, int32 NthNode) const
 {
 	int32 Count = 0;
 	FPointNode* Node = CtrlPointsList.GetHead();
 	while (Node) {
-		if (Node->GetValue().Param == Param) {
+		if (FMath::IsNearlyEqual(Node->GetValue().Param, Param)) {
 			if (Count == NthNode) {
 				return Node;
 			}
@@ -37,7 +46,7 @@ inline typename TClampedBSpline<Dim, Degree>::FPointNode* TClampedBSpline<Dim, D
 	int32 Count = 0;
 	FPointNode* Node = CtrlPointsList.GetHead();
 	while (Node) {
-		if (TVecLib<Dim+1>::Projection(Node->GetValue().Pos) == Point) {
+		if ((TVecLib<Dim+1>::Projection(Node->GetValue().Pos) - Point).IsNearlyZero()) {
 			if (Count == NthNode) {
 				return Node;
 			}
@@ -127,6 +136,12 @@ inline void TClampedBSpline<Dim, Degree>::Split(TClampedBSpline<Dim, Degree>& Ou
 {
 	OutFirst.Reset();
 	OutSecond.Reset();
+
+	TTuple<double, double> ParamRange = GetParamRange();
+	if (T >= ParamRange.Get<1>() || T <= ParamRange.Get<0>()) {
+		return;
+	}
+
 	TVectorX<Dim> SplitPoint = GetPosition(T);
 	TVectorX<Dim+1> SplitPointHomogeneous = TVecLib<Dim>::Homogeneous(SplitPoint, 1.);
 	TClampedBSplineControlPoint<Dim> NewPoint(SplitPointHomogeneous, T);
@@ -134,7 +149,7 @@ inline void TClampedBSpline<Dim, Degree>::Split(TClampedBSpline<Dim, Degree>& Ou
 	OutSecond.AddPointAtLast(NewPoint);
 	FPointNode* Node = CtrlPointsList.GetHead();
 	while (Node) {
-		if (Node->GetValue().Param < Node->GetValue().Param) {
+		if (Node->GetValue().Param < T) {
 			OutFirst.AddPointAtLast(Node->GetValue());
 		}
 		else {

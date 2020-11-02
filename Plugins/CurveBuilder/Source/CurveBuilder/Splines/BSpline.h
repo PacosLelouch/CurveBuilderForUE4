@@ -4,6 +4,9 @@
 #pragma once
 
 #include "SplineBase.h"
+#include "Containers/List.h"
+#include "Utils/LinearAlgebraUtils.h"
+#include "Utils/NumericalCalculationUtils.h"
 #include "Curves/BezierCurve.h"
 
 template<int32 Dim>
@@ -11,6 +14,8 @@ struct TClampedBSplineControlPoint
 {
 	TClampedBSplineControlPoint() : Pos(TVecLib<Dim+1>::Zero()), Param(0.) {}
 	TClampedBSplineControlPoint(const TVectorX<Dim+1>& InPos, double InParam = 0.) : Pos(InPos), Param(InParam) {}
+	TClampedBSplineControlPoint(const TClampedBSplineControlPoint<Dim>& InP) : Pos(InP.Pos), Param(InP.Param) {}
+	TClampedBSplineControlPoint<Dim>& operator=(const TClampedBSplineControlPoint<Dim>& InP) { Pos = InP.Pos; Param = InP.Param; return *this; }
 
 	TVectorX<Dim+1> Pos;
 	double Param;
@@ -27,6 +32,8 @@ public:
 	FORCEINLINE TClampedBSpline() {}
 
 	FORCEINLINE TClampedBSpline(const TClampedBSpline<Dim, Degree>& InSpline);
+
+	FORCEINLINE TClampedBSpline<Dim, Degree>& operator=(const TClampedBSpline<Dim, Degree>& InSpline);
 
 	FORCEINLINE void Reset() { CtrlPointsList.Empty(); }
 

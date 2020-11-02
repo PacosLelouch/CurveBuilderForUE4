@@ -4,37 +4,56 @@
 #pragma once
 
 #include "SplineBase.h"
+#include "Containers/List.h"
+#include "Utils/LinearAlgebraUtils.h"
+#include "Utils/NumericalCalculationUtils.h"
 #include "Curves/BezierCurve.h"
 
 template<int32 Dim>
-struct TBezierStringControlPoint
+struct TBezierString3ControlPoint
 {
-	TBezierStringControlPoint() : Pos(TVecLib<Dim+1>::Zero()), Param(0.) {}
-	TBezierStringControlPoint(const TVectorX<Dim+1>& InPos, double InParam = 0.) : Pos(InPos), Param(InParam) {}
+	TBezierString3ControlPoint() : Pos(TVecLib<Dim+1>::Zero()), PrevCtrlPointPos(TVecLib<Dim+1>::Zero()), NextCtrlPointPos(TVecLib<Dim+1>::Zero()), Param(0.) {}
+	TBezierString3ControlPoint(const TVectorX<Dim+1>& InPos, double InParam = 0.) : Pos(InPos), PrevCtrlPointPos(TVecLib<Dim+1>::Zero()), NextCtrlPointPos(TVecLib<Dim+1>::Zero()), Param(InParam) {}
+	TBezierString3ControlPoint(const TVectorX<Dim+1>& InPos, const TVectorX<Dim+1>& PrevPos, const TVectorX<Dim+1>& NextPos, double InParam = 0.) : Pos(InPos), PrevCtrlPointPos(PrevPos), NextCtrlPointPos(NextPos), Param(InParam) {}
+	TBezierString3ControlPoint(const TBezierString3ControlPoint<Dim>& InP) : Pos(InP.Pos), PrevCtrlPointPos(InP.PrevCtrlPointPos), NextCtrlPointPos(InP.NextCtrlPointPos), Param(InP.Param) {}
+	TBezierString3ControlPoint<Dim>& operator=(const TBezierString3ControlPoint<Dim>& InP) { Pos = InP.Pos; PrevCtrlPointPos = InP.PrevCtrlPointPos; NextCtrlPointPos = InP.NextCtrlPointPos; Param = InP.Param; return *this; }
 
 	TVectorX<Dim+1> Pos;
+	TVectorX<Dim+1> PrevCtrlPointPos, NextCtrlPointPos;
 	double Param;
 };
 
-// Clamped B-Spline
-template<int32 Dim, int32 Degree = 3>
-class TBezierString : TSplineBase<Dim, Degree>
+// BezierString3
+template<int32 Dim>
+class TBezierString3 : TSplineBase<Dim>
 {
-	using TSplineBase<Dim, Degree>::TSplineBase;
+	using TSplineBase<Dim>::TSplineBase;
 public:
-	using FPointNode = typename TDoubleLinkedList<TBezierStringControlPoint<Dim> >::TDoubleLinkedListNode;
+	using FPointNode = typename TDoubleLinkedList<TBezierString3ControlPoint<Dim> >::TDoubleLinkedListNode;
 public:
-	FORCEINLINE TBezierString() {}
+	FORCEINLINE TBezierString3() {}
 
-	FORCEINLINE TBezierString(const TBezierString<Dim, Degree>& InSpline);
+	FORCEINLINE TBezierString3(const TBezierString3<Dim>& InSpline);
+
+	FORCEINLINE TBezierString3<Dim>& operator=(const TBezierString3<Dim>& InSpline);
 
 	FORCEINLINE void Reset() { CtrlPointsList.Empty(); }
 
-	virtual ~TClampedBSpline() { CtrlPointsList.Empty(); }
+	virtual ~TBezierString3() { CtrlPointsList.Empty(); }
 
 	FORCEINLINE int32 GetCtrlPointNum() const
 	{
 		return CtrlPointsList.Num();
+	}
+
+	FORCEINLINE FPointNode* FirstNode() const
+	{
+		return CtrlPointsList.GetHead();
+	}
+
+	FORCEINLINE FPointNode* LastNode() const
+	{
+		return CtrlPointsList.GetTail();
 	}
 
 public:
@@ -42,16 +61,15 @@ public:
 
 	FPointNode* FindNodeByPosition(const TVectorX<Dim>& Point, int32 NthNode = 0) const;
 
-	void GetOpenFormPointsAndParams(TArray<TVectorX<Dim+1> >& CtrlPoints, TArray<double>& Params) const;
+	void GetBezierCurves(TArray<TBezierCurve<Dim, 3> >& BezierCurves, TArray<TTuple<double, double> >& ParamRanges) const;
 
 public:
-	virtual void CreateHodograph(TClampedBSpline<Dim, CLAMP_DEGREE(Degree-1, 0)>& OutHodograph) const;
 
-	virtual void Split(TClampedBSpline<Dim, Degree>& OutFirst, TClampedBSpline<Dim, Degree>& OutSecond, double T);
+	virtual void Split(TBezierString3<Dim>& OutFirst, TBezierString3<Dim>& OutSecond, double T);
 
-	virtual void AddPointAtLast(const TBezierStringControlPoint<Dim>& PointStruct);
+	virtual void AddPointAtLast(const TBezierString3ControlPoint<Dim>& PointStruct);
 
-	virtual void AddPointAt(const TBezierStringControlPoint<Dim>& PointStruct, int32 Index = 0);
+	virtual void AddPointAt(const TBezierString3ControlPoint<Dim>& PointStruct, int32 Index = 0);
 
 	virtual void AddPointWithParamWithoutChangingShape(double Param);
 
@@ -85,7 +103,7 @@ public:
 	virtual TTuple<double, double> GetParamRange() const override;
 
 protected:
-	TDoubleLinkedList<TBezierStringControlPoint<Dim> > CtrlPointsList;
+	TDoubleLinkedList<TBezierString3ControlPoint<Dim> > CtrlPointsList;
 
 	// Reference: https://en.wikipedia.org/wiki/De_Boor%27s_algorithm
 	TVectorX<Dim> DeBoor(double T, const TArray<TVectorX<Dim+1> >& CtrlPoints, const TArray<double>& Params) const;

@@ -4,9 +4,6 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Containers/List.h"
-#include "Utils/LinearAlgebraUtils.h"
-#include "Utils/NumericalCalculationUtils.h"
 
 template<int32 Dim, int32 Degree = 3>
 class TSplineBase
