@@ -87,7 +87,11 @@ public:
 protected:
 	TDoubleLinkedList<TClampedBSplineControlPoint<Dim> > CtrlPointsList;
 
-	TVectorX<Dim> DeBoorAlgorithm(double T, const TArray<TVectorX<Dim+1> >& CtrlPoints, const TArray<double>& Params) const;
+	// Reference: https://en.wikipedia.org/wiki/De_Boor%27s_algorithm
+	TVectorX<Dim> DeBoor(double T, const TArray<TVectorX<Dim+1> >& CtrlPoints, const TArray<double>& Params) const;
+
+	// Reference: https://en.wikipedia.org/wiki/De_Boor%27s_algorithm
+	TVectorX<Dim> CoxDeBoor(double T, const TArray<TVectorX<Dim+1> >& CtrlPoints, const TArray<double>& Params) const;
 };
 
 #include "BSpline.inl"

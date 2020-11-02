@@ -22,8 +22,8 @@ public:
 public:
 	void Split(TBezierCurve<Dim, Degree>& OutFirst, TBezierCurve<Dim, Degree>& OutSecond, double T = 0.5);
 
-	TVectorX<Dim> GetPositionDirectly(double T) const;
-	TVectorX<Dim> GetPositionIteratively(double T) const;
+	TVectorX<Dim> Horner(double T) const;
+	TVectorX<Dim> DeCasteljau(double T) const;
 };
 
 

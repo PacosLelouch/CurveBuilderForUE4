@@ -10,9 +10,9 @@ template<int32 Dim, int32 Degree>
 inline TVectorX<Dim> TBezierCurve<Dim, Degree>::GetPosition(double T) const
 {
 	//if (Dim >= 5) {
-	//	return GetPositionDirectly(T);
+	//	return Horner(T);
 	//}
-	return GetPositionIteratively(T);
+	return DeCasteljau(T);
 }
 
 // Tangent not normalized. D(i) = (n / (t1 - t0)) * (P(i+1) - P(i))
@@ -20,7 +20,7 @@ template<int32 Dim, int32 Degree>
 inline TVectorX<Dim> TBezierCurve<Dim, Degree>::GetTangent(double T) const
 {
 	if (constexpr(Degree <= 1)) {
-		return TVecLib<Dim+1>::Projection(CtrlPoints[1]) - TVecLib<Dim+1>::Projection(CtrlPoints[0]);
+		return (TVecLib<Dim+1>::Projection(CtrlPoints[1]) - TVecLib<Dim+1>::Projection(CtrlPoints[0])) * static_cast<double>(Degree);
 	}
 	TBezierCurve<Dim, CLAMP_DEGREE(Degree-1, 0)> Hodograph;
 	CreateHodograph(Hodograph);
@@ -82,7 +82,7 @@ template<int32 Dim, int32 Degree>
 inline void TBezierCurve<Dim, Degree>::CreateHodograph(TSplineCurveBase<Dim, CLAMP_DEGREE(Degree-1, 0)>& OutHodograph) const
 {
 	for (int32 i = 0; i < Degree; ++i) {
-		OutHodograph.SetPoint(i, TVectorX<Dim>(CtrlPoints[i + 1] - CtrlPoints[i]), 1.);
+		OutHodograph.SetPoint(i, TVectorX<Dim>(CtrlPoints[i + 1] - CtrlPoints[i]) * static_cast<double>(Degree), 1.);
 	}
 }
 
@@ -125,7 +125,7 @@ inline void TBezierCurve<Dim, Degree>::Split(TBezierCurve<Dim, Degree>& OutFirst
 
 // Horner's Algorithm
 template<int32 Dim, int32 Degree>
-inline TVectorX<Dim> TBezierCurve<Dim, Degree>::GetPositionDirectly(double T) const
+inline TVectorX<Dim> TBezierCurve<Dim, Degree>::Horner(double T) const
 {
 	double U = 1.0 - T;
 	double Combination = 1;
@@ -141,7 +141,7 @@ inline TVectorX<Dim> TBezierCurve<Dim, Degree>::GetPositionDirectly(double T) co
 
 // The de Casteljau Algorithm 
 template<int32 Dim, int32 Degree>
-inline TVectorX<Dim> TBezierCurve<Dim, Degree>::GetPositionIteratively(double T) const
+inline TVectorX<Dim> TBezierCurve<Dim, Degree>::DeCasteljau(double T) const
 {
 	double U = 1.0 - T;
 	constexpr int32 DoubleDegree = Degree << 1;
