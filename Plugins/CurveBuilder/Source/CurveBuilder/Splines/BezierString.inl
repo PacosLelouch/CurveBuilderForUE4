@@ -23,7 +23,7 @@ inline TBezierString3<Dim>& TBezierString3<Dim>::operator=(const TBezierString3<
 }
 
 template<int32 Dim>
-inline TBezierString3<Dim>::FPointNode* TBezierString3<Dim>::FindNodeByParam(double Param, int32 NthNode) const
+inline typename TBezierString3<Dim>::FPointNode* TBezierString3<Dim>::FindNodeByParam(double Param, int32 NthNode) const
 {
 	int32 Count = 0;
 	FPointNode* Node = CtrlPointsList.GetHead();
@@ -40,7 +40,7 @@ inline TBezierString3<Dim>::FPointNode* TBezierString3<Dim>::FindNodeByParam(dou
 }
 
 template<int32 Dim>
-inline TBezierString3<Dim>::FPointNode* TBezierString3<Dim>::FindNodeByPosition(const TVectorX<Dim>& Point, int32 NthNode) const
+inline typename TBezierString3<Dim>::FPointNode* TBezierString3<Dim>::FindNodeByPosition(const TVectorX<Dim>& Point, int32 NthNode) const
 {
 	int32 Count = 0;
 	FPointNode* Node = CtrlPointsList.GetHead();
