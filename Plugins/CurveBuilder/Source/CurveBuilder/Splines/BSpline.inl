@@ -116,8 +116,8 @@ inline void TClampedBSpline<Dim, Degree>::CreateHodograph(TClampedBSpline<Dim, C
 		double WN = TVecLib<Dim+1>::Last(CtrlPoints[i + 1]), WC = TVecLib<Dim+1>::Last(CtrlPoints[i]);
 		double Weight = FMath::IsNearlyZero(WC) ? 1. : WN / WC;
 		//double DiffParam = Params[i + Degree] - Params[i];
-		//double DiffParam = Params[i + 1] - Params[i];
-		double DiffParam = Params[i + Degree + 1] - Params[i + 1];
+		double DiffParam = Params[i + 1] - Params[i];
+		//double DiffParam = Params[i + Degree + 1] - Params[i + 1];
 		// H_i = d * \frac{P_{i+1} - P_i}{t_{i+d} - t_i}?
 		OutHodograph.AddPointAtLast(FMath::IsNearlyZero(DiffParam) ? TVecLib<Dim>::Zero() : DiffPos * DegreeDbl / DiffParam, Params[i], Weight);
 	}

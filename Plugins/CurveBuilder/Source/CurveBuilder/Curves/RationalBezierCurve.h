@@ -25,7 +25,7 @@ public:
 	virtual void ElevateFrom(const TSplineCurveBase<Dim, CLAMP_DEGREE(Degree-1, 0)>& InCurve) override;
 
 public:
-	void Split(TRationalBezierCurve<Dim, Degree>& OutFirst, TRationalBezierCurve<Dim, Degree>& OutSecond, double T = 0.5);
+	void Split(TRationalBezierCurve<Dim, Degree>& OutFirst, TRationalBezierCurve<Dim, Degree>& OutSecond, double T = 0.5) const;
 
 	TVectorX<Dim> Horner(double T) const;
 	TVectorX<Dim> DeCasteljau(double T) const;

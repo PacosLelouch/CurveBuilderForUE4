@@ -102,7 +102,7 @@ inline void TRationalBezierCurve<Dim, Degree>::ElevateFrom(const TSplineCurveBas
 
 // The de Casteljau Algorithm (with weight)
 template<int32 Dim, int32 Degree>
-inline void TRationalBezierCurve<Dim, Degree>::Split(TRationalBezierCurve<Dim, Degree>& OutFirst, TRationalBezierCurve<Dim, Degree>& OutSecond, double T)
+inline void TRationalBezierCurve<Dim, Degree>::Split(TRationalBezierCurve<Dim, Degree>& OutFirst, TRationalBezierCurve<Dim, Degree>& OutSecond, double T) const
 {
 	double U = 1.0 - T;
 	constexpr int32 DoubleDegree = Degree << 1;

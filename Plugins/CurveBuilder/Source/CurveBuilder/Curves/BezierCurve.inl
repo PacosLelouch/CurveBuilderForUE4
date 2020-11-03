@@ -101,7 +101,7 @@ inline void TBezierCurve<Dim, Degree>::ElevateFrom(const TSplineCurveBase<Dim, C
 
 // The de Casteljau Algorithm 
 template<int32 Dim, int32 Degree>
-inline void TBezierCurve<Dim, Degree>::Split(TBezierCurve<Dim, Degree>& OutFirst, TBezierCurve<Dim, Degree>& OutSecond, double T)
+inline void TBezierCurve<Dim, Degree>::Split(TBezierCurve<Dim, Degree>& OutFirst, TBezierCurve<Dim, Degree>& OutSecond, double T) const
 {
 	double U = 1.0 - T;
 	constexpr int32 DoubleDegree = Degree << 1;
