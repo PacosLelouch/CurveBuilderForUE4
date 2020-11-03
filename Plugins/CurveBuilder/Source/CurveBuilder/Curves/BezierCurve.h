@@ -23,7 +23,7 @@ public:
 	void Split(TBezierCurve<Dim, Degree>& OutFirst, TBezierCurve<Dim, Degree>& OutSecond, double T = 0.5);
 
 	TVectorX<Dim> Horner(double T) const;
-	TVectorX<Dim> DeCasteljau(double T) const;
+	TVectorX<Dim> DeCasteljau(double T, TArray<TArray<TVectorX<Dim+1> > >* SplitArray = nullptr) const;
 };
 
 

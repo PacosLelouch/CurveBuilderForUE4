@@ -77,7 +77,7 @@ inline void TBezierString3<Dim>::GetBezierCurves(TArray<TBezierCurve<Dim, 3> >& 
 }
 
 template<int32 Dim>
-inline void TBezierString3<Dim>::Split(TBezierString3<Dim>& OutFirst, TBezierString3<Dim>& OutSecond, double T)
+inline void TBezierString3<Dim>::Split(TBezierString3<Dim>& OutFirst, TBezierString3<Dim>& OutSecond, double T) const
 {
 	OutFirst.Reset();
 	OutSecond.Reset();
@@ -91,12 +91,12 @@ inline void TBezierString3<Dim>::Split(TBezierString3<Dim>& OutFirst, TBezierStr
 	SplitCurveCtrlPoints.Reserve(4);
 	double SplitT = -1.;
 	while (Node) {
-		if (Node->GetValue().Param < T) {
+		if (Node->GetValue().Param <= T) {
 			auto Val = Node->GetValue();
 			Val.Param = static_cast<double>(OutFirst.GetCtrlPointNum());
 			OutFirst.AddPointAtLast(FirstVal);
 			FPointNode* NextNode = Node->GetNextNode();
-			if (NextNode && NextNode->GetValue().Param >= T) {
+			if (NextNode && T < NextNode->GetValue().Param) {
 				SplitCurveCtrlPoints.Add(Val.Pos);
 				SplitCurveCtrlPoints.Add(Val.NextCtrlPointPos);
 				SplitCurveCtrlPoints.Add(NextNode->GetValue().PrevCtrlPointPos);
@@ -133,8 +133,104 @@ inline void TBezierString3<Dim>::Split(TBezierString3<Dim>& OutFirst, TBezierStr
 }
 
 template<int32 Dim>
-inline void TBezierString3<Dim>::AddPointWithParamWithoutChangingShape(double Param)
+inline void TBezierString3<Dim>::AddPointAtLast(const TBezierString3ControlPoint<Dim>& PointStruct)
 {
+	CtrlPointsList.AddTail(PointStruct);
+}
+
+template<int32 Dim>
+inline void TBezierString3<Dim>::AddPointAtFirst(const TBezierString3ControlPoint<Dim>& PointStruct)
+{
+	CtrlPointsList.AddHead(PointStruct);
+}
+
+template<int32 Dim>
+inline void TBezierString3<Dim>::AddPointAt(const TBezierString3ControlPoint<Dim>& PointStruct, int32 Index)
+{
+	FPointNode* NodeToInsertBefore = CtrlPointsList.GetHead();
+	for (int32 i = 0; i < Index; ++i) {
+		if (NodeToInsertBefore) {
+			NodeToInsertBefore = NodeToInsertBefore->GetNextNode();
+		}
+		else {
+			break;
+		}
+	}
+	if (NodeToInsertBefore) {
+		CtrlPointsList.InsertNode(PointStruct, NodeToInsertBefore);
+	}
+	else {
+		CtrlPointsList.AddTail(PointStruct);
+	}
+}
+
+template<int32 Dim>
+inline void TBezierString3<Dim>::AddPointWithParamWithoutChangingShape(double T)
+{
+	TTuple<double, double> ParamRange = GetParamRange();
+	if (T >= ParamRange.Get<1>() || T <= ParamRange.Get<0>()) {
+		return;
+	}
+
+	FPointNode* Node = CtrlPointsList.GetHead();
+	TArray<TVectorX<Dim+1> > SplitCurveCtrlPoints;
+	SplitCurveCtrlPoints.Reserve(4);
+	double SplitT = -1.;
+	while (Node) {
+		if (Node->GetValue().Param <= T) {
+			auto Val = Node->GetValue();
+			Val.Param = static_cast<double>(OutFirst.GetCtrlPointNum());
+			OutFirst.AddPointAtLast(FirstVal);
+			FPointNode* NextNode = Node->GetNextNode();
+			if (NextNode && T < NextNode->GetValue().Param) {
+				SplitCurveCtrlPoints.Add(Val.Pos);
+				SplitCurveCtrlPoints.Add(Val.NextCtrlPointPos);
+				SplitCurveCtrlPoints.Add(NextNode->GetValue().PrevCtrlPointPos);
+				SplitCurveCtrlPoints.Add(NextNode->GetValue().Pos);
+				SplitT = (T - Node->GetValue().Param) / (NextNode->GetValue().Param - Node->GetValue().Param);
+			}
+		}
+		else {
+			auto Val = Node->GetValue();
+			Val.Param = static_cast<double>(OutSecond.GetCtrlPointNum() + 1);
+			OutSecond.AddPointAtLast(Node->GetValue());
+		}
+		Node = Node->GetNextNode();
+	}
+	if (SplitCurveCtrlPoints.Num() != 4) {
+		return;
+	}
+
+	TBezierCurve<Dim, 3> NewLeft, NewRight;
+	TBezierCurve<Dim, 3> SplitCurve(SplitCurveCtrlPoints);
+	SplitCurve.Split(NewLeft, NewRight, SplitT);
+
+	OutFirst.LastNode()->GetValue().NextCtrlPointPos = NewLeft.GetPointHomogeneous(1);
+	OutSecond.FirstNode()->GetValue().PrevCtrlPointPos = NewRight.GetPointHomogeneous(2);
+
+	TBezierString3ControlPoint<Dim> Val(
+		SplitPos,
+		NewLeft.GetPointHomogeneous(2),
+		NewRight.GetPointHomogeneous(1),
+		static_cast<double>(OutFirst.GetCtrlPointNum()));
+	OutFirst.AddPointAtLast(Val);
+	Val.Param = 0.;
+	OutSecond.AddPointAt(Val, 0);
+}
+
+template<int32 Dim>
+inline void TBezierString3<Dim>::AddPointAtLast(const TVectorX<Dim>& Point, TOptional<double> Param, double Weight)
+{
+	double InParam = Param ? Param.GetValue() : (CtrlPointsList.Num() > 0 ? GetParamRange().Get<1>() + 1. : 0.);
+	CtrlPointsList.AddTail(TBezierString3ControlPoint<Dim>(TVecLib<Dim>::Homogeneous(Point, Weight), InParam));
+	//TODO
+}
+
+template<int32 Dim>
+inline void TBezierString3<Dim>::AddPointAtHead(const TVectorX<Dim>& Point, TOptional<double> Param, double Weight)
+{
+	double InParam = Param ? Param.GetValue() : (CtrlPointsList.Num() > 0 ? GetParamRange().Get<1>() + 1. : 0.);
+	CtrlPointsList.AddHead(TBezierString3ControlPoint<Dim>(TVecLib<Dim>::Homogeneous(Point, Weight), InParam));
 	//TODO
 }
 

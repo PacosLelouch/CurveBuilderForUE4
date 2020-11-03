@@ -9,6 +9,15 @@
 #include "Utils/NumericalCalculationUtils.h"
 #include "Curves/BezierCurve.h"
 
+enum class EEndPointContinuity : uint8
+{
+	C0,
+	G1,
+	C1,
+	G2,
+	C2,
+};
+
 template<int32 Dim>
 struct TBezierString3ControlPoint
 {
@@ -21,6 +30,7 @@ struct TBezierString3ControlPoint
 	TVectorX<Dim+1> Pos;
 	TVectorX<Dim+1> PrevCtrlPointPos, NextCtrlPointPos;
 	double Param;
+	EEndPointContinuity Continuity = EEndPointContinuity::C2;
 };
 
 // BezierString3
@@ -65,16 +75,20 @@ public:
 
 public:
 
-	virtual void Split(TBezierString3<Dim>& OutFirst, TBezierString3<Dim>& OutSecond, double T);
+	virtual void Split(TBezierString3<Dim>& OutFirst, TBezierString3<Dim>& OutSecond, double T) const;
 
 	virtual void AddPointAtLast(const TBezierString3ControlPoint<Dim>& PointStruct);
 
+	virtual void AddPointAtFirst(const TBezierString3ControlPoint<Dim>& PointStruct);
+
 	virtual void AddPointAt(const TBezierString3ControlPoint<Dim>& PointStruct, int32 Index = 0);
 
-	virtual void AddPointWithParamWithoutChangingShape(double Param);
+	virtual void AddPointWithParamWithoutChangingShape(double T);
 
 public:
 	virtual void AddPointAtLast(const TVectorX<Dim>& Point, TOptional<double> Param = TOptional<double>(), double Weight = 1.) override;
+
+	virtual void AddPointAtHead(const TVectorX<Dim>& Point, TOptional<double> Param = TOptional<double>(), double Weight = 1.) override;
 
 	virtual void AddPointAt(const TVectorX<Dim>& Point, TOptional<double> Param = TOptional<double>(), int32 Index = 0, double Weight = 1.) override;
 
@@ -105,11 +119,11 @@ public:
 protected:
 	TDoubleLinkedList<TBezierString3ControlPoint<Dim> > CtrlPointsList;
 
-	// Reference: https://en.wikipedia.org/wiki/De_Boor%27s_algorithm
-	TVectorX<Dim> DeBoor(double T, const TArray<TVectorX<Dim+1> >& CtrlPoints, const TArray<double>& Params) const;
+	//// Reference: https://en.wikipedia.org/wiki/De_Boor%27s_algorithm
+	//TVectorX<Dim> DeBoor(double T, const TArray<TVectorX<Dim+1> >& CtrlPoints, const TArray<double>& Params) const;
 
-	// Reference: https://en.wikipedia.org/wiki/De_Boor%27s_algorithm
-	TVectorX<Dim> CoxDeBoor(double T, const TArray<TVectorX<Dim+1> >& CtrlPoints, const TArray<double>& Params) const;
+	//// Reference: https://en.wikipedia.org/wiki/De_Boor%27s_algorithm
+	//TVectorX<Dim> CoxDeBoor(double T, const TArray<TVectorX<Dim+1> >& CtrlPoints, const TArray<double>& Params) const;
 };
 
 #include "BezierString.inl"

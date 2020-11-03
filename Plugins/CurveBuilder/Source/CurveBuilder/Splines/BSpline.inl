@@ -62,10 +62,12 @@ inline void TClampedBSpline<Dim, Degree>::GetOpenFormPointsAndParams(TArray<TVec
 {
 	int32 ListNum = CtrlPointsList.Num();
 	static constexpr int32 RepeatNum = Degree;
-	static constexpr int32 ExtraNum = RepeatNum << 1;
-	CtrlPoints.Reserve(ListNum + ExtraNum);
-	Params.Reserve(ListNum + ExtraNum);
+	//static constexpr int32 ExtraNum = RepeatNum << 1;
+	//CtrlPoints.Reserve(ListNum + ExtraNum);
+	//Params.Reserve(ListNum + ExtraNum);
 	//int32 Index = 0;
+	CtrlPoints.Empty(ListNum * (RepeatNum + 1));
+	Params.Empty(ListNum * (RepeatNum + 1));
 	FPointNode* Node = CtrlPointsList.GetHead();
 	if (!Node) {
 		return;
@@ -76,9 +78,11 @@ inline void TClampedBSpline<Dim, Degree>::GetOpenFormPointsAndParams(TArray<TVec
 		//Params.Add(0.);
 	}
 	while (Node) {
-		CtrlPoints.Add(Node->GetValue().Pos);
-		Params.Add(Node->GetValue().Param);
-		//Params.Add(static_cast<double>(Index));
+		for (int32 n = 0; n <= Node->GetValue().MiddleRepeatNum; ++n) {
+			CtrlPoints.Add(Node->GetValue().Pos);
+			Params.Add(Node->GetValue().Param);
+			//Params.Add(static_cast<double>(Index));
+		}
 		Node = Node->GetNextNode();
 		//++Index;
 	}
@@ -96,7 +100,7 @@ inline void TClampedBSpline<Dim, Degree>::CreateHodograph(TClampedBSpline<Dim, C
 {
 	OutHodograph.Reset();
 	FPointNode* CurNode = CtrlPointsList.GetHead();
-	if (!CurNode) {
+	if (!CurNode || !CurNode->GetNextNode()) {
 		return;
 	}
 	FPointNode* NextNode = CurNode->GetNextNode();
@@ -111,9 +115,11 @@ inline void TClampedBSpline<Dim, Degree>::CreateHodograph(TClampedBSpline<Dim, C
 		TVectorX<Dim> DiffPos = TVecLib<Dim+1>::Projection(CtrlPoints[i + 1]) - TVecLib<Dim+1>::Projection(CtrlPoints[i]);
 		double WN = TVecLib<Dim+1>::Last(CtrlPoints[i + 1]), WC = TVecLib<Dim+1>::Last(CtrlPoints[i]);
 		double Weight = FMath::IsNearlyZero(WC) ? 1. : WN / WC;
-		double DiffParam = Params[i + Degree] - Params[i];
-		//	// H_i = d * \frac{P_{i+1} - P_i}{t_{i+d} - t_i}.
-		OutHodograph.AddPointAtLast(FMath::IsNearlyZero(DiffParam) ? DiffPos : DiffPos * DegreeDbl / DiffParam, Params[i], Weight);
+		//double DiffParam = Params[i + Degree] - Params[i];
+		//double DiffParam = Params[i + 1] - Params[i];
+		double DiffParam = Params[i + Degree + 1] - Params[i + 1];
+		// H_i = d * \frac{P_{i+1} - P_i}{t_{i+d} - t_i}?
+		OutHodograph.AddPointAtLast(FMath::IsNearlyZero(DiffParam) ? TVecLib<Dim>::Zero() : DiffPos * DegreeDbl / DiffParam, Params[i], Weight);
 	}
 
 	//while (NextNode) {
@@ -132,38 +138,67 @@ inline void TClampedBSpline<Dim, Degree>::CreateHodograph(TClampedBSpline<Dim, C
 }
 
 template<int32 Dim, int32 Degree>
-inline void TClampedBSpline<Dim, Degree>::Split(TClampedBSpline<Dim, Degree>& OutFirst, TClampedBSpline<Dim, Degree>& OutSecond, double T)
+inline TVectorX<Dim+1> TClampedBSpline<Dim, Degree>::Split(TClampedBSpline<Dim, Degree>& OutFirst, TClampedBSpline<Dim, Degree>& OutSecond, double T) const
 {
 	OutFirst.Reset();
 	OutSecond.Reset();
 
 	TTuple<double, double> ParamRange = GetParamRange();
 	if (T >= ParamRange.Get<1>() || T <= ParamRange.Get<0>()) {
-		return;
+		return TVecLib<Dim+1>::Zero();
 	}
 
-	TVectorX<Dim> SplitPoint = GetPosition(T);
-	TVectorX<Dim+1> SplitPointHomogeneous = TVecLib<Dim>::Homogeneous(SplitPoint, 1.);
-	TClampedBSplineControlPoint<Dim> NewPoint(SplitPointHomogeneous, T);
+	TArray<TVectorX<Dim+1> > CtrlPoints;
+	TArray<double> Params;
+	GetOpenFormPointsAndParams(CtrlPoints, Params);
+	TArray<TArray<TVectorX<Dim+1> > > SplitPosArray;
+	TArray<TArray<double> > SplitParamArray;
+	TVectorX<Dim+1> ReturnValue = DeBoor(T, CtrlPoints, Params, &SplitPosArray, &SplitParamArray);
 
-	OutSecond.AddPointAtLast(NewPoint);
 	FPointNode* Node = CtrlPointsList.GetHead();
 	while (Node) {
-		if (Node->GetValue().Param < T) {
-			OutFirst.AddPointAtLast(Node->GetValue());
-		}
-		else {
+		if (SplitParamArray[0].Last() < Node->GetValue().Param) {
 			OutSecond.AddPointAtLast(Node->GetValue());
+		}
+		else if (Node->GetValue().Param <= SplitParamArray[0][0]) {
+			OutFirst.AddPointAtLast(Node->GetValue());
 		}
 		Node = Node->GetNextNode();
 	}
-	OutFirst.AddPointAtLast(NewPoint);
+
+	for (int32 i = 0; i < SplitPosArray.Num(); ++i) {
+		OutFirst.AddPointAtLast(SplitPosArray[i][0], SplitParamArray[i][0]);
+		OutSecond.AddPointAtFirst(SplitPosArray[i].Last(), SplitParamArray[i].Last());
+	}
+	return ReturnValue;
+
+	//TVectorX<Dim> SplitPoint = DeBoor(T, CtrlPoints, Params);
+	//TVectorX<Dim+1> SplitPointHomogeneous = TVecLib<Dim>::Homogeneous(SplitPoint, 1.);
+	//TClampedBSplineControlPoint<Dim> NewPoint(SplitPointHomogeneous, T);
+	//OutSecond.AddPointAtLast(NewPoint);
+	//FPointNode* Node = CtrlPointsList.GetHead();
+	//while (Node) {
+	//	if (Node->GetValue().Param <= T) {
+	//		OutFirst.AddPointAtLast(Node->GetValue());
+	//	}
+	//	else {
+	//		OutSecond.AddPointAtLast(Node->GetValue());
+	//	}
+	//	Node = Node->GetNextNode();
+	//}
+	//OutFirst.AddPointAtLast(NewPoint);
 }
 
 template<int32 Dim, int32 Degree>
 inline void TClampedBSpline<Dim, Degree>::AddPointAtLast(const TClampedBSplineControlPoint<Dim>& PointStruct)
 {
 	CtrlPointsList.AddTail(PointStruct);
+}
+
+template<int32 Dim, int32 Degree>
+inline void TClampedBSpline<Dim, Degree>::AddPointAtFirst(const TClampedBSplineControlPoint<Dim>& PointStruct)
+{
+	CtrlPointsList.AddHead(PointStruct);
 }
 
 template<int32 Dim, int32 Degree>
@@ -187,9 +222,99 @@ inline void TClampedBSpline<Dim, Degree>::AddPointAt(const TClampedBSplineContro
 }
 
 template<int32 Dim, int32 Degree>
-inline void TClampedBSpline<Dim, Degree>::AddPointWithParamWithoutChangingShape(double Param)
+inline void TClampedBSpline<Dim, Degree>::AddPointWithParamWithoutChangingShape(double T)
 {
-	//TODO
+	TTuple<double, double> ParamRange = GetParamRange();
+	if (T >= ParamRange.Get<1>() || T <= ParamRange.Get<0>()) {
+		return;
+	}
+
+	TArray<TVectorX<Dim+1> > CtrlPoints;
+	TArray<double> Params;
+	GetOpenFormPointsAndParams(CtrlPoints, Params);
+	TArray<TArray<TVectorX<Dim+1> > > SplitPosArray;
+	TArray<TArray<double> > SplitParamArray;
+	DeBoor(T, CtrlPoints, Params, &SplitPosArray, &SplitParamArray);
+
+	if (SplitPosArray.Num() == 0) {
+		return;
+	}
+
+	TDoubleLinkedList<TClampedBSplineControlPoint<Dim> > LeftList, RightList;
+	FPointNode* Node = CtrlPointsList.GetHead();
+	while (Node) {
+		if (SplitParamArray[0].Last() < Node->GetValue().Param) {
+			RightList.AddTail(Node->GetValue());
+		}
+		else if (Node->GetValue().Param <= SplitParamArray[0][0]) {
+			LeftList.AddTail(Node->GetValue());
+		}
+		Node = Node->GetNextNode();
+	}
+
+	CtrlPointsList.Empty();
+	for (const auto& P : LeftList) {
+		CtrlPointsList.AddTail(P);
+	}
+	for (int32 i = 0; i < SplitPosArray[0].Num(); ++i) {
+		CtrlPointsList.AddTail(TClampedBSplineControlPoint<Dim>(SplitPosArray[0][i], SplitParamArray[0][i]));
+	}
+	for (const auto& P : RightList) {
+		CtrlPointsList.AddTail(P);
+	}
+}
+
+template<int32 Dim, int32 Degree>
+inline void TClampedBSpline<Dim, Degree>::ToBezierString(TArray<TBezierCurve<Dim, Degree>>& Beziers) const
+{
+	// TODO: Fix
+	//FPointNode* Node = CtrlPointsList.GetTail();
+	//if (!Node) {
+	//	return;
+	//}
+	//Node = Node->GetPrevNode();
+	//if (!Node) {
+	//	return;
+	//}
+	FPointNode* Node = CtrlPointsList.GetHead();
+	if (!Node) {
+		return;
+	}
+	Node = Node->GetNextNode();
+	if (!Node) {
+		return;
+	}
+
+	TArray<TVectorX<Dim + 1> > EndPoints;
+	EndPoints.Reserve(CtrlPointsList.Num());
+	EndPoints.Add(CtrlPointsList.GetHead()->GetValue().Pos);
+
+	TArray<TVectorX<Dim+1> > CtrlPoints;
+	TArray<double> Params;
+
+	TArray<TArray<TVectorX<Dim+1> > > SplitPosArray;
+	TArray<TArray<double> > SplitParamArray;
+
+	TClampedBSpline<Dim, Degree> SplitFirst, SplitSecond, ToSplit(*this);
+	while (Node && Node->GetNextNode()) {
+		double T = Node->GetValue().Param;
+		ToSplit.GetOpenFormPointsAndParams(CtrlPoints, Params);
+		TVectorX<Dim + 1> NewEndPoint = ToSplit.DeBoor(T, CtrlPoints, Params, &SplitPosArray, &SplitParamArray);
+		auto& NewBezier = Beziers.AddDefaulted_GetRef();
+		NewBezier.SetPointHomogeneous(0, EndPoints.Last());
+		for (int32 i = 0; i < SplitPosArray.Num(); ++i) { // TODO: Consider Params
+			NewBezier.SetPointHomogeneous(i + 1, SplitPosArray[i][0]);
+		}
+		EndPoints.Add(NewEndPoint);
+		Node = Node->GetNextNode();
+		ToSplit.Split(SplitFirst, SplitSecond, T);
+		ToSplit = SplitSecond;
+	}
+	auto& NewBezier = Beziers.AddDefaulted_GetRef();
+	for (int32 i = 0; i < SplitPosArray.Num(); ++i) {
+		NewBezier.SetPointHomogeneous(SplitPosArray.Num() - 1 - i, SplitPosArray[i].Last());
+	}
+	NewBezier.SetPointHomogeneous(SplitPosArray.Num(), CtrlPointsList.GetTail()->GetValue().Pos);
 }
 
 template<int32 Dim, int32 Degree>
@@ -197,6 +322,13 @@ inline void TClampedBSpline<Dim, Degree>::AddPointAtLast(const TVectorX<Dim>& Po
 {
 	double InParam = Param ? Param.GetValue() : (CtrlPointsList.Num() > 0 ? GetParamRange().Get<1>() + 1. : 0.);
 	CtrlPointsList.AddTail(TClampedBSplineControlPoint<Dim>(TVecLib<Dim>::Homogeneous(Point, Weight), InParam));
+}
+
+template<int32 Dim, int32 Degree>
+inline void TClampedBSpline<Dim, Degree>::AddPointAtFirst(const TVectorX<Dim>& Point, TOptional<double> Param, double Weight)
+{
+	double InParam = Param ? Param.GetValue() : (CtrlPointsList.Num() > 0 ? GetParamRange().Get<1>() + 1. : 0.);
+	CtrlPointsList.AddHead(TClampedBSplineControlPoint<Dim>(TVecLib<Dim>::Homogeneous(Point, Weight), InParam));
 }
 
 template<int32 Dim, int32 Degree>
@@ -299,22 +431,25 @@ inline TVectorX<Dim> TClampedBSpline<Dim, Degree>::GetPosition(double T) const
 	TArray<double> Params;
 	GetOpenFormPointsAndParams(CtrlPoints, Params);
 
-	return CoxDeBoor(T, CtrlPoints, Params);
-	//return DeBoor(T, CtrlPoints, Params);
+	//return TVecLib<Dim+1>::Projection(CoxDeBoor(T, CtrlPoints, Params));
+	return TVecLib<Dim+1>::Projection(DeBoor(T, CtrlPoints, Params));
 }
 
 template<int32 Dim, int32 Degree>
 inline TVectorX<Dim> TClampedBSpline<Dim, Degree>::GetTangent(double T) const
 {
-	if (constexpr(Degree <= 1)) {
-		if (CtrlPointsList.Num() > 1) {
-			FPointNode* Head = CtrlPointsList.GetHead();
-			return TVecLib<Dim+1>::Projection(Head->GetNextNode()->GetValue().Pos)
-				- TVecLib<Dim+1>::Projection(Head->GetValue().Pos);
-		}
-		else {
-			return TVecLib<Dim>::Zero();
-		}
+	//if (constexpr(Degree <= 1)) {
+	//	if (CtrlPointsList.Num() > 1) {
+	//		FPointNode* Head = CtrlPointsList.GetHead();
+	//		return TVecLib<Dim+1>::Projection(Head->GetNextNode()->GetValue().Pos)
+	//			- TVecLib<Dim+1>::Projection(Head->GetValue().Pos);
+	//	}
+	//	else {
+	//		return TVecLib<Dim>::Zero();
+	//	}
+	//}
+	if (constexpr(Degree <= 0)) {
+		return TVecLib<Dim>::Zero();
 	}
 	TClampedBSpline<Dim, CLAMP_DEGREE(Degree-1, 0)> Hodograph;
 	CreateHodograph(Hodograph);
@@ -365,9 +500,16 @@ inline double TClampedBSpline<Dim, Degree>::GetCurvature(double T) const
 }
 
 template<int32 Dim, int32 Degree>
-inline void TClampedBSpline<Dim, Degree>::ToPolynomialForm(TArray<TArray<TVectorX<Dim+1>>>& OutPolyForms) const
+inline void TClampedBSpline<Dim, Degree>::ToPolynomialForm(TArray<TArray<TVectorX<Dim+1> > >& OutPolyForms) const
 {
-	//TODO
+	TArray<TBezierCurve<Dim, Degree> > Beziers;
+	ToBezierString(Beziers);
+	OutPolyForms.Empty(Beziers.Num());
+	for (int32 i = 0; i < Beziers.Num(); ++i) {
+		TArray<TVectorX<Dim+1> >& Poly = OutPolyForms.AddDefaulted_GetRef();
+		Poly.SetNum(Degree + 1);
+		Beziers[i].ToPolynomialForm(Poly.GetData());
+	}
 }
 
 template<int32 Dim, int32 Degree>
@@ -380,25 +522,75 @@ inline TTuple<double, double> TClampedBSpline<Dim, Degree>::GetParamRange() cons
 }
 
 template<int32 Dim, int32 Degree>
-inline TVectorX<Dim> TClampedBSpline<Dim, Degree>::DeBoor(double T, const TArray<TVectorX<Dim+1>>& CtrlPoints, const TArray<double>& Params) const
+inline TVectorX<Dim+1> TClampedBSpline<Dim, Degree>::DeBoor(
+	double T, const TArray<TVectorX<Dim+1>>& CtrlPoints, const TArray<double>& Params, 
+	TArray<TArray<TVectorX<Dim+1> > >* SplitPosArray, TArray<TArray<double> >* SplitParamArray) const
 {
 	int32 ListNum = CtrlPointsList.Num();
-	TVectorX<Dim> Position = TVecLib<Dim>::Zero();
+	int32 EndI = CtrlPoints.Num() - 1;
+	for (int32 i = 0; i + 1 < CtrlPoints.Num(); ++i) {
+		if (Params[i] <= T && T < Params[i + 1]) {
+			if (EndI == CtrlPoints.Num() - 1) {
+				EndI = i;
+				break;
+			}
+		}
+	}
+	if (EndI == CtrlPoints.Num() - 1) {
+		return CtrlPoints.Last();
+	}
 
-	//TODO DeBoor
+	TArray<TVectorX<Dim+1> > D;
+	D.Reserve(Degree + 1);
+	for (int32 j = 0; j <= Degree; ++j) {
+		D.Add(CtrlPoints[j + EndI - 1]); // Might be wrong with wiki?
+	}
 
-	return Position;
+	TArray<double> Ps; // For other operations
+	Ps.Reserve(Degree + 1);
+	for (int32 j = 0; j <= Degree; ++j) {
+		Ps.Add(Params[j + EndI - 1]);
+	}
+
+	if (SplitPosArray) {
+		SplitPosArray->Empty(Degree);
+	}
+	if (SplitParamArray) {
+		SplitParamArray->Empty(Degree);
+	}
+	for (int32 r = 1; r <= Degree; ++r) {
+		//double Alpha = 0.;
+		for (int32 j = Degree; j >= r; --j) {
+			double De = Params[j + 1 + EndI - r] - Params[j + EndI - Degree];
+			double Alpha = FMath::IsNearlyZero(De) ? 0. : (T - Params[j + EndI - Degree]) / De;
+			D[j] = D[j - 1] * (1. - Alpha) + D[j] * Alpha;
+			Ps[j] = Ps[j - 1] * (1. - Alpha) + Ps[j] * Alpha;
+		}
+
+		if (SplitPosArray) {
+			SplitPosArray->AddDefaulted_GetRef().Reserve(Degree + 1 - r);
+			for (int32 i = r; i <= Degree; ++i) {
+				SplitPosArray->Last().Add(D[i]);
+			}
+		}
+		if (SplitParamArray) {
+			SplitParamArray->AddDefaulted_GetRef().Reserve(Degree + 1 - r);
+			for (int32 i = r; i <= Degree; ++i) {
+				SplitParamArray->Last().Add(Ps[i]);
+			}
+		}
+	}
+	return D[Degree];
 }
 
 template<int32 Dim, int32 Degree>
-inline TVectorX<Dim> TClampedBSpline<Dim, Degree>::CoxDeBoor(double T, const TArray<TVectorX<Dim+1>>& CtrlPoints, const TArray<double>& Params) const
+inline TVectorX<Dim+1> TClampedBSpline<Dim, Degree>::CoxDeBoor(double T, const TArray<TVectorX<Dim+1>>& CtrlPoints, const TArray<double>& Params) const
 {
 	int32 ListNum = CtrlPointsList.Num();
 	TArray<double> N;
 	N.SetNumZeroed(CtrlPoints.Num() - 1);
 	int32 EndI = N.Num();
 	for (int32 i = 0; i < N.Num(); ++i) {
-		//if (Params[i] <= T && T < Params[i + 1]) {
 		if (Params[i] <= T && T < Params[i + 1]) {
 			if (EndI == N.Num()) {
 				EndI = i;
@@ -419,10 +611,10 @@ inline TVectorX<Dim> TClampedBSpline<Dim, Degree>::CoxDeBoor(double T, const TAr
 			N[i] = W0 * N[i] + W1 * N[i + 1];
 		}
 	}
-	TVectorX<Dim> Position = TVecLib<Dim>::Zero();
+	TVectorX<Dim+1> Position = TVecLib<Dim+1>::Zero();
 	if (EndI < N.Num()) {
 		for (int32 i = EndI - Degree; i <= EndI; ++i) {
-			TVectorX<Dim> P = TVecLib<Dim+1>::Projection(CtrlPoints[i + Degree - 1]);
+			TVectorX<Dim+1> P = CtrlPoints[i + Degree - 1]; // Might be wrong with wiki?
 			Position += P * N[i];
 		}
 	}

@@ -53,7 +53,7 @@ public:
 		void ChangeConcatType(ESplineConcatType Type);
 
 	UFUNCTION(BlueprintCallable)
-		void FlipConvertToPolynomialForm();
+		void FlipConvertToBezier();
 
 	UFUNCTION(BlueprintCallable)
 		void FlipDisplayControlPoint();
@@ -81,16 +81,16 @@ public:
 		ESplineConcatType ConcatType = ESplineConcatType::ToPoint;
 
 	UPROPERTY(BlueprintReadWrite)
-		bool bConvertToPolynomialForm = false;
+		bool bConvertToBezier = false;
 
 	UPROPERTY(BlueprintReadWrite)
-		bool bDisplayControlPoint = false;
+		bool bDisplayControlPoint = true;
 
 	UPROPERTY(BlueprintReadWrite)
-		bool bDisplaySmallTangent = true;
+		bool bDisplaySmallTangent = false;
 
 	UPROPERTY(BlueprintReadWrite)
-		bool bDisplaySmallCurvature = true;
+		bool bDisplaySmallCurvature = false;
 
 	//UPROPERTY(BlueprintReadWrite)
 	//FCurveBuilderTestParamsInput ParamsInput;
@@ -104,6 +104,10 @@ protected:
 	void ResampleCurve();
 
 private:
+
+	int32 ResampleBezier(int32 FirstLineLayer = 0);
+	
+	int32 ResampleBSpline(int32 FirstLineLayer = 0);
 
 	UFUNCTION()
 		void AddControlPointEvent(FKey Key, FVector2D MouseScreenPos, EInputEvent InputEvent, APlayerController* Ctrl);
@@ -121,7 +125,7 @@ private:
 		void ChangeConcatTypeToCurve(FKey Key, EInputEvent Event, APlayerController* Ctrl);
 
 	UFUNCTION()
-		void FlipConvertToPolynomialFormEvent(FKey Key, EInputEvent Event, APlayerController* Ctrl);
+		void FlipConvertToBezierEvent(FKey Key, EInputEvent Event, APlayerController* Ctrl);
 
 	UFUNCTION()
 		void FlipDisplayControlPointEvent(FKey Key, EInputEvent Event, APlayerController* Ctrl);
@@ -141,4 +145,5 @@ public:
 
 public:
 	TArray<FSpatialBSpline3> Splines;
+	TArray<TArray<FSpatialBezierCurve3> > BezierCurves;
 };

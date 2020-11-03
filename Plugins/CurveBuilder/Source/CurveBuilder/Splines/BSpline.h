@@ -18,7 +18,8 @@ struct TClampedBSplineControlPoint
 	TClampedBSplineControlPoint<Dim>& operator=(const TClampedBSplineControlPoint<Dim>& InP) { Pos = InP.Pos; Param = InP.Param; return *this; }
 
 	TVectorX<Dim+1> Pos;
-	double Param;
+	double Param = 0.;
+	int32 MiddleRepeatNum = 0;
 };
 
 // Clamped B-Spline
@@ -44,6 +45,16 @@ public:
 		return CtrlPointsList.Num();
 	}
 
+	FORCEINLINE FPointNode* FirstNode() const
+	{
+		return CtrlPointsList.GetHead();
+	}
+
+	FORCEINLINE FPointNode* LastNode() const
+	{
+		return CtrlPointsList.GetTail();
+	}
+
 public:
 	FPointNode* FindNodeByParam(double Param, int32 NthNode = 0) const;
 
@@ -54,16 +65,22 @@ public:
 public:
 	virtual void CreateHodograph(TClampedBSpline<Dim, CLAMP_DEGREE(Degree-1, 0)>& OutHodograph) const;
 
-	virtual void Split(TClampedBSpline<Dim, Degree>& OutFirst, TClampedBSpline<Dim, Degree>& OutSecond, double T);
+	virtual TVectorX<Dim+1> Split(TClampedBSpline<Dim, Degree>& OutFirst, TClampedBSpline<Dim, Degree>& OutSecond, double T) const;
 
 	virtual void AddPointAtLast(const TClampedBSplineControlPoint<Dim>& PointStruct);
 
+	virtual void AddPointAtFirst(const TClampedBSplineControlPoint<Dim>& PointStruct);
+
 	virtual void AddPointAt(const TClampedBSplineControlPoint<Dim>& PointStruct, int32 Index = 0);
 
-	virtual void AddPointWithParamWithoutChangingShape(double Param);
+	virtual void AddPointWithParamWithoutChangingShape(double T);
+
+	virtual void ToBezierString(TArray<TBezierCurve<Dim, Degree> >& Beziers) const;
 
 public:
 	virtual void AddPointAtLast(const TVectorX<Dim>& Point, TOptional<double> Param = TOptional<double>(), double Weight = 1.) override;
+
+	virtual void AddPointAtFirst(const TVectorX<Dim>& Point, TOptional<double> Param = TOptional<double>(), double Weight = 1.) override;
 
 	virtual void AddPointAt(const TVectorX<Dim>& Point, TOptional<double> Param = TOptional<double>(), int32 Index = 0, double Weight = 1.) override;
 
@@ -94,11 +111,12 @@ public:
 protected:
 	TDoubleLinkedList<TClampedBSplineControlPoint<Dim> > CtrlPointsList;
 
-	// Reference: https://en.wikipedia.org/wiki/De_Boor%27s_algorithm
-	TVectorX<Dim> DeBoor(double T, const TArray<TVectorX<Dim+1> >& CtrlPoints, const TArray<double>& Params) const;
+	// DeBoor is more efficient than Cox-DeBoor. Reference: https://en.wikipedia.org/wiki/De_Boor%27s_algorithm
+	TVectorX<Dim+1> DeBoor(double T, const TArray<TVectorX<Dim+1> >& CtrlPoints, const TArray<double>& Params,
+		TArray<TArray<TVectorX<Dim+1> > >* SplitPosArray = nullptr, TArray<TArray<double> >* SplitParamArray = nullptr) const;
 
 	// Reference: https://en.wikipedia.org/wiki/De_Boor%27s_algorithm
-	TVectorX<Dim> CoxDeBoor(double T, const TArray<TVectorX<Dim+1> >& CtrlPoints, const TArray<double>& Params) const;
+	TVectorX<Dim+1> CoxDeBoor(double T, const TArray<TVectorX<Dim+1> >& CtrlPoints, const TArray<double>& Params) const;
 };
 
 #include "BSpline.inl"

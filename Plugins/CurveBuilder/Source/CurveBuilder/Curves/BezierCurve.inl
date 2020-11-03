@@ -141,7 +141,7 @@ inline TVectorX<Dim> TBezierCurve<Dim, Degree>::Horner(double T) const
 
 // The de Casteljau Algorithm 
 template<int32 Dim, int32 Degree>
-inline TVectorX<Dim> TBezierCurve<Dim, Degree>::DeCasteljau(double T) const
+inline TVectorX<Dim> TBezierCurve<Dim, Degree>::DeCasteljau(double T, TArray<TArray<TVectorX<Dim+1> > >* SplitArray) const
 {
 	double U = 1.0 - T;
 	constexpr int32 DoubleDegree = Degree << 1;
@@ -149,9 +149,18 @@ inline TVectorX<Dim> TBezierCurve<Dim, Degree>::DeCasteljau(double T) const
 	TVecLib<Dim+1>::CopyArray(CalCtrlPoints, CtrlPoints, Degree + 1);
 	//SplitCtrlPoints[0] = CtrlPoints[0];
 	//SplitCtrlPoints[DoubleDegree] = CtrlPoints[Degree];
+	if (SplitArray) {
+		SplitArray->Empty(Degree);
+	}
 	for (int32 j = 1; j <= Degree; ++j) {
+		if (SplitArray) {
+			SplitArray->AddDefaulted_GetRef().Reserve(Degree + 1 - j);
+		}
 		for (int32 i = 0; i <= Degree - j; ++i) {
 			CalCtrlPoints[i] = CalCtrlPoints[i] * U + CalCtrlPoints[i + 1] * T;
+			if (SplitArray) {
+				SplitArray->Last().Add(CalCtrlPoints[i]);
+			}
 		}
 	}
 	return TVecLib<Dim+1>::Projection(CalCtrlPoints[0]);

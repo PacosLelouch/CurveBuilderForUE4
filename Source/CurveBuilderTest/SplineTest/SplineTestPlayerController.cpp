@@ -56,7 +56,7 @@ void ASplineTestPlayerController::BindOnCtrlAndKey4Released()
 void ASplineTestPlayerController::BindOnCtrlAndKey5Released()
 {
 	// Do nothing.
-	OnCtrlAndKey5Released.AddDynamic(this, &ASplineTestPlayerController::FlipConvertToPolynomialFormEvent);
+	OnCtrlAndKey5Released.AddDynamic(this, &ASplineTestPlayerController::FlipConvertToBezierEvent);
 }
 
 void ASplineTestPlayerController::BindOnCtrlAndKey0Released()
@@ -77,10 +77,10 @@ void ASplineTestPlayerController::ChangeConcatType(ESplineConcatType Type)
 	ClearCanvas();
 }
 
-void ASplineTestPlayerController::FlipConvertToPolynomialForm()
+void ASplineTestPlayerController::FlipConvertToBezier()
 {
-	bConvertToPolynomialForm = !bConvertToPolynomialForm;
-	UE_LOG(LogSplineCtrl, Warning, TEXT("ConvertToPolynomialForm = %s"), bConvertToPolynomialForm ? TEXT("true") : TEXT("false"));
+	bConvertToBezier = !bConvertToBezier;
+	UE_LOG(LogSplineCtrl, Warning, TEXT("ConvertToBezier = %s"), bConvertToBezier ? TEXT("true") : TEXT("false"));
 	ResampleCurve();
 }
 
@@ -147,12 +147,6 @@ void ASplineTestPlayerController::ClearCanvasImpl()
 
 void ASplineTestPlayerController::ResampleCurve()
 {
-	auto ControlPointToHitPoint = [this](const FVector& P) -> FVector {
-		return Canvas2D->ToCanvasPoint(FVector2D(P));
-	};
-	UE_LOG(LogSplineCtrl, Warning, TEXT("Splines Num = %d, CtrlPoints Num = %d"),
-		Splines.Num(), ControlPoints.Num());
-
 	for (int32 Layer = 0; Layer < Canvas2D->DisplayPoints.Num(); ++Layer) {
 		Canvas2D->DisplayPoints[Layer].Array.Empty(MaxSamplePointsNum);
 	}
@@ -163,6 +157,48 @@ void ASplineTestPlayerController::ResampleCurve()
 		Canvas2D->DisplayPolygons[Layer].Array.Empty(MaxSamplePointsNum);
 	}
 	Canvas2D->ClearDrawing();
+
+	int32 CurLayer = 0;
+	CurLayer = ResampleBSpline(CurLayer);
+	if (bConvertToBezier) {
+		CurLayer = ResampleBezier(CurLayer);
+	}
+}
+
+int32 ASplineTestPlayerController::ResampleBezier(int32 FirstLineLayer)
+{
+	auto ControlPointToHitPoint = [this](const FVector& P) -> FVector {
+		return Canvas2D->ToCanvasPoint(FVector2D(P));
+	};
+
+	int32 BezierLayer = FirstLineLayer;
+	BezierCurves.Empty(Splines.Num());
+	for (int32 i = 0; i < Splines.Num(); ++i) {
+		const auto& Spline = Splines[i];
+		auto& Beziers = BezierCurves.AddDefaulted_GetRef();
+		Spline.ToBezierString(Beziers);
+		UE_LOG(LogSplineCtrl, Warning, TEXT("Beziers[%d] Num = %d"),
+			i, Beziers.Num());
+		
+		for (int32 j = 0; j < Beziers.Num(); ++j) {
+			for (double T = 0.; T <= 1.; T += SamplePointDT) {
+				FVector LinePoint = ControlPointToHitPoint(Beziers[j].GetPosition(T));
+				Canvas2D->DisplayLines[BezierLayer % Canvas2D->LineLayerConfig.MaxLayerCount].Array.Add(LinePoint);
+			}
+		}
+		Canvas2D->DrawLines(BezierLayer);
+		++BezierLayer;
+	}
+	return BezierLayer;
+}
+
+int32 ASplineTestPlayerController::ResampleBSpline(int32 FirstLineLayer)
+{
+	auto ControlPointToHitPoint = [this](const FVector& P) -> FVector {
+		return Canvas2D->ToCanvasPoint(FVector2D(P));
+	};
+	UE_LOG(LogSplineCtrl, Warning, TEXT("Splines Num = %d, CtrlPoints Num = %d"),
+		Splines.Num(), ControlPoints.Num());
 
 	if (bDisplayControlPoint) {
 		for (const FVector& P : ControlPoints) {
@@ -178,18 +214,17 @@ void ASplineTestPlayerController::ResampleCurve()
 	//	}
 	//}
 
-	int32 SplineLayer = 0;
+	int32 SplineLayer = FirstLineLayer;
 
 	for (int32 i = 0; i < Splines.Num(); ++i) {
 		UE_LOG(LogSplineCtrl, Warning, TEXT("Splines[%d] Num = %d"),
 			i, Splines[i].GetCtrlPointNum());
 
-		Canvas2D->DrawPoints(i);
-
 		TArray<FVector4> SpCtrlPoints; TArray<double> SpParams;
 		Splines[i].GetOpenFormPointsAndParams(SpCtrlPoints, SpParams);
 
 		if (Splines[i].GetCtrlPointNum() < 2) {
+			Canvas2D->DrawPoints(i);
 			continue;
 		}
 		const auto& ParamRange = Splines[i].GetParamRange();
@@ -197,19 +232,31 @@ void ASplineTestPlayerController::ResampleCurve()
 		for (int32 j = 0; j < SpCtrlPoints.Num(); ++j) {
 			UE_LOG(LogSplineCtrl, Warning, TEXT("Splines[%d].Points[%d] = <%s, %.6lf>"),
 				i, j, *SpCtrlPoints[j].ToString(), SpParams[j]);
-			UE_LOG(LogSplineCtrl, Warning, TEXT("Splines[%d].Tangents[%d] = <%s, %.6lf>"),
-				i, j, *Splines[i].GetTangent(ParamRange.Get<1>()).ToString(), Splines[i].GetTangent(ParamRange.Get<1>()).Size());
-			UE_LOG(LogSplineCtrl, Warning, TEXT("Splines[%d].PrincipalCurvatures[%d] = <%.6lf>"),
-				i, j, Splines[i].GetPrincipalCurvature(ParamRange.Get<1>(), 0));
+			if (bDisplaySmallTangent) {
+				UE_LOG(LogSplineCtrl, Warning, TEXT("Splines[%d].Tangents[%d] = <%s, %.6lf>"),
+					i, j, *Splines[i].GetTangent(SpParams[j]).ToString(), Splines[i].GetTangent(SpParams[j]).Size());
+			}
+			if (bDisplaySmallCurvature) {
+				UE_LOG(LogSplineCtrl, Warning, TEXT("Splines[%d].PrincipalCurvatures[%d] = <%.6lf>"),
+					i, j, Splines[i].GetPrincipalCurvature(SpParams[j], 0));
+			}
 		}
 
 		for (double T = ParamRange.Get<0>(); T <= ParamRange.Get<1>(); T += SamplePointDT) {
 			FVector LinePoint = ControlPointToHitPoint(Splines[i].GetPosition(T));
 			Canvas2D->DisplayLines[SplineLayer % Canvas2D->LineLayerConfig.MaxLayerCount].Array.Add(LinePoint);
+			if (bDisplayControlPoint) {
+				double IntPart;
+				double FracPart = FMath::Modf(T, &IntPart);
+				if (FMath::IsNearlyZero(FracPart)) {
+					Canvas2D->DisplayPoints[Splines.Num() - 1].Array.Add(LinePoint);
+				}
+			}
 			int32 AdditionalLayer = 0;
 			if (bDisplaySmallTangent) {
 				++AdditionalLayer;
-				FVector TangentPoint = LinePoint + ControlPointToHitPoint(Splines[i].GetTangent(T).GetSafeNormal() * 100.);
+				//FVector TangentPoint = LinePoint + ControlPointToHitPoint(Splines[i].GetTangent(T).GetSafeNormal() * 100.);
+				FVector TangentPoint = LinePoint + ControlPointToHitPoint(Splines[i].GetTangent(T) * 1. / 3.);
 				Canvas2D->DisplayLines[(SplineLayer + AdditionalLayer) % Canvas2D->LineLayerConfig.MaxLayerCount].Array.Add(TangentPoint);
 			}
 			if (bDisplaySmallCurvature) {
@@ -229,7 +276,10 @@ void ASplineTestPlayerController::ResampleCurve()
 			Canvas2D->DrawLines(SplineLayer);
 			++SplineLayer;
 		}
+
+		Canvas2D->DrawPoints(i);
 	}
+	return SplineLayer;
 }
 
 void ASplineTestPlayerController::AddControlPointEvent(FKey Key, FVector2D MouseScreenPos, EInputEvent InputEvent, APlayerController* Ctrl)
@@ -271,9 +321,9 @@ void ASplineTestPlayerController::ChangeConcatTypeToCurve(FKey Key, EInputEvent 
 	ChangeConcatType(ESplineConcatType::ToCurve);
 }
 
-void ASplineTestPlayerController::FlipConvertToPolynomialFormEvent(FKey Key, EInputEvent Event, APlayerController* Ctrl)
+void ASplineTestPlayerController::FlipConvertToBezierEvent(FKey Key, EInputEvent Event, APlayerController* Ctrl)
 {
-	FlipConvertToPolynomialForm();
+	FlipConvertToBezier();
 }
 
 void ASplineTestPlayerController::FlipDisplayControlPointEvent(FKey Key, EInputEvent Event, APlayerController* Ctrl)
