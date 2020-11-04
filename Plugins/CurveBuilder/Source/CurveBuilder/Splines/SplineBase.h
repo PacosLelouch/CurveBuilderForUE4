@@ -47,7 +47,7 @@ public:
 		AddPointAtLast(TVecLib<Dim+1>::Projection(Point), Param, TVecLib<Dim+1>::Last(Point));
 	}
 
-	FORCEINLINE void AddPointAt(const TVectorX<Dim+1>& Point, double Param, int32 Index = 0)
+	FORCEINLINE void AddPointAt(const TVectorX<Dim+1>& Point, TOptional<double> Param = TOptional<double>(), int32 Index = 0)
 	{
 		//AddPointAt(TVectorX<Dim>(Point), Index, TVecLib<Dim+1>::Last(Point));
 		AddPointAt(TVecLib<Dim+1>::Projection(Point), Param, Index, TVecLib<Dim+1>::Last(Point));
@@ -71,8 +71,8 @@ public:
 	// NthPointOfFrom means if there are multiple points with the same positions, which point to adjust.
 	virtual void AdjustCtrlPointPos(const TVectorX<Dim>& From, const TVectorX<Dim>& To, int32 NthPointOfFrom = 0) = 0;
 
-	// NthPointOfFrom means if there are multiple points with the same positions, which point to adjust.
-	virtual void AdjustCtrlPointParam(double From, double To, int32 NthPointOfFrom = 0) = 0;
+	//// NthPointOfFrom means if there are multiple points with the same positions, which point to adjust.
+	//virtual void AdjustCtrlPointParam(double From, double To, int32 NthPointOfFrom = 0) = 0;
 
 	virtual void Reverse() = 0;
 
