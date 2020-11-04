@@ -12,14 +12,12 @@
 template<int32 Dim>
 struct TClampedBSplineControlPoint
 {
-	TClampedBSplineControlPoint() : Pos(TVecLib<Dim+1>::Zero()), Param(0.) {}
-	TClampedBSplineControlPoint(const TVectorX<Dim+1>& InPos, double InParam = 0.) : Pos(InPos), Param(InParam) {}
-	TClampedBSplineControlPoint(const TClampedBSplineControlPoint<Dim>& InP) : Pos(InP.Pos), Param(InP.Param) {}
-	TClampedBSplineControlPoint<Dim>& operator=(const TClampedBSplineControlPoint<Dim>& InP) { Pos = InP.Pos; Param = InP.Param; return *this; }
+	TClampedBSplineControlPoint() : Pos(TVecLib<Dim+1>::Zero()) {}
+	TClampedBSplineControlPoint(const TVectorX<Dim+1>& InPos) : Pos(InPos) {}
+	TClampedBSplineControlPoint(const TClampedBSplineControlPoint<Dim>& InP) : Pos(InP.Pos) {}
+	TClampedBSplineControlPoint<Dim>& operator=(const TClampedBSplineControlPoint<Dim>& InP) { Pos = InP.Pos; return *this; }
 
 	TVectorX<Dim+1> Pos;
-	double Param = 0.;
-	int32 MiddleRepeatNum = 0;
 };
 
 // Clamped B-Spline
@@ -56,13 +54,23 @@ public:
 	}
 
 public:
-	FPointNode* FindNodeByParam(double Param, int32 NthNode = 0) const;
+	//FPointNode* FindNodeByParam(double Param, int32 NthNode = 0) const;
 
 	FPointNode* FindNodeByPosition(const TVectorX<Dim>& Point, int32 NthNode = 0) const;
 
-	void GetOpenFormPointsAndParams(TArray<TVectorX<Dim+1> >& CtrlPoints, TArray<double>& Params) const;
+	//void GetOpenFormPointsAndParams(TArray<TVectorX<Dim+1> >& CtrlPoints, TArray<double>& Params) const;
 
-	void GetCtrlPointsAndParams(TArray<TVectorX<Dim+1> >& CtrlPoints, TArray<double>& Params) const;
+	//void GetCtrlPointsAndParams(TArray<TVectorX<Dim+1> >& CtrlPoints, TArray<double>& Params) const;
+
+	void GetCtrlPoints(TArray<TVectorX<Dim+1> >& CtrlPoints) const;
+
+	void ToBezierString(TArray<TBezierCurve<Dim, Degree> >& Beziers) const;
+
+	void GetClampedKnotIntervals(TArray<double>& ClampedKnotIntervals) const;
+
+	int32 GetMaxKnotIntervalIndex() const;
+
+	void AddNewKnotIntervalIfNecessary(TOptional<double> Param = TOptional<double>());
 
 public:
 	virtual void CreateHodograph(TClampedBSpline<Dim, CLAMP_DEGREE(Degree-1, 0)>& OutHodograph) const;
@@ -79,7 +87,7 @@ public:
 
 	virtual void AddPointWithParamWithoutChangingShape(double T);
 
-	virtual void ToBezierString(TArray<TBezierCurve<Dim, Degree> >& Beziers) const;
+	//virtual void AdjustCtrlPointParam(double From, double To, int32 NthPointOfFrom = 0);
 
 public:
 	virtual void AddPointAtLast(const TVectorX<Dim>& Point, TOptional<double> Param = TOptional<double>(), double Weight = 1.) override;
@@ -95,8 +103,6 @@ public:
 	virtual void RemovePoint(double Param, int32 NthPointOfFrom = 0) override;
 
 	virtual void AdjustCtrlPointPos(const TVectorX<Dim>& From, const TVectorX<Dim>& To, int32 NthPointOfFrom = 0) override;
-
-	virtual void AdjustCtrlPointParam(double From, double To, int32 NthPointOfFrom = 0) override;
 
 	virtual void Reverse() override;
 
@@ -114,6 +120,7 @@ public:
 
 protected:
 	TDoubleLinkedList<TClampedBSplineControlPoint<Dim> > CtrlPointsList;
+	TArray<double> KnotIntervals;
 
 	// DeBoor is more efficient than Cox-DeBoor. Reference: https://en.wikipedia.org/wiki/De_Boor%27s_algorithm
 	TVectorX<Dim+1> DeBoor(double T, const TArray<TVectorX<Dim+1> >& CtrlPoints, const TArray<double>& Params,
