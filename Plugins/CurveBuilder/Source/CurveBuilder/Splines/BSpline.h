@@ -62,10 +62,14 @@ public:
 
 	void GetOpenFormPointsAndParams(TArray<TVectorX<Dim+1> >& CtrlPoints, TArray<double>& Params) const;
 
+	void GetCtrlPointsAndParams(TArray<TVectorX<Dim+1> >& CtrlPoints, TArray<double>& Params) const;
+
 public:
 	virtual void CreateHodograph(TClampedBSpline<Dim, CLAMP_DEGREE(Degree-1, 0)>& OutHodograph) const;
 
-	virtual TVectorX<Dim+1> Split(TClampedBSpline<Dim, Degree>& OutFirst, TClampedBSpline<Dim, Degree>& OutSecond, double T) const;
+	virtual TVectorX<Dim+1> Split(
+		TClampedBSpline<Dim, Degree>& OutFirst, TClampedBSpline<Dim, Degree>& OutSecond, double T,
+		TArray<TArray<TVectorX<Dim+1> > >* SplitPosArray = nullptr, TArray<TArray<double> >* SplitParamArray = nullptr) const;
 
 	virtual void AddPointAtLast(const TClampedBSplineControlPoint<Dim>& PointStruct);
 

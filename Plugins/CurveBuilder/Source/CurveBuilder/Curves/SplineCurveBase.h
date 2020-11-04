@@ -72,7 +72,7 @@ public:
 	FORCEINLINE static constexpr int32 CurveDim() { return Dim; }
 	FORCEINLINE static constexpr int32 CurveDimHomogeneous() { return Dim + 1; }
 	FORCEINLINE static constexpr int32 CurveDegree() { return Degree; }
-	FORCEINLINE static constexpr int32 CurveRank() { return Degree + 1; }
+	FORCEINLINE static constexpr int32 CurveOrder() { return Degree + 1; }
 
 	FORCEINLINE F_Box2 GetBox(const F_Mat& ProjectMatrix) const
 	{

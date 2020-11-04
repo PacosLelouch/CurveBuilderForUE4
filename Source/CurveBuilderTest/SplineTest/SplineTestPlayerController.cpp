@@ -44,13 +44,12 @@ void ASplineTestPlayerController::BindOnCtrlAndKey2Released()
 
 void ASplineTestPlayerController::BindOnCtrlAndKey3Released()
 {
-	// Do nothing.
 	OnCtrlAndKey3Released.AddDynamic(this, &ASplineTestPlayerController::FlipDisplaySmallCurvatureOfInternalKnotEvent);
 }
 
 void ASplineTestPlayerController::BindOnCtrlAndKey4Released()
 {
-	// Do nothing.
+	OnCtrlAndKey4Released.AddDynamic(this, &ASplineTestPlayerController::SplitSplineAtCenterEvent);
 }
 
 void ASplineTestPlayerController::BindOnCtrlAndKey5Released()
@@ -112,6 +111,30 @@ void ASplineTestPlayerController::ClearCanvas()
 
 void ASplineTestPlayerController::OnParamsInputChanged()
 {
+}
+
+void ASplineTestPlayerController::SplitSplineAtCenter()
+{
+	if (Splines.Num() == 0) {
+		return;
+	}
+	const auto& ParamRange = Splines.Last().GetParamRange();
+	const auto& Last = Splines.Pop();
+	auto& First = Splines.AddDefaulted_GetRef();
+	auto& Second = Splines.AddDefaulted_GetRef();
+	TArray<FVector4> Poss;
+	TArray<double> Params;
+	Last.GetCtrlPointsAndParams(Poss, Params);
+	Last.Split(First, Second, Params.Num() > 0 ? Params[Params.Num() > 2 ? 2 : Params.Num() - 1] : 0.);
+	if (Second.GetCtrlPointNum() == 0) {
+		Splines.Pop();
+	}
+	if (First.GetCtrlPointNum() == 0) {
+		Splines.Pop();
+	}
+	//Last.Split(First, Second, 0.5 * (ParamRange.Get<0>() + ParamRange.Get<1>()));
+
+	ResampleCurve();
 }
 
 void ASplineTestPlayerController::AddControlPoint(const FVector& HitPoint)
@@ -200,11 +223,11 @@ int32 ASplineTestPlayerController::ResampleBSpline(int32 FirstLineLayer)
 	UE_LOG(LogSplineCtrl, Warning, TEXT("Splines Num = %d, CtrlPoints Num = %d"),
 		Splines.Num(), ControlPoints.Num());
 
-	if (bDisplayControlPoint) {
-		for (const FVector& P : ControlPoints) {
-			Canvas2D->DisplayPoints[Splines.Num() - 1].Array.Add(ControlPointToHitPoint(P));
-		}
-	}
+	//if(bDisplayControlPoint) {
+	//	for (const FVector& P : ControlPoints) {
+	//		Canvas2D->DisplayPoints[Splines.Num() - 1].Array.Add(ControlPointToHitPoint(P));
+	//	}
+	//}
 	//else {
 	//	if (ControlPoints.Num() > 0) {
 	//		Canvas2D->DisplayPoints[Splines.Num() - 1].Array.Add(ControlPointToHitPoint(ControlPoints[0]));
@@ -229,6 +252,15 @@ int32 ASplineTestPlayerController::ResampleBSpline(int32 FirstLineLayer)
 		}
 		const auto& ParamRange = Splines[i].GetParamRange();
 
+
+		if (bDisplayControlPoint) {
+			TArray<FVector4> SpCtrlPoints0; TArray<double> SpParams0;
+			Splines[i].GetCtrlPointsAndParams(SpCtrlPoints0, SpParams0);
+			for (const auto& P : SpCtrlPoints0) {
+				Canvas2D->DisplayPoints[Splines.Num() - 1].Array.Add(ControlPointToHitPoint(TVecLib<4>::Projection(P)));
+			}
+		}
+
 		for (int32 j = 0; j < SpCtrlPoints.Num(); ++j) {
 			UE_LOG(LogSplineCtrl, Warning, TEXT("Splines[%d].Points[%d] = <%s, %.6lf>"),
 				i, j, *SpCtrlPoints[j].ToString(), SpParams[j]);
@@ -245,13 +277,13 @@ int32 ASplineTestPlayerController::ResampleBSpline(int32 FirstLineLayer)
 		for (double T = ParamRange.Get<0>(); T <= ParamRange.Get<1>(); T += SamplePointDT) {
 			FVector LinePoint = ControlPointToHitPoint(Splines[i].GetPosition(T));
 			Canvas2D->DisplayLines[SplineLayer % Canvas2D->LineLayerConfig.MaxLayerCount].Array.Add(LinePoint);
-			if (bDisplayControlPoint) {
-				double IntPart;
-				double FracPart = FMath::Modf(T, &IntPart);
-				if (FMath::IsNearlyZero(FracPart)) {
-					Canvas2D->DisplayPoints[Splines.Num() - 1].Array.Add(LinePoint);
-				}
-			}
+			//if (bDisplayControlPoint) {
+			//	double IntPart;
+			//	double FracPart = FMath::Modf(T, &IntPart);
+			//	if (FMath::IsNearlyZero(FracPart)) {
+			//		Canvas2D->DisplayPoints[Splines.Num() - 1].Array.Add(LinePoint);
+			//	}
+			//}
 			int32 AdditionalLayer = 0;
 			if (bDisplaySmallTangent) {
 				++AdditionalLayer;
@@ -339,4 +371,9 @@ void ASplineTestPlayerController::FlipDisplaySmallTangentOfInternalKnotEvent(FKe
 void ASplineTestPlayerController::FlipDisplaySmallCurvatureOfInternalKnotEvent(FKey Key, EInputEvent Event, APlayerController* Ctrl)
 {
 	FlipDisplaySmallCurvatureOfInternalKnot();
+}
+
+void ASplineTestPlayerController::SplitSplineAtCenterEvent(FKey Key, EInputEvent Event, APlayerController* Ctrl)
+{
+	SplitSplineAtCenter();
 }

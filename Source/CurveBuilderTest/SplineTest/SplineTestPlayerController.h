@@ -70,8 +70,11 @@ public:
 	UFUNCTION(BlueprintCallable)
 		void OnParamsInputChanged();
 
+	UFUNCTION(BlueprintCallable)
+		void SplitSplineAtCenter();
+
 public:
-	double SamplePointDT = 1. / 8.; //1. / 256.;
+	double SamplePointDT = 1. / 128.; //1. / 8.; //1. / 256.;
 
 	int32 MaxSamplePointsNum = 0;
 
@@ -135,6 +138,9 @@ private:
 
 	UFUNCTION()
 		void FlipDisplaySmallCurvatureOfInternalKnotEvent(FKey Key, EInputEvent Event, APlayerController* Ctrl);
+
+	UFUNCTION()
+		void SplitSplineAtCenterEvent(FKey Key, EInputEvent Event, APlayerController* Ctrl);
 
 public:
 	void TestCopy() {
