@@ -66,9 +66,6 @@ public:
 	virtual void RemovePoint(const TVectorX<Dim>& Point, int32 NthPointOfFrom = 0) = 0;
 
 	// NthPointOfFrom means if there are multiple points with the same positions, which point to adjust.
-	virtual void RemovePoint(double Param, int32 NthPointOfFrom = 0) = 0;
-
-	// NthPointOfFrom means if there are multiple points with the same positions, which point to adjust.
 	virtual void AdjustCtrlPointPos(const TVectorX<Dim>& From, const TVectorX<Dim>& To, int32 NthPointOfFrom = 0) = 0;
 
 	//// NthPointOfFrom means if there are multiple points with the same positions, which point to adjust.

@@ -24,7 +24,8 @@ inline TVectorX<Dim> TPolynomialCurve<Dim, Degree>::GetTangent(double T) const
 	}
 	TPolynomialCurve<Dim, CLAMP_DEGREE(Degree-1, 0)> Hodograph;
 	CreateHodograph(Hodograph);
-	return Hodograph.GetPosition(T);
+	TVectorX<Dim> Tangent = Hodograph.GetPosition(T);
+	return Tangent.IsNearlyZero() ? Hodograph.GetTangent(T) : Tangent;
 }
 
 template<int32 Dim, int32 Degree>

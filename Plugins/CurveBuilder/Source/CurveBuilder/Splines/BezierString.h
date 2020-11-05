@@ -87,6 +87,8 @@ public:
 
 	virtual void AdjustCtrlPointParam(double From, double To, int32 NthPointOfFrom = 0);
 
+	virtual void RemovePoint(double Param, int32 NthPointOfFrom = 0);
+
 public:
 	virtual void AddPointAtLast(const TVectorX<Dim>& Point, TOptional<double> Param = TOptional<double>(), double Weight = 1.) override;
 
@@ -97,8 +99,6 @@ public:
 	virtual void RemovePointAt(int32 Index = 0) override;
 
 	virtual void RemovePoint(const TVectorX<Dim>& Point, int32 NthPointOfFrom = 0) override;
-
-	virtual void RemovePoint(double Param, int32 NthPointOfFrom = 0) override;
 
 	virtual void AdjustCtrlPointPos(const TVectorX<Dim>& From, const TVectorX<Dim>& To, int32 NthPointOfFrom = 0) override;
 
