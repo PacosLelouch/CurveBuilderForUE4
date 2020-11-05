@@ -120,19 +120,25 @@ void ASplineTestPlayerController::SplitSplineAtCenter()
 	}
 	const auto& ParamRange = Splines.Last().GetParamRange();
 	const auto& Last = Splines.Pop();
-	auto& First = Splines.AddDefaulted_GetRef();
-	auto& Second = Splines.AddDefaulted_GetRef();
+	int32 FirstIdx = Splines.AddDefaulted();
+	int32 SecondIdx = Splines.AddDefaulted();
+
+	auto& First = Splines[FirstIdx];
+	auto& Second = Splines[SecondIdx];
+
 	TArray<FVector4> Poss;
 	TArray<double> Params;
-	Last.GetCtrlPointsAndParams(Poss, Params);
-	Last.Split(First, Second, Params.Num() > 0 ? Params[Params.Num() > 2 ? 2 : Params.Num() - 1] : 0.);
+	Last.GetCtrlPoints(Poss);
+	Last.GetKnotIntervals(Params);
+
+	//Last.Split(First, Second, Params.Num() > 0 ? Params[Params.Num() > 2 ? 2 : Params.Num() - 1] : 0.);
+	Last.Split(First, Second, 0.5 * (ParamRange.Get<0>() + ParamRange.Get<1>()));
 	if (Second.GetCtrlPointNum() == 0) {
-		Splines.Pop();
+		Splines.Pop(false);
 	}
 	if (First.GetCtrlPointNum() == 0) {
-		Splines.Pop();
+		Splines.Pop(false);
 	}
-	//Last.Split(First, Second, 0.5 * (ParamRange.Get<0>() + ParamRange.Get<1>()));
 
 	ResampleCurve();
 }
@@ -182,8 +188,10 @@ void ASplineTestPlayerController::ResampleCurve()
 	Canvas2D->ClearDrawing();
 
 	int32 CurLayer = 0;
-	CurLayer = ResampleBSpline(CurLayer);
-	if (bConvertToBezier) {
+	if (!bConvertToBezier) {
+		CurLayer = ResampleBSpline(CurLayer);
+	}
+	else if (bConvertToBezier) {
 		CurLayer = ResampleBezier(CurLayer);
 	}
 }
@@ -204,13 +212,17 @@ int32 ASplineTestPlayerController::ResampleBezier(int32 FirstLineLayer)
 			i, Beziers.Num());
 		
 		for (int32 j = 0; j < Beziers.Num(); ++j) {
+			for (int32 k = 0; k < Beziers[j].CurveOrder(); ++k) {
+				Canvas2D->DisplayPoints[BezierLayer % Canvas2D->PointLayerConfig.MaxLayerCount].Array.Add(ControlPointToHitPoint(Beziers[j].GetPoint(k)));
+			}
 			for (double T = 0.; T <= 1.; T += SamplePointDT) {
 				FVector LinePoint = ControlPointToHitPoint(Beziers[j].GetPosition(T));
 				Canvas2D->DisplayLines[BezierLayer % Canvas2D->LineLayerConfig.MaxLayerCount].Array.Add(LinePoint);
 			}
+			Canvas2D->DrawPoints(BezierLayer);
+			Canvas2D->DrawLines(BezierLayer);
+			++BezierLayer;
 		}
-		Canvas2D->DrawLines(BezierLayer);
-		++BezierLayer;
 	}
 	return BezierLayer;
 }
@@ -240,11 +252,12 @@ int32 ASplineTestPlayerController::ResampleBSpline(int32 FirstLineLayer)
 	int32 SplineLayer = FirstLineLayer;
 
 	for (int32 i = 0; i < Splines.Num(); ++i) {
-		UE_LOG(LogSplineCtrl, Warning, TEXT("Splines[%d] Num = %d"),
-			i, Splines[i].GetCtrlPointNum());
+		UE_LOG(LogSplineCtrl, Warning, TEXT("Splines[%d] CtrlPointNum = %d, KnotNum = %d"),
+			i, Splines[i].GetCtrlPointNum(), Splines[i].GetKnotNum());
 
 		TArray<FVector4> SpCtrlPoints; TArray<double> SpParams;
-		Splines[i].GetOpenFormPointsAndParams(SpCtrlPoints, SpParams);
+		Splines[i].GetCtrlPoints(SpCtrlPoints);
+		Splines[i].GetKnotIntervals(SpParams);
 
 		if (Splines[i].GetCtrlPointNum() < 2) {
 			Canvas2D->DrawPoints(i);
@@ -254,18 +267,24 @@ int32 ASplineTestPlayerController::ResampleBSpline(int32 FirstLineLayer)
 
 
 		if (bDisplayControlPoint) {
-			TArray<FVector4> SpCtrlPoints0; TArray<double> SpParams0;
-			Splines[i].GetCtrlPointsAndParams(SpCtrlPoints0, SpParams0);
-			for (const auto& P : SpCtrlPoints0) {
-				Canvas2D->DisplayPoints[Splines.Num() - 1].Array.Add(ControlPointToHitPoint(TVecLib<4>::Projection(P)));
+			for (const auto& PH : SpCtrlPoints) {
+				Canvas2D->DisplayPoints[i].Array.Add(ControlPointToHitPoint(TVecLib<4>::Projection(PH)));
+			}
+			for (const auto& T : SpParams) {
+				const auto& P = Splines[i].GetPosition(T);
+				Canvas2D->DisplayPoints[i].Array.Add(ControlPointToHitPoint(P));
 			}
 		}
 
 		for (int32 j = 0; j < SpCtrlPoints.Num(); ++j) {
-			UE_LOG(LogSplineCtrl, Warning, TEXT("Splines[%d].Points[%d] = <%s, %.6lf>"),
-				i, j, *SpCtrlPoints[j].ToString(), SpParams[j]);
+			UE_LOG(LogSplineCtrl, Warning, TEXT("Splines[%d].Points[%d] = <%s>"),
+				i, j, *SpCtrlPoints[j].ToString());
+		}
+		for (int32 j = 0; j < SpParams.Num(); ++j) {
+			UE_LOG(LogSplineCtrl, Warning, TEXT("Splines[%d].Knots[%d] = <%s, t = %.6lf>"),
+				i, j, *Splines[i].GetPosition(SpParams[j]).ToString(), SpParams[j]);
 			if (bDisplaySmallTangent) {
-				UE_LOG(LogSplineCtrl, Warning, TEXT("Splines[%d].Tangents[%d] = <%s, %.6lf>"),
+				UE_LOG(LogSplineCtrl, Warning, TEXT("Splines[%d].Tangents[%d] = <%s, size = %.6lf>"),
 					i, j, *Splines[i].GetTangent(SpParams[j]).ToString(), Splines[i].GetTangent(SpParams[j]).Size());
 			}
 			if (bDisplaySmallCurvature) {
@@ -274,16 +293,13 @@ int32 ASplineTestPlayerController::ResampleBSpline(int32 FirstLineLayer)
 			}
 		}
 
-		for (double T = ParamRange.Get<0>(); T <= ParamRange.Get<1>(); T += SamplePointDT) {
+		int32 SegNumDbl = FMath::CeilToDouble((ParamRange.Get<1>() - ParamRange.Get<0>()) / SamplePointDT);
+		//for (double T = ParamRange.Get<0>(); T <= ParamRange.Get<1>(); T += SamplePointDT) {
+		for(int32 Cnt = 0; Cnt <= SegNumDbl; ++Cnt) {
+			double T = ParamRange.Get<0>() + (ParamRange.Get<1>() - ParamRange.Get<0>()) * static_cast<double>(Cnt) / static_cast<double>(SegNumDbl);
 			FVector LinePoint = ControlPointToHitPoint(Splines[i].GetPosition(T));
 			Canvas2D->DisplayLines[SplineLayer % Canvas2D->LineLayerConfig.MaxLayerCount].Array.Add(LinePoint);
-			//if (bDisplayControlPoint) {
-			//	double IntPart;
-			//	double FracPart = FMath::Modf(T, &IntPart);
-			//	if (FMath::IsNearlyZero(FracPart)) {
-			//		Canvas2D->DisplayPoints[Splines.Num() - 1].Array.Add(LinePoint);
-			//	}
-			//}
+
 			int32 AdditionalLayer = 0;
 			if (bDisplaySmallTangent) {
 				++AdditionalLayer;

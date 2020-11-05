@@ -22,9 +22,11 @@ inline TVectorX<Dim> TBezierCurve<Dim, Degree>::GetTangent(double T) const
 	if (constexpr(Degree <= 1)) {
 		return (TVecLib<Dim+1>::Projection(CtrlPoints[1]) - TVecLib<Dim+1>::Projection(CtrlPoints[0])) * static_cast<double>(Degree);
 	}
+
 	TBezierCurve<Dim, CLAMP_DEGREE(Degree-1, 0)> Hodograph;
 	CreateHodograph(Hodograph);
-	return Hodograph.GetPosition(T);
+	TVectorX<Dim> Tangent = Hodograph.GetPosition(T);
+	return Tangent.IsNearlyZero() ? Hodograph.GetTangent(T) : Tangent;
 }
 
 template<int32 Dim, int32 Degree>

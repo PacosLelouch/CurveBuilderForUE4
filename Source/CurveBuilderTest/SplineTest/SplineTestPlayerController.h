@@ -74,7 +74,7 @@ public:
 		void SplitSplineAtCenter();
 
 public:
-	double SamplePointDT = 1. / 128.; //1. / 8.; //1. / 256.;
+	double SamplePointDT = 1. / 128.;//1. / 8.; //1. / 256.;
 
 	int32 MaxSamplePointsNum = 0;
 
