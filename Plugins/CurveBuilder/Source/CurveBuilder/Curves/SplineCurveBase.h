@@ -119,15 +119,19 @@ public:
 		return GaussLegendre.Integrate(T);
 	}
 
-	double GetParameterAtLength(double S) const
+	double GetParamAtLength(double S) const
 	{
 		// if (Degree < 5) 
-		TGaussLegendre<GaussLegendreN> GaussLegendre([this](double InT) -> double {
+		TGaussLegendre<NumericalCalculationConst::GaussLegendreN> GaussLegendre([this](double InT) -> double {
 			return GetTangent(InT).Size();
 		}, 0., 1.);
 		return GaussLegendre.SolveFromIntegration(S);
 	}
 
+public:
+	virtual bool FindParamByPosition(double& OutParam, const TVectorX<Dim>& InPos, double ToleranceSqr = 1.) const;
+
+public:
 	virtual TVectorX<Dim> GetPosition(double T) const = 0;
 	virtual TVectorX<Dim> GetTangent(double T) const = 0;
 	virtual double GetPrincipalCurvature(double T, int32 Principal = 0) const = 0;

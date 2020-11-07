@@ -45,7 +45,11 @@ public:
 
 	FORCEINLINE TBezierString3(const TBezierString3<Dim>& InSpline);
 
+	FORCEINLINE TBezierString3(const TArray<TBezierCurve<Dim, 3> >& InCurves);
+
 	FORCEINLINE TBezierString3<Dim>& operator=(const TBezierString3<Dim>& InSpline);
+
+	FORCEINLINE void FromCurveArray(const TArray<TBezierCurve<Dim, 3> >& InCurves);
 
 	FORCEINLINE void Reset() { CtrlPointsList.Empty(); }
 
@@ -68,6 +72,8 @@ public:
 
 public:
 	FPointNode* FindNodeByParam(double Param, int32 NthNode = 0) const;
+
+	FPointNode* FindNodeGreaterThanParam(double Param, int32 NthNode = 0) const;
 
 	FPointNode* FindNodeByPosition(const TVectorX<Dim>& Point, int32 NthNode = 0) const;
 
@@ -116,14 +122,16 @@ public:
 
 	virtual TTuple<double, double> GetParamRange() const override;
 
+	virtual bool FindParamByPosition(double& OutParam, const TVectorX<Dim>& InPos, double ToleranceSqr = 1.) const override;
+
 protected:
 	TDoubleLinkedList<TBezierString3ControlPoint<Dim> > CtrlPointsList;
 
-	//// Reference: https://en.wikipedia.org/wiki/De_Boor%27s_algorithm
-	//TVectorX<Dim> DeBoor(double T, const TArray<TVectorX<Dim+1> >& CtrlPoints, const TArray<double>& Params) const;
+	double GetNormalizedParam(const FPointNode* StartNode, const FPointNode* EndNode, double T) const;
 
-	//// Reference: https://en.wikipedia.org/wiki/De_Boor%27s_algorithm
-	//TVectorX<Dim> CoxDeBoor(double T, const TArray<TVectorX<Dim+1> >& CtrlPoints, const TArray<double>& Params) const;
+	TBezierCurve<Dim, 3> MakeBezierCurve(const FPointNode* StartNode, const FPointNode* EndNode) const;
+
+	void UpdateBezierString(FPointNode* NodeToUpdateFirst = nullptr);
 };
 
 #include "BezierString.inl"

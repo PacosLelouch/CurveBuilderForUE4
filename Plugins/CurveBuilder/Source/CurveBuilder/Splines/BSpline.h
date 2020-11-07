@@ -128,6 +128,8 @@ public:
 
 	virtual TTuple<double, double> GetParamRange() const override;
 
+	virtual bool FindParamByPosition(double& OutParam, const TVectorX<Dim>& InPos, double ToleranceSqr = 1.) const override;
+
 protected:
 	TDoubleLinkedList<TClampedBSplineControlPoint<Dim> > CtrlPointsList;
 	TArray<double> KnotIntervals;
@@ -142,10 +144,6 @@ protected:
 	void AddPointAtTailRaw(const TVectorX<Dim+1>& CtrlPoint);
 
 	void AddKnotAtTailRaw(double Param);
-
-	//void AddPointAtHeadRaw(const TVectorX<Dim+1>& CtrlPoint);
-
-	//void AddKnotAtHeadRaw(double Param);
 };
 
 #include "BSpline.inl"

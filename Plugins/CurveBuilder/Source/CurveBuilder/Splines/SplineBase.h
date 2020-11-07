@@ -85,6 +85,8 @@ public:
 
 	virtual TTuple<double, double> GetParamRange() const = 0;
 
+	virtual bool FindParamByPosition(double& OutParam, const TVectorX<Dim>& InPos, double ToleranceSqr = 1.) const = 0;
+
 public:
 	static double ConvertRange(double T, const TTuple<double, double>& RangeFrom, const TTuple<double, double>& RangeTo)
 	{

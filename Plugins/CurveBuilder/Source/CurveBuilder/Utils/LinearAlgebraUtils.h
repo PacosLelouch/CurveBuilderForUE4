@@ -38,6 +38,38 @@ using F_Transform3 = FTransform;
 			} \
 		} \
 	} \
+	FORCEINLINE static bool IsNearlyZero(const FType& V) \
+	{ \
+		for(int32 i = 0; i < Dim; ++i) \
+		{ \
+			if(!FMath::IsNearlyZero(V[i])) { \
+				return false; \
+			} \
+		} \
+		return true; \
+	} \
+	FORCEINLINE static double Dot(const FType& V1, const FType& V2) \
+	{ \
+		double ReturnValue = 0.; \
+		for(int32 i = 0; i < Dim; ++i) \
+		{ \
+			ReturnValue += V1[i] * V2[i]; \
+		} \
+		return ReturnValue; \
+	} \
+	FORCEINLINE static double SizeSquared(const FType& V) \
+	{ \
+		double ReturnValue = 0.; \
+		for(int32 i = 0; i < Dim; ++i) \
+		{ \
+			ReturnValue += V[i] * V[i]; \
+		} \
+		return ReturnValue; \
+	} \
+	FORCEINLINE static double Size(FType& V) \
+	{ \
+		return sqrt(SizeSquared(V)); \
+	} \
 	FORCEINLINE static void SetArray(FType* Dst, uint8 Byte, SIZE_T Size) \
 		{ FMemory::Memset(Dst, Byte, Size * sizeof(FType)); } \
 	FORCEINLINE static void CopyArray(FType* Dst, const FType* Src, SIZE_T Size) \

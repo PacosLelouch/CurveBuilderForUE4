@@ -526,6 +526,7 @@ inline void TClampedBSpline<Dim, Degree>::RemovePoint(const TVectorX<Dim>& Point
 {
 	FPointNode* Node = FindNodeByPosition(Point, NthPointOfFrom);
 	CtrlPointsList.RemoveNode(Node);
+	RemoveKnotIntervalIfNecessary();
 }
 
 template<int32 Dim, int32 Degree>
@@ -649,6 +650,43 @@ inline TTuple<double, double> TClampedBSpline<Dim, Degree>::GetParamRange() cons
 		return MakeTuple(KnotIntervals[0], KnotIntervals[GetMaxKnotIntervalIndex()]);
 	}
 	return MakeTuple(0., 0.);
+}
+
+template<int32 Dim, int32 Degree>
+inline bool TClampedBSpline<Dim, Degree>::FindParamByPosition(double& OutParam, const TVectorX<Dim>& InPos, double ToleranceSqr) const
+{
+	TArray<TBezierCurve<Dim, Degree> > Beziers;
+	ToBezierString(Beziers);
+
+	TOptional<double> CurParam;
+	TOptional<double> CurDistSqr;
+	for (int32 i = 0; i < Beziers.Num(); ++i) {
+		const TBezierCurve<Dim, Degree>& NewBezier = Beziers[i];
+		double NewParamNormal = -1.;
+		if (NewBezier.FindParamByPosition(NewParamNormal, InPos, ToleranceSqr)) {
+			double NewParam = KnotIntervals[i] * (1. - NewParamNormal) + KnotIntervals[i + 1] * NewParamNormal;
+			if (CurParam) {
+				TVectorX<Dim> NewPos = NewBezier.GetPosition(NewParamNormal);
+				double NewDistSqr = TVecLib<Dim>::SizeSquared(NewPos - InPos);
+				if (NewDistSqr < CurDistSqr.GetValue()) {
+					CurDistSqr = NewDistSqr;
+					CurParam = NewParam;
+				}
+
+			}
+			else {
+				TVectorX<Dim> CurPos = NewBezier.GetPosition(NewParamNormal);
+				CurDistSqr = TVecLib<Dim>::SizeSquared(CurPos - InPos);
+				CurParam = NewParam;
+			}
+		}
+	}
+
+	if (CurParam) {
+		OutParam = CurParam.GetValue();
+		return true;
+	}
+	return false;
 }
 
 template<int32 Dim, int32 Degree>
