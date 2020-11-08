@@ -22,8 +22,12 @@ enum class EEndPointContinuity : uint8
 
 namespace Continuity
 {
-	bool IsGeometry(EEndPointContinuity C) {
-		return C == EEndPointContinuity::G1 || C == EEndPointContinuity::G2;
+	const TArray<EEndPointContinuity> GeometricContinuityArray {
+		G1, G2
+	};
+
+	bool IsGeometric(EEndPointContinuity C) {
+		return GeometricContinuityArray.Contains(C);
 	}
 }
 
