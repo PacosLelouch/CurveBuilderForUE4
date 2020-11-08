@@ -22,6 +22,7 @@ inline TBezierString3<Dim>::TBezierString3(const TArray<TBezierCurve<Dim, 3>>& I
 template<int32 Dim>
 inline TBezierString3<Dim>& TBezierString3<Dim>::operator=(const TBezierString3<Dim>& InSpline)
 {
+	CtrlPointsList.Empty();
 	for (const auto& Pos : InSpline.CtrlPointsList) {
 		CtrlPointsList.AddTail(Pos);
 	}
@@ -31,6 +32,7 @@ inline TBezierString3<Dim>& TBezierString3<Dim>::operator=(const TBezierString3<
 template<int32 Dim>
 inline void TBezierString3<Dim>::FromCurveArray(const TArray<TBezierCurve<Dim, 3>>& InCurves)
 {
+	CtrlPointsList.Empty();
 	for (int32 i = 0; i < InCurves.Num(); ++i) {
 		CtrlPointsList.AddTail(TBezierString3ControlPoint<Dim>(
 			InCurves[i].GetPointHomogeneous(0),
@@ -103,6 +105,17 @@ inline typename typename TBezierString3<Dim>::FPointNode* TBezierString3<Dim>::F
 		Node = Node->GetNextNode();
 	}
 	return nullptr;
+}
+
+template<int32 Dim>
+inline void TBezierString3<Dim>::GetCtrlPoints(TArray<TVectorX<Dim+1>>& CtrlPoints) const
+{
+	CtrlPoints.Empty(CtrlPointsList.Num());
+	FPointNode* Node = CtrlPointsList.GetHead();
+	while (Node) {
+		CtrlPoints.Add(Node->GetValue().Pos);
+		Node = Node->GetNextNode();
+	}
 }
 
 template<int32 Dim>
@@ -279,6 +292,35 @@ inline void TBezierString3<Dim>::AdjustCtrlPointParam(double From, double To, in
 }
 
 template<int32 Dim>
+inline void TBezierString3<Dim>::ChangeCtrlPointContinuous(double From, EEndPointContinuity Continuity, int32 NthPointOfFrom)
+{
+	FPointNode* Node = FindNodeByParam(From, NthPointOfFrom);
+	Node->GetValue().Continuity = Continuity;
+}
+
+template<int32 Dim>
+inline void TBezierString3<Dim>::AdjustCtrlPointTangent(double From, const TVectorX<Dim>& To, bool bNext, int32 NthPointOfFrom)
+{
+	FPointNode* Node = FindNodeByParam(From, NthPointOfFrom);
+	TVectorX<Dim+1>* PosToChangePtr = nullptr;
+	TVectorX<Dim+1>* PosToChange2Ptr = nullptr;
+	if (bNext) {
+		PosToChangePtr = &Node->GetValue().NextCtrlPointPos;
+		PosToChange2Ptr = &Node->GetValue().PrevCtrlPointPos;
+	}
+	else {
+		PosToChange2Ptr = &Node->GetValue().NextCtrlPointPos;
+		PosToChangePtr = &Node->GetValue().PrevCtrlPointPos;
+	}
+	*PosToChangePtr = TVecLib<Dim>::Homogeneous(To, 1.);
+	if (Node->GetValue().Continuity > EEndPointContinuity::C0) {
+
+	}
+	//TODO
+	UpdateBezierString(Node);
+}
+
+template<int32 Dim>
 inline void TBezierString3<Dim>::RemovePoint(double Param, int32 NthPointOfFrom)
 {
 	FPointNode* Node = FindNodeByParam(Param, NthPointOfFrom);
@@ -290,6 +332,29 @@ inline void TBezierString3<Dim>::AddPointAtLast(const TVectorX<Dim>& Point, TOpt
 {
 	double InParam = Param ? Param.GetValue() : (CtrlPointsList.Num() > 0 ? GetParamRange().Get<1>() + 1. : 0.);
 	CtrlPointsList.AddTail(TBezierString3ControlPoint<Dim>(TVecLib<Dim>::Homogeneous(Point, Weight), InParam));
+	FPointNode* Tail = CtrlPointsList.GetTail();
+	if (CtrlPointsList.Num() > 1) {
+		FPointNode* BeforeTail = Tail->GetPrevNode();
+		static constexpr double InvDegreeDbl = 1. / 3.;
+		if (CtrlPointsList.Num() > 1) {
+			Tail->GetValue().PrevCtrlPointPos = (BeforeTail->GetValue().NextCtrlPointPos + Tail->GetValue().Pos) * 0.5;
+			TVecLib<Dim> TangentFront = TVecLib<Dim+1>::Projection(Tail->GetValue().PrevCtrlPointPos)
+				- TVecLib<Dim+1>::Projection(Tail->GetValue().Pos);
+			Tail->GetValue().NextCtrlPointPos = TVecLib<Dim>::Homogeneous(Tail->GetValue().Pos + TangentFront, 1.);
+		}
+		else {
+			TVecLib<Dim> Diff = TVecLib<Dim+1>::Projection(Tail->GetValue().Pos)
+				- TVecLib<Dim+1>::Projection(BeforeTail->GetValue().Pos);
+			TVecLib<Dim> TangentFront = Diff * InvDegreeDbl;
+			TVectorX<Dim> Pos0 = TVecLib<Dim+1>::Projection(BeforeTail->GetValue().Pos);
+			TVectorX<Dim> Pos1 = TVecLib<Dim+1>::Projection(Tail->GetValue().Pos);
+
+			Tail->GetValue().NextCtrlPointPos = TVecLib<Dim>::Homogeneous(Pos1 + TangentFront, 1.);
+			BeforeTail->GetValue().NextCtrlPointPos = TVecLib<Dim>::Homogeneous(Pos0 + TangentFront, 1.);
+			Tail->GetValue().PrevCtrlPointPos = TVecLib<Dim>::Homogeneous(Pos1 - TangentFront, 1.);
+			BeforeTail->GetValue().PrevCtrlPointPos = TVecLib<Dim>::Homogeneous(Pos0 - TangentFront, 1.);
+		}
+	}
 	UpdateBezierString(CtrlPointsList.GetTail());
 }
 
@@ -298,6 +363,7 @@ inline void TBezierString3<Dim>::AddPointAtHead(const TVectorX<Dim>& Point, TOpt
 {
 	double InParam = Param ? Param.GetValue() : (CtrlPointsList.Num() > 0 ? GetParamRange().Get<1>() + 1. : 0.);
 	CtrlPointsList.AddHead(TBezierString3ControlPoint<Dim>(TVecLib<Dim>::Homogeneous(Point, Weight), InParam));
+	//TODO
 	UpdateBezierString(CtrlPointsList.GetHead());
 }
 
@@ -541,8 +607,37 @@ inline TBezierCurve<Dim, 3> TBezierString3<Dim>::MakeBezierCurve(
 template<int32 Dim>
 inline void TBezierString3<Dim>::UpdateBezierString(typename TBezierString3<Dim>::FPointNode* NodeToUpdateFirst)
 {
-	if (!NodeToUpdateFirst) {
-		//TODO: Interpolate all
+	// Check?
+	for (FPointNode* Node = CtrlPointsList.GetHead(); Node && Node->GetNextNode(); Node = Node->GetNextNode())
+	{
+		ensureAlways(Node->GetValue().Param <= Node->GetNextNode()->GetValue().Param);
 	}
+
+	if (!NodeToUpdateFirst) {
+		// Interpolate all
+		TArray<TVectorX<Dim+1> > EndPoints;
+		GetCtrlPoints(EndPoints);
+		TArray<TBezierCurve<Dim, 3> Beziers;
+		TBezierOperationsDegree3<Dim>::InterpolationC2WithBorder2ndDerivative(Beziers, EndPoints);
+		FromCurveArray(Beziers);
+		return;
+	}
+
+	static const TMap<EEndPointContinuity, int32> TypeMap{
+		{EEndPointContinuity::C0, 0},
+		{EEndPointContinuity::C1, 1},
+		{EEndPointContinuity::G1, 1},
+		{EEndPointContinuity::C2, 2},
+		{EEndPointContinuity::G2, 2},
+	};
+	int32 PointToAdjustEachSide = TypeMap[NodeToUpdateFirst->GetValue().Continuity];
+	for (int32 i = 0; i < PointToAdjustEachSide; ++i) {
+		FPointNode* PrevNode = Node->GetPrevNode();
+		FPointNode* NextNode = Node->GetNextNode();
+		if (PrevNode) {
+			//TODO
+		}
+	}
+
 	//TODO
 }

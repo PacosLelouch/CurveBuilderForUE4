@@ -8,6 +8,8 @@
 #include "Utils/LinearAlgebraUtils.h"
 #include "Utils/NumericalCalculationUtils.h"
 #include "Curves/BezierCurve.h"
+#include "CurveOperations/BezierOperations.h"
+#include "Eigen/LU"
 
 enum class EEndPointContinuity : uint8
 {
@@ -17,6 +19,13 @@ enum class EEndPointContinuity : uint8
 	G2,
 	C2,
 };
+
+namespace Continuity
+{
+	bool IsGeometry(EEndPointContinuity C) {
+		return C == EEndPointContinuity::G1 || C == EEndPointContinuity::G2;
+	}
+}
 
 template<int32 Dim>
 struct TBezierString3ControlPoint
@@ -77,6 +86,8 @@ public:
 
 	FPointNode* FindNodeByPosition(const TVectorX<Dim>& Point, int32 NthNode = 0) const;
 
+	void GetCtrlPoints(TArray<TVectorX<Dim+1> >& CtrlPoints) const;
+
 	void GetBezierCurves(TArray<TBezierCurve<Dim, 3> >& BezierCurves, TArray<TTuple<double, double> >& ParamRanges) const;
 
 public:
@@ -92,6 +103,10 @@ public:
 	virtual void AddPointWithParamWithoutChangingShape(double T);
 
 	virtual void AdjustCtrlPointParam(double From, double To, int32 NthPointOfFrom = 0);
+
+	virtual void ChangeCtrlPointContinuous(double From, EEndPointContinuity Continuity, int32 NthPointOfFrom = 0);
+
+	virtual void AdjustCtrlPointTangent(double From, const TVectorX<Dim>& To, bool bNext = true, int32 NthPointOfFrom = 0);
 
 	virtual void RemovePoint(double Param, int32 NthPointOfFrom = 0);
 
