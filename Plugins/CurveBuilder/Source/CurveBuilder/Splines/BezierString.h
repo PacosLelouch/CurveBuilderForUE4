@@ -9,7 +9,9 @@
 #include "Utils/NumericalCalculationUtils.h"
 #include "Curves/BezierCurve.h"
 #include "CurveOperations/BezierOperations.h"
+THIRD_PARTY_INCLUDES_START
 #include "Eigen/LU"
+THIRD_PARTY_INCLUDES_END
 
 enum class EEndPointContinuity : uint8
 {
@@ -23,7 +25,8 @@ enum class EEndPointContinuity : uint8
 namespace Continuity
 {
 	const TArray<EEndPointContinuity> GeometricContinuityArray {
-		G1, G2
+		EEndPointContinuity::G1, 
+		EEndPointContinuity::G2, 
 	};
 
 	bool IsGeometric(EEndPointContinuity C) {
@@ -151,6 +154,8 @@ protected:
 	TBezierCurve<Dim, 3> MakeBezierCurve(const FPointNode* StartNode, const FPointNode* EndNode) const;
 
 	void UpdateBezierString(FPointNode* NodeToUpdateFirst = nullptr);
+
+	bool AdjustPointByStaticPointReturnShouldSpread(FPointNode* Node, bool bFromNext = true);
 };
 
 #include "BezierString.inl"

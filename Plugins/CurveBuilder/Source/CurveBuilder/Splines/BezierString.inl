@@ -304,19 +304,52 @@ inline void TBezierString3<Dim>::AdjustCtrlPointTangent(double From, const TVect
 	FPointNode* Node = FindNodeByParam(From, NthPointOfFrom);
 	TVectorX<Dim+1>* PosToChangePtr = nullptr;
 	TVectorX<Dim+1>* PosToChange2Ptr = nullptr;
+	TVectorX<Dim+1>* Pos2ToChangePtr = nullptr;
+	TVectorX<Dim+1>* Pos2ToChange2Ptr = nullptr;
 	if (bNext) {
 		PosToChangePtr = &Node->GetValue().NextCtrlPointPos;
 		PosToChange2Ptr = &Node->GetValue().PrevCtrlPointPos;
+		if (Node->GetPrevNode()) {
+			Pos2ToChange2Ptr = &Node->GetPrevNode()->GetValue().NextCtrlPointPos;
+		}
+		if (Node->GetNextNode()) {
+			Pos2ToChangePtr = &Node->GetNextNode()->GetValue().PrevCtrlPointPos;
+		}
 	}
 	else {
 		PosToChange2Ptr = &Node->GetValue().NextCtrlPointPos;
 		PosToChangePtr = &Node->GetValue().PrevCtrlPointPos;
+		if (Node->GetPrevNode()) {
+			Pos2ToChangePtr = &Node->GetPrevNode()->GetValue().NextCtrlPointPos;
+		}
+		if (Node->GetNextNode()) {
+			Pos2ToChange2Ptr = &Node->GetNextNode()->GetValue().PrevCtrlPointPos;
+		}
 	}
+	TVectorX<Dim> Adjust = To - TVecLib<Dim+1>::Projection(*PosToChange2Ptr);
 	*PosToChangePtr = TVecLib<Dim>::Homogeneous(To, 1.);
-	if (Node->GetValue().Continuity > EEndPointContinuity::C0) {
-		//TODO
+	TVectorX<Dim> PosProj = TVecLib<Dim+1>::Projection(Node->GetValue().Pos);
+	EEndPointContinuity Con = Node->GetValue().Continuity;
+	if (Con > EEndPointContinuity::C0) {
+		TVectorX<Dim> TangentFront = To - PosProj;
+		TVectorX<Dim> Adjust2;
+		if (Continuity::IsGeometric(Con)) {
+			TVectorX<Dim> CurTangentBack = TVecLib<Dim+1>::Projection(*PosToChange2Ptr) - To;
+			TVectorX<Dim> Target2 = (PosProj - TangentFront).GetSafeNormal()* TVecLib<Dim>::Size(CurTangentBack);
+			Adjust2 = Target2 - TVecLib<Dim+1>::Projection(*PosToChange2Ptr);
+			*PosToChange2Ptr = TVecLib<Dim>::Homogeneous(Target2, 1.);
+		}
+		else {
+			TVectorX<Dim> Target2 = PosProj - TangentFront;
+			Adjust2 = Target2 - TVecLib<Dim+1>::Projection(*PosToChange2Ptr);
+			*PosToChange2Ptr = TVecLib<Dim>::Homogeneous(Target2, 1.);
+		}
+
+		if ((Con >= EEndPointContinuity::G2 || Con >= EEndPointContinuity::C2) && Pos2ToChangePtr && Pos2ToChange2Ptr) {
+			*Pos2ToChangePtr = TVecLib<Dim>::Homogeneous(TVecLib<Dim+1>::Projection(*Pos2ToChangePtr) - Adjust * 2., 1.);
+			*Pos2ToChange2Ptr = TVecLib<Dim>::Homogeneous(TVecLib<Dim+1>::Projection(*Pos2ToChange2Ptr) - Adjust2 * 2., 1.);
+		}
 	}
-	//TODO
 	UpdateBezierString(Node);
 }
 
@@ -337,8 +370,11 @@ inline void TBezierString3<Dim>::AddPointAtLast(const TVectorX<Dim>& Point, TOpt
 	if (CtrlPointsList.Num() > 1) {
 		FPointNode* BeforeTail = Tail->GetPrevNode();
 		static constexpr double InvDegreeDbl = 1. / 3.;
-		if (CtrlPointsList.Num() > 1) {
-			Tail->GetValue().PrevCtrlPointPos = (BeforeTail->GetValue().NextCtrlPointPos + Tail->GetValue().Pos) * 0.5;
+		if (CtrlPointsList.Num() > 2) {
+			FPointNode* BeforeBeforeTail = BeforeTail->GetPrevNode();
+			Tail->GetValue().PrevCtrlPointPos = //(BeforeTail->GetValue().NextCtrlPointPos + Tail->GetValue().Pos) * 0.5;
+				(BeforeTail->GetValue().NextCtrlPointPos - BeforeTail->GetValue().PrevCtrlPointPos) * 2. + 
+				BeforeBeforeTail->GetValue().NextCtrlPointPos; // C2
 			TVecLib<Dim> TangentFront = TVecLib<Dim+1>::Projection(Tail->GetValue().PrevCtrlPointPos)
 				- TVecLib<Dim+1>::Projection(Tail->GetValue().Pos);
 			Tail->GetValue().NextCtrlPointPos = TVecLib<Dim>::Homogeneous(Tail->GetValue().Pos + TangentFront, 1.);
@@ -357,7 +393,7 @@ inline void TBezierString3<Dim>::AddPointAtLast(const TVectorX<Dim>& Point, TOpt
 		}
 	}
 
-	UpdateBezierString(CtrlPointsList.GetTail());
+	//UpdateBezierString(CtrlPointsList.GetTail());
 }
 
 template<int32 Dim>
@@ -370,8 +406,11 @@ inline void TBezierString3<Dim>::AddPointAtHead(const TVectorX<Dim>& Point, TOpt
 	if (CtrlPointsList.Num() > 1) {
 		FPointNode* AfterHead = Head->GetNextNode();
 		static constexpr double InvDegreeDbl = 1. / 3.;
-		if (CtrlPointsList.Num() > 1) {
-			Head->GetValue().NextCtrlPointPos = (AfterHead->GetValue().PrevCtrlPointPos + Head->GetValue().Pos) * 0.5;
+		if (CtrlPointsList.Num() > 2) {
+			FPointNode* AfterAfterHead = AfterHead->GetNextNode();
+			Head->GetValue().NextCtrlPointPos = //(AfterHead->GetValue().PrevCtrlPointPos + Head->GetValue().Pos) * 0.5;
+				(AfterHead->GetValue().PrevCtrlPointPos - AfterHead->GetValue().NextCtrlPointPos) * 2. +
+				AfterAfterHead->GetValue().PrevCtrlPointPos; // C2
 			TVecLib<Dim> TangentFront = TVecLib<Dim+1>::Projection(Head->GetValue().NextCtrlPointPos)
 				- TVecLib<Dim+1>::Projection(Head->GetValue().Pos);
 			Head->GetValue().PrevCtrlPointPos = TVecLib<Dim>::Homogeneous(Head->GetValue().Pos - TangentFront, 1.);
@@ -390,7 +429,7 @@ inline void TBezierString3<Dim>::AddPointAtHead(const TVectorX<Dim>& Point, TOpt
 		}
 	}
 
-	UpdateBezierString(CtrlPointsList.GetHead());
+	//UpdateBezierString(CtrlPointsList.GetHead());
 }
 
 template<int32 Dim>
@@ -444,7 +483,14 @@ inline void TBezierString3<Dim>::AdjustCtrlPointPos(const TVectorX<Dim>& From, c
 {
 	FPointNode* Node = FindNodeByPosition(From, NthPointOfFrom);
 	Node->GetValue().Pos = TVecLib<Dim>::Homogeneous(To, 1.);
-	UpdateBezierString(Node);
+	EEndPointContinuity Con = Node->GetValue().Continuity;
+	if (Con > EEndPointContinuity::C0) {
+		TVectorX<Dim> AdjustDiff = To - From;
+		Node->GetValue().PrevCtrlPointPos += TVecLib<Dim>::Homogeneous(AdjustDiff, 0.);
+		Node->GetValue().NextCtrlPointPos += TVecLib<Dim>::Homogeneous(AdjustDiff, 0.);
+
+		UpdateBezierString(Node);
+	}
 }
 
 template<int32 Dim>
@@ -651,21 +697,70 @@ inline void TBezierString3<Dim>::UpdateBezierString(typename TBezierString3<Dim>
 		return;
 	}
 
-	static const TMap<EEndPointContinuity, int32> TypeMap{
-		{EEndPointContinuity::C0, 0},
-		{EEndPointContinuity::C1, 1},
-		{EEndPointContinuity::G1, 1},
-		{EEndPointContinuity::C2, 2},
-		{EEndPointContinuity::G2, 2},
-	};
-	int32 PointToAdjustEachSide = 2;//TypeMap[NodeToUpdateFirst->GetValue().Continuity];
-	for (int32 i = 0; i < PointToAdjustEachSide; ++i) {
-		FPointNode* PrevNode = Node->GetPrevNode();
-		FPointNode* NextNode = Node->GetNextNode();
-		if (PrevNode && PrevNode->GetValue().Continuity > EEndPointContinuity::C0) {
-			//TODO
+	//static const TMap<EEndPointContinuity, int32> TypeMap{
+	//	{EEndPointContinuity::C0, 0},
+	//	{EEndPointContinuity::C1, 1},
+	//	{EEndPointContinuity::G1, 1},
+	//	{EEndPointContinuity::C2, 2},
+	//	{EEndPointContinuity::G2, 2},
+	//};
+	//int32 PointToAdjustEachSide = 2;//TypeMap[NodeToUpdateFirst->GetValue().Continuity];
+	for (FPointNode* PrevNode = Node->GetPrevNode(); PrevNode; PrevNode = PrevNode->GetPrevNode()) {
+		EEndPointContinuity Con = PrevNode->GetValue().Continuity;
+		if (Con == EEndPointContinuity::C0) {
+			break;
+		}
+
+		TVectorX<Dim> PosProj = TVecLib<Dim+1>::Projection(PrevNode->GetValue().Pos);
+		TVectorX<Dim> PrevProj = TVecLib<Dim+1>::Projection(PrevNode->GetValue().PrevCtrlPointPos);
+		TVectorX<Dim> NextProj = TVecLib<Dim+1>::Projection(PrevNode->GetValue().NextCtrlPointPos);
+		TVectorX<Dim> TangentFront = NextProj - PosProj, TangentBack = PrevProj - PosProj;
+		if (Continuity::IsGeometric(Con)) {
+			double Dot = TVecLib<Dim>::Dot(TangentFront, TangentBack);
+			if (Con == EEndPointContinuity::G1 && 
+				FMath::IsNearlyEqual(Dot * Dot, TVecLib<Dim>::SizeSquared(TangentFront) * TVecLib<Dim>::SizeSquared(TangentBack))) {
+				break;
+			}
+			FPointNode* PrevPrevNode = PrevNode->GetPrevNode();
+			if (PrevPrevNode) {
+				//TODO: Else G2
+			}
+		}
+		else {
+			if (Con == EEndPointContinuity::C1 && 
+				TVecLib<Dim>::IsNearlyZero(TangentFront + TangentBack)) {
+				break;
+			}
+			FPointNode* PrevPrevNode = PrevNode->GetPrevNode();
+			if (PrevPrevNode) {
+				//TODO: Else C2
+			}
 		}
 	}
+	//TODO: Next
+
+	//for (int32 i = 0; i < PointToAdjustEachSide; ++i) {
+	//	FPointNode* PrevNode = Node->GetPrevNode();
+	//	FPointNode* NextNode = Node->GetNextNode();
+	//	if (PrevNode && PrevNode->GetValue().Continuity > EEndPointContinuity::C0) {
+	//		if()
+	//		//TODO
+	//	}
+	//}
 
 	//TODO
+}
+
+template<int32 Dim>
+inline bool TBezierString3<Dim>::AdjustPointByStaticPointReturnShouldSpread(TBezierString3<Dim>::FPointNode* Node, bool bFromNext)
+{
+	if (bFromNext) {
+		FPointNode* NextNode = Node->GetNextNode();
+		//TODO
+	}
+	else {
+		FPointNode* PrevNode = Node->GetPrevNode();
+		//TODO
+	}
+	return false;
 }
