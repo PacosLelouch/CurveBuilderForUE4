@@ -698,6 +698,18 @@ inline void TBezierString3<Dim>::UpdateBezierString(typename TBezierString3<Dim>
 		return;
 	}
 
+	for (FPointNode* PrevNode = Node->GetPrevNode(); PrevNode; PrevNode = PrevNode->GetPrevNode()) {
+		if (!AdjustPointByStaticPointReturnShouldSpread(PrevNode, true)) {
+			break;
+		}
+	}
+
+	for (FPointNode* NextNode = Node->GetNextNode(); NextNode; NextNode = NextNode->GetNextNode()) {
+		if (!AdjustPointByStaticPointReturnShouldSpread(NextNode, false)) {
+			break;
+		}
+	}
+
 	//static const TMap<EEndPointContinuity, int32> TypeMap{
 	//	{EEndPointContinuity::C0, 0},
 	//	{EEndPointContinuity::C1, 1},
@@ -706,50 +718,6 @@ inline void TBezierString3<Dim>::UpdateBezierString(typename TBezierString3<Dim>
 	//	{EEndPointContinuity::G2, 2},
 	//};
 	//int32 PointToAdjustEachSide = 2;//TypeMap[NodeToUpdateFirst->GetValue().Continuity];
-	for (FPointNode* PrevNode = Node->GetPrevNode(); PrevNode; PrevNode = PrevNode->GetPrevNode()) {
-		EEndPointContinuity Con = PrevNode->GetValue().Continuity;
-		if (Con == EEndPointContinuity::C0) {
-			break;
-		}
-
-		TVectorX<Dim> PosProj = TVecLib<Dim+1>::Projection(PrevNode->GetValue().Pos);
-		TVectorX<Dim> PrevProj = TVecLib<Dim+1>::Projection(PrevNode->GetValue().PrevCtrlPointPos);
-		TVectorX<Dim> NextProj = TVecLib<Dim+1>::Projection(PrevNode->GetValue().NextCtrlPointPos);
-		TVectorX<Dim> TangentFront = NextProj - PosProj, TangentBack = PrevProj - PosProj;
-		if (Continuity::IsGeometric(Con)) {
-			double Dot = TVecLib<Dim>::Dot(TangentFront, TangentBack);
-			if (Con == EEndPointContinuity::G1 && 
-				FMath::IsNearlyEqual(Dot * Dot, TVecLib<Dim>::SizeSquared(TangentFront) * TVecLib<Dim>::SizeSquared(TangentBack))) {
-				break;
-			}
-			FPointNode* PrevPrevNode = PrevNode->GetPrevNode();
-			if (PrevPrevNode) {
-				//TODO: Else G2
-			}
-		}
-		else {
-			if (Con == EEndPointContinuity::C1 && 
-				TVecLib<Dim>::IsNearlyZero(TangentFront + TangentBack)) {
-				break;
-			}
-			FPointNode* PrevPrevNode = PrevNode->GetPrevNode();
-			if (PrevPrevNode) {
-				//TODO: Else C2
-			}
-		}
-	}
-	//TODO: Next
-
-	//for (int32 i = 0; i < PointToAdjustEachSide; ++i) {
-	//	FPointNode* PrevNode = Node->GetPrevNode();
-	//	FPointNode* NextNode = Node->GetNextNode();
-	//	if (PrevNode && PrevNode->GetValue().Continuity > EEndPointContinuity::C0) {
-	//		if()
-	//		//TODO
-	//	}
-	//}
-
-	//TODO
 }
 
 template<int32 Dim>
