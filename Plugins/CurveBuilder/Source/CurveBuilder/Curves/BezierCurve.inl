@@ -103,13 +103,13 @@ inline void TBezierCurve<Dim, Degree>::ElevateFrom(const TSplineCurveBase<Dim, C
 
 // The de Casteljau Algorithm 
 template<int32 Dim, int32 Degree>
-inline void TBezierCurve<Dim, Degree>::Split(TBezierCurve<Dim, Degree>& OutFirst, TBezierCurve<Dim, Degree>& OutSecond, double T) const
+inline TVectorX<Dim+1> TBezierCurve<Dim, Degree>::Split(TBezierCurve<Dim, Degree>& OutFirst, TBezierCurve<Dim, Degree>& OutSecond, double T) const
 {
 	double U = 1.0 - T;
 	constexpr int32 DoubleDegree = Degree << 1;
 	//constexpr int32 HalfDegree = Degree >> 1;
 	TVectorX<Dim+1> SplitCtrlPoints[DoubleDegree + 1];
-	TVectorX<Dim+1>::CopyArray(SplitCtrlPoints, CtrlPoints, Degree + 1);
+	TVecLib<Dim+1>::CopyArray(SplitCtrlPoints, CtrlPoints, Degree + 1);
 	//SplitCtrlPoints[0] = CtrlPoints[0];
 	//SplitCtrlPoints[DoubleDegree] = CtrlPoints[Degree];
 	for (int32 j = 1; j <= Degree; ++j) {
@@ -123,6 +123,7 @@ inline void TBezierCurve<Dim, Degree>::Split(TBezierCurve<Dim, Degree>& OutFirst
 	// Split(i,j): P(0,0), P(0,1), ..., P(0,n); P(0,n), P(1,n-1), ..., P(n,0).
 	OutFirst.Reset(SplitCtrlPoints);
 	OutSecond.Reset(SplitCtrlPoints + Degree);
+	return SplitCtrlPoints[Degree];
 }
 
 // Horner's Algorithm

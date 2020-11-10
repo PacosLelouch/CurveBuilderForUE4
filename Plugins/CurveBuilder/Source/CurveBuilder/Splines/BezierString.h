@@ -9,30 +9,10 @@
 #include "Utils/NumericalCalculationUtils.h"
 #include "Curves/BezierCurve.h"
 #include "CurveOperations/BezierOperations.h"
+#include "Utils/Continuity.h"
 THIRD_PARTY_INCLUDES_START
 #include "Eigen/LU"
 THIRD_PARTY_INCLUDES_END
-
-enum class EEndPointContinuity : uint8
-{
-	C0,
-	G1,
-	C1,
-	G2,
-	C2,
-};
-
-namespace Continuity
-{
-	const TArray<EEndPointContinuity> GeometricContinuityArray {
-		EEndPointContinuity::G1, 
-		EEndPointContinuity::G2, 
-	};
-
-	bool IsGeometric(EEndPointContinuity C) {
-		return GeometricContinuityArray.Contains(C);
-	}
-}
 
 template<int32 Dim>
 struct TBezierString3ControlPoint
@@ -120,7 +100,7 @@ public:
 public:
 	virtual void AddPointAtLast(const TVectorX<Dim>& Point, TOptional<double> Param = TOptional<double>(), double Weight = 1.) override;
 
-	virtual void AddPointAtHead(const TVectorX<Dim>& Point, TOptional<double> Param = TOptional<double>(), double Weight = 1.) override;
+	virtual void AddPointAtFirst(const TVectorX<Dim>& Point, TOptional<double> Param = TOptional<double>(), double Weight = 1.) override;
 
 	virtual void AddPointAt(const TVectorX<Dim>& Point, TOptional<double> Param = TOptional<double>(), int32 Index = 0, double Weight = 1.) override;
 

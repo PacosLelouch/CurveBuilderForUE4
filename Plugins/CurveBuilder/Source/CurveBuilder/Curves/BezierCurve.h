@@ -20,7 +20,7 @@ public:
 	virtual void ElevateFrom(const TSplineCurveBase<Dim, CLAMP_DEGREE(Degree-1, 0)>& InCurve) override;
 
 public:
-	void Split(TBezierCurve<Dim, Degree>& OutFirst, TBezierCurve<Dim, Degree>& OutSecond, double T = 0.5) const;
+	TVectorX<Dim+1> Split(TBezierCurve<Dim, Degree>& OutFirst, TBezierCurve<Dim, Degree>& OutSecond, double T = 0.5) const;
 
 	TVectorX<Dim> Horner(double T) const;
 	TVectorX<Dim> DeCasteljau(double T, TArray<TArray<TVectorX<Dim+1> > >* SplitArray = nullptr) const;
