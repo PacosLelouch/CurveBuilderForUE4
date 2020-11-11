@@ -231,6 +231,7 @@ inline void TBezierString3<Dim>::AddPointAt(const TBezierString3ControlPoint<Dim
 template<int32 Dim>
 inline void TBezierString3<Dim>::AddPointWithParamWithoutChangingShape(double T)
 {
+	//TODO
 	TTuple<double, double> ParamRange = GetParamRange();
 	if (T >= ParamRange.Get<1>() || T <= ParamRange.Get<0>()) {
 		return;
@@ -240,10 +241,9 @@ inline void TBezierString3<Dim>::AddPointWithParamWithoutChangingShape(double T)
 	FPointNode* NodeToInsertBefore = nullptr;
 	TArray<TVectorX<Dim+1> > SplitCurveCtrlPoints;
 	SplitCurveCtrlPoints.Reserve(4);
-	double SplitT = -1.;
 	while (Node) {
 		if (Node->GetValue().Param <= T) {
-			auto Val = Node->GetValue();
+			const auto& Val = Node->GetValue();
 			//Val.Param = static_cast<double>(OutFirst.GetCtrlPointNum());
 			//OutFirst.AddPointAtLast(Val);
 			FPointNode* NextNode = Node->GetNextNode();
@@ -267,12 +267,12 @@ inline void TBezierString3<Dim>::AddPointWithParamWithoutChangingShape(double T)
 	if (SplitCurveCtrlPoints.Num() != 4 || !NodeToInsertBefore) {
 		return;
 	}
+	FPointNode* NodeToInsertAfter = NodeToInsertBefore->GetPrevNode();
 
 	TBezierCurve<Dim, 3> NewLeft, NewRight;
 	TBezierCurve<Dim, 3> SplitCurve(SplitCurveCtrlPoints);
-	TVectorX<Dim+1> SplitPos = SplitCurve.Split(NewLeft, NewRight, SplitT);
-
-	FPointNode* NodeToInsertAfter = NodeToInsertBefore->GetPrevNode();
+	double TN = GetNormalizedParam(NodeToInsertAfter, NodeToInsertBefore, T);
+	TVectorX<Dim+1> SplitPos = SplitCurve.Split(NewLeft, NewRight, TN);
 
 	NodeToInsertAfter->GetValue().NextCtrlPointPos = NewLeft.GetPointHomogeneous(1);
 	NodeToInsertBefore->GetValue().PrevCtrlPointPos = NewRight.GetPointHomogeneous(2);
@@ -310,6 +310,7 @@ inline void TBezierString3<Dim>::AdjustCtrlPointTangent(double From, const TVect
 template<int32 Dim>
 inline void TBezierString3<Dim>::AdjustCtrlPointTangent(FPointNode* Node, const TVectorX<Dim>& To, bool bNext, int32 NthPointOfFrom)
 {
+	// TODO?
 	TVectorX<Dim+1>* PosToChangePtr = nullptr;
 	TVectorX<Dim+1>* PosToChange2Ptr = nullptr;
 	TVectorX<Dim+1>* Pos2ToChangePtr = nullptr;
@@ -335,28 +336,41 @@ inline void TBezierString3<Dim>::AdjustCtrlPointTangent(FPointNode* Node, const 
 			Pos2ToChange2Ptr = &Node->GetNextNode()->GetValue().PrevCtrlPointPos;
 		}
 	}
-	TVectorX<Dim> Adjust = To - TVecLib<Dim+1>::Projection(*PosToChange2Ptr);
+	TVectorX<Dim> Adjust = To - TVecLib<Dim+1>::Projection(*PosToChangePtr);
 	*PosToChangePtr = TVecLib<Dim>::Homogeneous(To, 1.);
 	TVectorX<Dim> PosProj = TVecLib<Dim+1>::Projection(Node->GetValue().Pos);
 	EEndPointContinuity Con = Node->GetValue().Continuity;
 	if (Con > EEndPointContinuity::C0) {
 		TVectorX<Dim> TangentFront = To - PosProj;
-		TVectorX<Dim> Adjust2;
+		//TVectorX<Dim> Adjust2;
+		TVectorX<Dim> CurTangentBack = TVecLib<Dim+1>::Projection(*PosToChange2Ptr) - PosProj;
+		TVectorX<Dim> NewTangentBack;
 		if (Continuity::IsGeometric(Con)) {
-			TVectorX<Dim> CurTangentBack = TVecLib<Dim+1>::Projection(*PosToChange2Ptr) - To;
-			TVectorX<Dim> Target2 = (PosProj - TangentFront).GetSafeNormal()* TVecLib<Dim>::Size(CurTangentBack);
-			Adjust2 = Target2 - TVecLib<Dim+1>::Projection(*PosToChange2Ptr);
-			*PosToChange2Ptr = TVecLib<Dim>::Homogeneous(Target2, 1.);
+			NewTangentBack = TangentFront.GetSafeNormal() * (-TVecLib<Dim>::Size(CurTangentBack));
 		}
 		else {
-			TVectorX<Dim> Target2 = PosProj - TangentFront;
-			Adjust2 = Target2 - TVecLib<Dim+1>::Projection(*PosToChange2Ptr);
-			*PosToChange2Ptr = TVecLib<Dim>::Homogeneous(Target2, 1.);
+			NewTangentBack = -TangentFront;
 		}
+		TVectorX<Dim> To2 = PosProj + NewTangentBack;
+		*PosToChange2Ptr = TVecLib<Dim>::Homogeneous(To2, 1.);
 
 		if ((Con >= EEndPointContinuity::G2 || Con >= EEndPointContinuity::C2) && Pos2ToChangePtr && Pos2ToChange2Ptr) {
-			*Pos2ToChangePtr = TVecLib<Dim>::Homogeneous(TVecLib<Dim+1>::Projection(*Pos2ToChangePtr) - Adjust * 2., 1.);
-			*Pos2ToChange2Ptr = TVecLib<Dim>::Homogeneous(TVecLib<Dim+1>::Projection(*Pos2ToChange2Ptr) - Adjust2 * 2., 1.);
+			TVectorX<Dim> Pos21Proj = TVecLib<Dim+1>::Projection(*Pos2ToChangePtr);
+			//*Pos2ToChangePtr = TVecLib<Dim>::Homogeneous(Pos21Proj - Adjust * 2., 1.);
+			//Pos21Proj = TVecLib<Dim+1>::Projection(*Pos2ToChangePtr);
+			TVectorX<Dim> Tangent2Front = Pos21Proj + PosProj - To * 2.;
+			TVectorX<Dim> NewTangent2Back;
+			if (Con >= EEndPointContinuity::C2) {
+				NewTangent2Back = Tangent2Front;
+			}
+			else if (Con >= EEndPointContinuity::G2) {
+				TVectorX<Dim> Pos22Proj = TVecLib<Dim+1>::Projection(*Pos2ToChange2Ptr);
+				TVectorX<Dim> Tangent2Back = Pos22Proj + PosProj - To2 * 2.;
+				NewTangent2Back = Tangent2Front.GetSafeNormal() * (TVecLib<Dim>::Size(Tangent2Back));
+			}
+			*Pos2ToChange2Ptr = TVecLib<Dim>::Homogeneous(NewTangent2Back - PosProj + To2 * 2., 1.);
+
+			//*Pos2ToChange2Ptr = TVecLib<Dim>::Homogeneous(TVecLib<Dim+1>::Projection(*Pos2ToChange2Ptr) - Adjust2 * 2., 1.);
 		}
 	}
 	UpdateBezierString(Node);
@@ -390,74 +404,89 @@ inline void TBezierString3<Dim>::AddPointAtLast(const TVectorX<Dim>& Point, TOpt
 	double InParam = Param ? Param.GetValue() : (CtrlPointsList.Num() > 0 ? GetParamRange().Get<1>() + 1. : 0.);
 	CtrlPointsList.AddTail(TBezierString3ControlPoint<Dim>(TVecLib<Dim>::Homogeneous(Point, Weight), InParam));
 
-	UpdateBezierString(nullptr);
+	//UpdateBezierString(nullptr);
 
-	//FPointNode* Tail = CtrlPointsList.GetTail();
-	//if (CtrlPointsList.Num() > 1) {
-	//	FPointNode* BeforeTail = Tail->GetPrevNode();
-	//	static constexpr double InvDegreeDbl = 1. / 3.;
-	//	if (CtrlPointsList.Num() > 2) {
-	//		FPointNode* BeforeBeforeTail = BeforeTail->GetPrevNode();
-	//		TVectorX<Dim> PosProj = TVecLib<Dim+1>::Projection(Tail->GetValue().Pos);
-	//		Tail->GetValue().PrevCtrlPointPos = (BeforeTail->GetValue().NextCtrlPointPos + Tail->GetValue().Pos) * 0.5;
-	//			//(BeforeTail->GetValue().NextCtrlPointPos - BeforeTail->GetValue().PrevCtrlPointPos) * 2. 
-	//			//+ BeforeBeforeTail->GetValue().NextCtrlPointPos; // C2
-	//		TVectorX<Dim> TangentFront = PosProj - TVecLib<Dim+1>::Projection(Tail->GetValue().PrevCtrlPointPos);
-	//		Tail->GetValue().NextCtrlPointPos = TVecLib<Dim>::Homogeneous(PosProj + TangentFront, 1.);
-	//	}
-	//	else {
-	//		TVectorX<Dim> Diff = TVecLib<Dim+1>::Projection(Tail->GetValue().Pos)
-	//			- TVecLib<Dim+1>::Projection(BeforeTail->GetValue().Pos);
-	//		TVectorX<Dim> TangentFront = Diff * InvDegreeDbl;
-	//		TVectorX<Dim> Pos0 = TVecLib<Dim+1>::Projection(BeforeTail->GetValue().Pos);
-	//		TVectorX<Dim> Pos1 = TVecLib<Dim+1>::Projection(Tail->GetValue().Pos);
+	FPointNode* Tail = CtrlPointsList.GetTail();
+	if (CtrlPointsList.Num() > 1) {
+		FPointNode* BeforeTail = Tail->GetPrevNode();
+		static constexpr double InvDegreeDbl = 1. / 3.;
+		if (CtrlPointsList.Num() > 2) {
+			FPointNode* BeforeBeforeTail = BeforeTail->GetPrevNode();
+			TVectorX<Dim> BBPosProj = TVecLib<Dim+1>::Projection(BeforeBeforeTail->GetValue().Pos);
+			TVectorX<Dim> BPosProj = TVecLib<Dim+1>::Projection(BeforeTail->GetValue().Pos);
+			TVectorX<Dim> PosProj = TVecLib<Dim+1>::Projection(Tail->GetValue().Pos);
 
-	//		Tail->GetValue().NextCtrlPointPos = TVecLib<Dim>::Homogeneous(Pos1 + TangentFront, 1.);
-	//		BeforeTail->GetValue().NextCtrlPointPos = TVecLib<Dim>::Homogeneous(Pos0 + TangentFront, 1.);
-	//		Tail->GetValue().PrevCtrlPointPos = TVecLib<Dim>::Homogeneous(Pos1 - TangentFront, 1.);
-	//		BeforeTail->GetValue().PrevCtrlPointPos = TVecLib<Dim>::Homogeneous(Pos0 - TangentFront, 1.);
-	//	}
-	//}
+			TVectorX<Dim> BaseLine = PosProj - BBPosProj;
+			double BaseLineFactor = 1. / 6.;
+			BeforeTail->GetValue().NextCtrlPointPos = TVecLib<Dim>::Homogeneous(BPosProj + BaseLine * BaseLineFactor);
+			BeforeTail->GetValue().PrevCtrlPointPos = TVecLib<Dim>::Homogeneous(BPosProj - BaseLine * BaseLineFactor);
 
-	//UpdateBezierString(CtrlPointsList.GetTail());
+			Tail->GetValue().PrevCtrlPointPos = (BeforeTail->GetValue().NextCtrlPointPos + Tail->GetValue().Pos) * 0.5; // ''= 0
+
+			TVectorX<Dim> TangentFront = PosProj - TVecLib<Dim+1>::Projection(Tail->GetValue().PrevCtrlPointPos);
+			Tail->GetValue().NextCtrlPointPos = TVecLib<Dim>::Homogeneous(PosProj + TangentFront, 1.);
+		}
+		else {
+			TVectorX<Dim> Diff = TVecLib<Dim+1>::Projection(Tail->GetValue().Pos)
+				- TVecLib<Dim+1>::Projection(BeforeTail->GetValue().Pos);
+			TVectorX<Dim> TangentFront = Diff * InvDegreeDbl;
+			TVectorX<Dim> Pos0 = TVecLib<Dim+1>::Projection(BeforeTail->GetValue().Pos);
+			TVectorX<Dim> Pos1 = TVecLib<Dim+1>::Projection(Tail->GetValue().Pos);
+
+			Tail->GetValue().NextCtrlPointPos = TVecLib<Dim>::Homogeneous(Pos1 + TangentFront, 1.);
+			BeforeTail->GetValue().NextCtrlPointPos = TVecLib<Dim>::Homogeneous(Pos0 + TangentFront, 1.);
+			Tail->GetValue().PrevCtrlPointPos = TVecLib<Dim>::Homogeneous(Pos1 - TangentFront, 1.);
+			BeforeTail->GetValue().PrevCtrlPointPos = TVecLib<Dim>::Homogeneous(Pos0 - TangentFront, 1.);
+		}
+	}
+
+	UpdateBezierString(CtrlPointsList.GetTail());
 }
 
 template<int32 Dim>
 inline void TBezierString3<Dim>::AddPointAtFirst(const TVectorX<Dim>& Point, TOptional<double> Param, double Weight)
 {
-	double InParam = Param ? Param.GetValue() : (CtrlPointsList.Num() > 0 ? GetParamRange().Get<1>() + 1. : 0.);
+	double InParam = Param ? Param.GetValue() : (CtrlPointsList.Num() > 0 ? GetParamRange().Get<0>() - 1. : 0.);
 	CtrlPointsList.AddHead(TBezierString3ControlPoint<Dim>(TVecLib<Dim>::Homogeneous(Point, Weight), InParam));
 
-	UpdateBezierString(nullptr);
+	//UpdateBezierString(nullptr);
 
-	//FPointNode* Head = CtrlPointsList.GetHead();
-	//if (CtrlPointsList.Num() > 1) {
-	//	FPointNode* AfterHead = Head->GetNextNode();
-	//	static constexpr double InvDegreeDbl = 1. / 3.;
-	//	if (CtrlPointsList.Num() > 2) {
-	//		FPointNode* AfterAfterHead = AfterHead->GetNextNode();
-	//		TVectorX<Dim> PosProj = TVecLib<Dim+1>::Projection(Head->GetValue().Pos);
-	//		Head->GetValue().NextCtrlPointPos = (AfterHead->GetValue().PrevCtrlPointPos + Head->GetValue().Pos) * 0.5;
-	//			//(AfterHead->GetValue().PrevCtrlPointPos - AfterHead->GetValue().NextCtrlPointPos) * 2. +
-	//			//AfterAfterHead->GetValue().PrevCtrlPointPos; // C2
-	//		TVectorX<Dim> TangentFront = TVecLib<Dim+1>::Projection(Head->GetValue().NextCtrlPointPos) - PosProj;
-	//		Head->GetValue().PrevCtrlPointPos = TVecLib<Dim>::Homogeneous(PosProj - TangentFront, 1.);
-	//	}
-	//	else {
-	//		TVectorX<Dim> Diff = TVecLib<Dim+1>::Projection(AfterHead->GetValue().Pos)
-	//			- TVecLib<Dim+1>::Projection(Head->GetValue().Pos);
-	//		TVectorX<Dim> TangentFront = Diff * InvDegreeDbl;
-	//		TVectorX<Dim> Pos0 = TVecLib<Dim+1>::Projection(Head->GetValue().Pos);
-	//		TVectorX<Dim> Pos1 = TVecLib<Dim+1>::Projection(AfterHead->GetValue().Pos);
+	FPointNode* Head = CtrlPointsList.GetHead();
+	if (CtrlPointsList.Num() > 1) {
+		FPointNode* AfterHead = Head->GetNextNode();
+		static constexpr double InvDegreeDbl = 1. / 3.;
+		if (CtrlPointsList.Num() > 2) {
+			FPointNode* AfterAfterHead = AfterHead->GetNextNode();
 
-	//		Head->GetValue().PrevCtrlPointPos = TVecLib<Dim>::Homogeneous(Pos0 - TangentFront, 1.);
-	//		AfterHead->GetValue().PrevCtrlPointPos = TVecLib<Dim>::Homogeneous(Pos1 - TangentFront, 1.);
-	//		Head->GetValue().NextCtrlPointPos = TVecLib<Dim>::Homogeneous(Pos0 + TangentFront, 1.);
-	//		AfterHead->GetValue().NextCtrlPointPos = TVecLib<Dim>::Homogeneous(Pos1 + TangentFront, 1.);
-	//	}
-	//}
+			TVectorX<Dim> AAPosProj = TVecLib<Dim+1>::Projection(AfterAfterHead->GetValue().Pos);
+			TVectorX<Dim> APosProj = TVecLib<Dim+1>::Projection(AfterHead->GetValue().Pos);
+			TVectorX<Dim> PosProj = TVecLib<Dim+1>::Projection(Head->GetValue().Pos);
 
-	//UpdateBezierString(CtrlPointsList.GetHead());
+			TVectorX<Dim> BaseLine = AAPosProj - PosProj;
+			double BaseLineFactor = 1. / 6.;
+			AfterHead->GetValue().NextCtrlPointPos = TVecLib<Dim>::Homogeneous(APosProj + BaseLine * BaseLineFactor);
+			AfterHead->GetValue().PrevCtrlPointPos = TVecLib<Dim>::Homogeneous(APosProj - BaseLine * BaseLineFactor);
+
+			Head->GetValue().NextCtrlPointPos = (AfterHead->GetValue().PrevCtrlPointPos + Head->GetValue().Pos) * 0.5; // ''= 0
+
+			TVectorX<Dim> TangentFront = TVecLib<Dim+1>::Projection(Head->GetValue().NextCtrlPointPos) - PosProj;
+			Head->GetValue().PrevCtrlPointPos = TVecLib<Dim>::Homogeneous(PosProj - TangentFront, 1.);
+		}
+		else {
+			TVectorX<Dim> Diff = TVecLib<Dim+1>::Projection(AfterHead->GetValue().Pos)
+				- TVecLib<Dim+1>::Projection(Head->GetValue().Pos);
+			TVectorX<Dim> TangentFront = Diff * InvDegreeDbl;
+			TVectorX<Dim> Pos0 = TVecLib<Dim+1>::Projection(Head->GetValue().Pos);
+			TVectorX<Dim> Pos1 = TVecLib<Dim+1>::Projection(AfterHead->GetValue().Pos);
+
+			Head->GetValue().PrevCtrlPointPos = TVecLib<Dim>::Homogeneous(Pos0 - TangentFront, 1.);
+			AfterHead->GetValue().PrevCtrlPointPos = TVecLib<Dim>::Homogeneous(Pos1 - TangentFront, 1.);
+			Head->GetValue().NextCtrlPointPos = TVecLib<Dim>::Homogeneous(Pos0 + TangentFront, 1.);
+			AfterHead->GetValue().NextCtrlPointPos = TVecLib<Dim>::Homogeneous(Pos1 + TangentFront, 1.);
+		}
+	}
+
+	UpdateBezierString(CtrlPointsList.GetHead());
 }
 
 template<int32 Dim>
@@ -833,7 +862,7 @@ inline bool TBezierString3<Dim>::AdjustPointByStaticPointReturnShouldSpread(TBez
 			if (FMath::IsNearlyEqual(Dot2 * Dot2, TVecLib<Dim>::SizeSquared(Tangent2Front) * TVecLib<Dim>::SizeSquared(Tangent2Back))) {
 				return true;
 			}
-			TVectorX<Dim> NewTangent2Back = Tangent2Front.GetSafeNormal() * (-TVecLib<Dim>::Size(Tangent2Back));
+			TVectorX<Dim> NewTangent2Back = Tangent2Front.GetSafeNormal() * (TVecLib<Dim>::Size(Tangent2Back));
 			TVectorX<Dim> NewPPProj = Tangent2Back - CurProj + PrevProj * 2.;
 			SetNextCtrlPointPosOrReverse(PrevNode, NewPPProj);
 			//PrevNode->GetValue().NextCtrlPointPos = TVecLib<Dim>::Homogeneous(NewPPProj);
@@ -855,11 +884,11 @@ inline bool TBezierString3<Dim>::AdjustPointByStaticPointReturnShouldSpread(TBez
 			TVectorX<Dim> NNProj = GetPrevCtrlPointPosOrReverse(NextNode); //TVecLib<Dim+1>::Projection(NextNode->GetValue().PrevCtrlPointPos);
 			TVectorX<Dim> Tangent2Front = CurProj - NextProj * 2. + NNProj;
 			TVectorX<Dim> Tangent2Back = CurProj - PrevProj * 2. + PPProj;
-			if (TVecLib<Dim>::IsNearlyZero(Tangent2Front + Tangent2Back)) {
+			if (TVecLib<Dim>::IsNearlyZero(Tangent2Front - Tangent2Back)) {
 				return true;
 			}
-			TVectorX<Dim> NewTangent2Back = Tangent2Front * (-1.);
-			TVectorX<Dim> NewPPProj = Tangent2Back - CurProj + PrevProj * 2.;
+			TVectorX<Dim> NewTangent2Back = Tangent2Front * (1.);
+			TVectorX<Dim> NewPPProj = NewTangent2Back - CurProj + PrevProj * 2.;
 			SetNextCtrlPointPosOrReverse(PrevNode, NewPPProj);
 			//PrevNode->GetValue().NextCtrlPointPos = TVecLib<Dim>::Homogeneous(NewPPProj);
 		}

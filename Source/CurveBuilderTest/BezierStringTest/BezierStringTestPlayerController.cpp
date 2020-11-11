@@ -12,6 +12,9 @@ DECLARE_LOG_CATEGORY_EXTERN(LogBezierStringTest, Warning, All);
 
 DEFINE_LOG_CATEGORY(LogBezierStringTest);
 
+static const double PointDistSqr = 16.0;
+static const double NodeDistSqr = 100.0;
+
 ABezierStringTestPlayerController::ABezierStringTestPlayerController(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -56,12 +59,11 @@ void ABezierStringTestPlayerController::Tick(float Delta)
 				auto& Spline = Splines.Last();
 
 				double Param = -1;
-				if (Spline.FindParamByPosition(Param, CtrlPoint, 15.0)) {
-					UE_LOG(LogBezierStringTest, Warning, TEXT("Param = %.6lf"), Param);
+				if (Spline.FindParamByPosition(Param, CtrlPoint, PointDistSqr)) {
+					//UE_LOG(LogBezierStringTest, Warning, TEXT("Param = %.6lf"), Param);
 					NearestPoint.Emplace(Spline.GetPosition(Param));
 				}
 
-				double NodeDistSqr = 100.0;
 				NearestNode = Spline.FindNodeByPosition(CtrlPoint, 0, NodeDistSqr);
 
 				if (SelectedNode) {
@@ -241,8 +243,16 @@ void ABezierStringTestPlayerController::SplitSplineAtCenter()
 void ABezierStringTestPlayerController::AddControlPoint(const FVector& HitPoint)
 {
 	FVector EndPoint = HitPointToControlPoint(HitPoint);
+
 	ControlPoints.Add(EndPoint);
-	Splines.Last().AddPointAtLast(EndPoint);
+	double Param = -1;
+	if (Splines.Last().FindParamByPosition(Param, EndPoint, PointDistSqr)) {
+		//UE_LOG(LogBezierStringTest, Warning, TEXT("Param = %.6lf"), Param);
+		Splines.Last().AddPointWithParamWithoutChangingShape(Param);
+	}
+	else {
+		Splines.Last().AddPointAtLast(EndPoint);
+	}
 
 	ResampleCurve();
 }

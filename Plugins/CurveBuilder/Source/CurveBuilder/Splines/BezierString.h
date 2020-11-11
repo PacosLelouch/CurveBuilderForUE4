@@ -26,7 +26,7 @@ struct TBezierString3ControlPoint
 	TVectorX<Dim+1> Pos;
 	TVectorX<Dim+1> PrevCtrlPointPos, NextCtrlPointPos;
 	double Param;
-	EEndPointContinuity Continuity = EEndPointContinuity::C2;
+	EEndPointContinuity Continuity = EEndPointContinuity::G2;
 };
 
 // BezierString3
@@ -48,6 +48,8 @@ public:
 	FORCEINLINE void FromCurveArray(const TArray<TBezierCurve<Dim, 3> >& InCurves);
 
 	FORCEINLINE void Reset() { CtrlPointsList.Empty(); }
+
+	FORCEINLINE void RemakeC2() { UpdateBezierString(nullptr); }
 
 	virtual ~TBezierString3() { CtrlPointsList.Empty(); }
 
