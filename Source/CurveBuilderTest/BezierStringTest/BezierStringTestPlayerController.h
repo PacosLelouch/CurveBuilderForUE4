@@ -27,6 +27,14 @@ using FSpatialBezierString3 = typename TBezierString3<3>;
 //	ToCurve,
 //};
 
+UENUM(BlueprintType)
+enum class ESelectedNodeCtrlPointType : uint8
+{
+	Previous,
+	Current,
+	Next,
+};
+
 /**
  *
  */
@@ -39,6 +47,10 @@ public:
 
 	virtual void BeginPlay() override;
 
+	virtual void Tick(float Delta) override;
+
+	virtual void BindOnLeftMouseButtonPressed() override;
+	virtual void BindOnLeftMouseButtonReleased() override;
 	virtual void BindOnRightMouseButtonReleased() override;
 	virtual void BindOnCtrlAndKey1Released() override;
 	virtual void BindOnCtrlAndKey2Released() override;
@@ -52,8 +64,8 @@ public:
 	//UFUNCTION(BlueprintCallable)
 	//	void ChangeConcatType(ESplineConcatType Type);
 
-	UFUNCTION(BlueprintCallable)
-		void FlipConvertToBezier();
+	//UFUNCTION(BlueprintCallable)
+	//	void FlipConvertToBezier();
 
 	UFUNCTION(BlueprintCallable)
 		void FlipDisplayControlPoint();
@@ -83,8 +95,6 @@ public:
 	//UPROPERTY(BlueprintReadOnly)
 	//	ESplineConcatType ConcatType = ESplineConcatType::ToPoint;
 
-	UPROPERTY(BlueprintReadWrite)
-		bool bConvertToBezier = false;
 
 	UPROPERTY(BlueprintReadWrite)
 		bool bDisplayControlPoint = true;
@@ -110,7 +120,13 @@ private:
 
 	//int32 ResampleBezier(int32 FirstLineLayer = 0);
 	
-	int32 ResampleBSpline(int32 FirstLineLayer = 0);
+	int32 ResampleBezierString(int32 FirstLineLayer = 0);
+
+	UFUNCTION()
+		void PressLeftMouseButton(FKey Key, FVector2D MouseScreenPos, EInputEvent InputEvent, APlayerController* Ctrl);
+
+	UFUNCTION()
+		void ReleaseLeftMouseButton(FKey Key, FVector2D MouseScreenPos, EInputEvent InputEvent, APlayerController* Ctrl);
 
 	UFUNCTION()
 		void AddControlPointEvent(FKey Key, FVector2D MouseScreenPos, EInputEvent InputEvent, APlayerController* Ctrl);
@@ -144,5 +160,21 @@ private:
 
 public:
 	TArray<FSpatialBezierString3> Splines;
-	TArray<TArray<FSpatialBezierCurve3> > BezierCurves;
+
+	TOptional<FVector> NearestPoint;
+
+	FSpatialBezierString3::FPointNode* NearestNode = nullptr;
+
+	FSpatialBezierString3::FPointNode* SelectedNode = nullptr;
+
+	bool bPressedLeftMouseButton = false;
+
+	TOptional<FTransform> FixedTransform;
+
+	ESelectedNodeCtrlPointType SelectedNodeCtrlPointType = ESelectedNodeCtrlPointType::Current;
+
+protected:
+	FVector ControlPointToHitPoint(const FVector& P);
+
+	FVector HitPointToControlPoint(const FVector& P);
 };

@@ -172,6 +172,7 @@ void ACGDemoCanvas2D::DrawLines(int32 Layer)
 {
 	Layer = Layer % LineLayerConfig.MaxLayerCount;
 	if (DisplayLines[Layer].Array.Num() < 2) {
+		DrawLinesPMC->SetProcMeshSection(Layer, FProcMeshSection());
 		return;
 	}
 	const TArray<FLinearColor>& LineColors = LineLayerConfig.LayerColors;
@@ -223,6 +224,7 @@ void ACGDemoCanvas2D::DrawPolygons(int32 Layer)
 {
 	Layer = Layer % PolygonLayerConfig.MaxLayerCount;
 	if (DisplayPolygons[Layer].Array.Num() < 3) {
+		DrawPolygonsPMC->SetProcMeshSection(Layer, FProcMeshSection());
 		return;
 	}
 	DrawPolygonsPMC->SetMaterial(Layer, VertexColorMaterial);

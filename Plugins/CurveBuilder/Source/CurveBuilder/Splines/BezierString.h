@@ -71,7 +71,7 @@ public:
 
 	FPointNode* FindNodeGreaterThanParam(double Param, int32 NthNode = 0) const;
 
-	FPointNode* FindNodeByPosition(const TVectorX<Dim>& Point, int32 NthNode = 0) const;
+	FPointNode* FindNodeByPosition(const TVectorX<Dim>& Point, int32 NthNode = 0, double ToleranceSqr = 1.) const;
 
 	void GetCtrlPoints(TArray<TVectorX<Dim+1> >& CtrlPoints) const;
 
@@ -95,7 +95,11 @@ public:
 
 	virtual void AdjustCtrlPointTangent(double From, const TVectorX<Dim>& To, bool bNext = true, int32 NthPointOfFrom = 0);
 
+	virtual void AdjustCtrlPointTangent(FPointNode* Node, const TVectorX<Dim>& To, bool bNext = true, int32 NthPointOfFrom = 0);
+
 	virtual void RemovePoint(double Param, int32 NthPointOfFrom = 0);
+
+	virtual void AdjustCtrlPointPos(FPointNode* Node, const TVectorX<Dim>& To, int32 NthPointOfFrom = 0);
 
 public:
 	virtual void AddPointAtLast(const TVectorX<Dim>& Point, TOptional<double> Param = TOptional<double>(), double Weight = 1.) override;

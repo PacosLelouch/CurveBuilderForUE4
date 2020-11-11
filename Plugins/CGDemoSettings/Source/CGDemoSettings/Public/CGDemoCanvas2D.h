@@ -96,6 +96,8 @@ public:
 		FLayerConfig::DefaultMaxLayerCount,
 		{ 
 			FLinearColor::White,
+			FLinearColor(1., 0.75, 0.5),
+			FLinearColor(0.75, 0., 0.25),
 		}
 	};
 

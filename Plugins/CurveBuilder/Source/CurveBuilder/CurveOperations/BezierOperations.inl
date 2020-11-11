@@ -182,6 +182,9 @@ inline void TBezierOperationsDegree3<Dim>::InterpolationC2WithBorder2ndDerivativ
 	for (int32 c = 0; c < Dim; ++c) {
 		Eigen::MatrixXd A(MatrixDim, MatrixDim);
 		Eigen::VectorXd X(MatrixDim), B(MatrixDim);
+		A.setZero();
+		B.setZero();
+		X.setZero();
 
 		// 0. Border conditions 2nd (2 equations)
 		A(0, 0) = 1.;
@@ -210,8 +213,8 @@ inline void TBezierOperationsDegree3<Dim>::InterpolationC2WithBorder2ndDerivativ
 		for (int32 i = 0; i < CurveNum - 1; ++i) {
 			A(ColumnIndex, i * 4 + 2) = 1.;
 			A(ColumnIndex, i * 4 + 3) = -1.;
-			A(ColumnIndex, i * 4 + 4) = 1.;
-			A(ColumnIndex, i * 4 + 5) = -1.;
+			A(ColumnIndex, i * 4 + 4) = -1.;
+			A(ColumnIndex, i * 4 + 5) = 1.;
 			B(ColumnIndex) = 0.;
 			++ColumnIndex;
 		}
@@ -221,9 +224,9 @@ inline void TBezierOperationsDegree3<Dim>::InterpolationC2WithBorder2ndDerivativ
 			A(ColumnIndex, i * 4 + 1) = 1.;
 			A(ColumnIndex, i * 4 + 2) = -2.;
 			A(ColumnIndex, i * 4 + 3) = 1.;
-			A(ColumnIndex, i * 4 + 4) = 1.;
-			A(ColumnIndex, i * 4 + 5) = -2.;
-			A(ColumnIndex, i * 4 + 6) = 1.;
+			A(ColumnIndex, i * 4 + 4) = -1.;
+			A(ColumnIndex, i * 4 + 5) = 2.;
+			A(ColumnIndex, i * 4 + 6) = -1.;
 			B(ColumnIndex) = 0.;
 			++ColumnIndex;
 		}
