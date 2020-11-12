@@ -12,6 +12,9 @@ DECLARE_LOG_CATEGORY_EXTERN(LogSplineCtrl, Warning, All);
 
 DEFINE_LOG_CATEGORY(LogSplineCtrl);
 
+static const double PointDistSqr = 16.0;
+static const double NodeDistSqr = 100.0;
+
 ASplineTestPlayerController::ASplineTestPlayerController(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -23,6 +26,84 @@ void ASplineTestPlayerController::BeginPlay()
 	MaxSamplePointsNum = FMath::CeilToInt((Canvas2D->CanvasBoxYZ.Max.Y - Canvas2D->CanvasBoxYZ.Min.Y) / SamplePointDT) + 1;
 	Splines.Empty();
 	Splines.AddDefaulted();
+
+	InputYawScale = 0.;
+	InputPitchScale = 0.;
+	InputRollScale = 0.;
+}
+
+void ASplineTestPlayerController::Tick(float Delta)
+{
+	Super::Tick(Delta);
+	NearestPoint.Reset();
+
+	Canvas2D->DisplayPoints[1].Array.Empty(Canvas2D->DisplayPoints[1].Array.Num());
+	Canvas2D->DisplayPoints[2].Array.Empty(Canvas2D->DisplayPoints[2].Array.Num());
+
+	if (!bPressedLeftMouseButton) {
+		bHoldingPoint = false;
+	}
+
+	float MouseX, MouseY;
+	FVector WorldPos, WorldDir;
+
+	if (GetMousePosition(MouseX, MouseY) && DeprojectScreenPositionToWorld(MouseX, MouseY, WorldPos, WorldDir)) {
+		float Distance = 0;
+		FVector HitPoint(0, 0, 0);
+		bool bHit = TraceToCanvas(Distance, HitPoint, WorldPos, WorldDir);
+		if (bHit) {
+			FVector CtrlPoint = HitPointToControlPoint(HitPoint);
+			if (Splines.Num()) {
+				auto& Spline = Splines.Last();
+
+				double Param = -1;
+				if (Spline.FindParamByPosition(Param, CtrlPoint, PointDistSqr)) {
+					FVector NearestPos = Spline.GetPosition(Param);
+					if (FVector::DistSquared(NearestPos, CtrlPoint) < PointDistSqr) {
+						UE_LOG(LogSplineCtrl, Warning, TEXT("Param = %.6lf"), Param);
+						NearestPoint.Emplace(NearestPos);
+					}
+				}
+
+				NearestNode = Spline.FindNodeByPosition(CtrlPoint, 0, NodeDistSqr);
+
+				if (SelectedNode) {
+					if (bPressedLeftMouseButton) {
+						FVector SelectedPos = TVecLib<4>::Projection(SelectedNode->GetValue().Pos);
+						if (bHoldingPoint || (!bHoldingPoint && FVector::DistSquared(SelectedPos, CtrlPoint) < NodeDistSqr)) {
+							bHoldingPoint = true;
+							Spline.AdjustCtrlPointPos(SelectedNode, CtrlPoint, 0);
+							ResampleCurve();
+						}
+					}
+				}
+			}
+
+
+			if (NearestPoint) {
+				Canvas2D->DisplayPoints[1].Array.Add(ControlPointToHitPoint(NearestPoint.GetValue()));
+			}
+			if (NearestNode) {
+				Canvas2D->DisplayPoints[1].Array.Add(ControlPointToHitPoint(TVecLib<4>::Projection(NearestNode->GetValue().Pos)));
+			}
+		}
+	}
+
+	if (SelectedNode) {
+		Canvas2D->DisplayPoints[2].Array.Add(ControlPointToHitPoint(TVecLib<4>::Projection(SelectedNode->GetValue().Pos)));
+	}
+	Canvas2D->DrawPoints(1);
+	Canvas2D->DrawPoints(2);
+}
+
+void ASplineTestPlayerController::BindOnLeftMouseButtonPressed()
+{
+	OnLeftMouseButtonPressed.AddDynamic(this, &ASplineTestPlayerController::PressLeftMouseButton);
+}
+
+void ASplineTestPlayerController::BindOnLeftMouseButtonReleased()
+{
+	OnLeftMouseButtonReleased.AddDynamic(this, &ASplineTestPlayerController::ReleaseLeftMouseButton);
 }
 
 void ASplineTestPlayerController::BindOnRightMouseButtonReleased()
@@ -145,13 +226,17 @@ void ASplineTestPlayerController::SplitSplineAtCenter()
 
 void ASplineTestPlayerController::AddControlPoint(const FVector& HitPoint)
 {
-	auto HitPointToControlPoint = [this](const FVector& P) -> FVector {
-		static constexpr double Weight = 1.;
-		return FVector(Canvas2D->FromCanvasPoint(P) * Weight, Weight);
-	};
 	FVector EndPoint = HitPointToControlPoint(HitPoint);
 	ControlPoints.Add(EndPoint);
-	Splines.Last().AddPointAtLast(EndPoint);
+
+	double Param = -1;
+	if (Splines.Last().FindParamByPosition(Param, EndPoint, PointDistSqr)) {
+		//UE_LOG(LogBezierStringTest, Warning, TEXT("Param = %.6lf"), Param);
+		Splines.Last().AddPointWithParamWithoutChangingShape(Param);
+	}
+	else {
+		Splines.Last().AddPointAtLast(EndPoint);
+	}
 
 	ResampleCurve();
 }
@@ -198,10 +283,6 @@ void ASplineTestPlayerController::ResampleCurve()
 
 int32 ASplineTestPlayerController::ResampleBezier(int32 FirstLineLayer)
 {
-	auto ControlPointToHitPoint = [this](const FVector& P) -> FVector {
-		return Canvas2D->ToCanvasPoint(FVector2D(P));
-	};
-
 	int32 BezierLayer = FirstLineLayer;
 	BezierCurves.Empty(Splines.Num());
 	for (int32 i = 0; i < Splines.Num(); ++i) {
@@ -229,9 +310,6 @@ int32 ASplineTestPlayerController::ResampleBezier(int32 FirstLineLayer)
 
 int32 ASplineTestPlayerController::ResampleBSpline(int32 FirstLineLayer)
 {
-	auto ControlPointToHitPoint = [this](const FVector& P) -> FVector {
-		return Canvas2D->ToCanvasPoint(FVector2D(P));
-	};
 	UE_LOG(LogSplineCtrl, Warning, TEXT("Splines Num = %d, CtrlPoints Num = %d"),
 		Splines.Num(), ControlPoints.Num());
 
@@ -260,7 +338,9 @@ int32 ASplineTestPlayerController::ResampleBSpline(int32 FirstLineLayer)
 		Splines[i].GetKnotIntervals(SpParams);
 
 		if (Splines[i].GetCtrlPointNum() < 2) {
-			Canvas2D->DrawPoints(i);
+			if (Splines[i].GetCtrlPointNum() > 0) {
+				Canvas2D->DisplayPoints[0].Array.Add(ControlPointToHitPoint(TVecLib<4>::Projection(Splines[i].FirstNode()->GetValue().Pos)));
+			}
 			continue;
 		}
 		const auto& ParamRange = Splines[i].GetParamRange();
@@ -268,11 +348,14 @@ int32 ASplineTestPlayerController::ResampleBSpline(int32 FirstLineLayer)
 
 		if (bDisplayControlPoint) {
 			for (const auto& PH : SpCtrlPoints) {
-				Canvas2D->DisplayPoints[i].Array.Add(ControlPointToHitPoint(TVecLib<4>::Projection(PH)));
+				Canvas2D->DisplayPoints[0].Array.Add(ControlPointToHitPoint(TVecLib<4>::Projection(PH)));
+				Canvas2D->DisplayLines[SplineLayer % Canvas2D->LineLayerConfig.MaxLayerCount].Array.Add(ControlPointToHitPoint(TVecLib<4>::Projection(PH)));
 			}
+			Canvas2D->DrawLines(SplineLayer);
+			++SplineLayer;
 			for (const auto& T : SpParams) {
 				const auto& P = Splines[i].GetPosition(T);
-				Canvas2D->DisplayPoints[i].Array.Add(ControlPointToHitPoint(P));
+				Canvas2D->DisplayPoints[0].Array.Add(ControlPointToHitPoint(P));
 			}
 		}
 
@@ -325,9 +408,25 @@ int32 ASplineTestPlayerController::ResampleBSpline(int32 FirstLineLayer)
 			++SplineLayer;
 		}
 
-		Canvas2D->DrawPoints(i);
 	}
+	Canvas2D->DrawPoints(0);
 	return SplineLayer;
+}
+
+void ASplineTestPlayerController::PressLeftMouseButton(FKey Key, FVector2D MouseScreenPos, EInputEvent InputEvent, APlayerController* Ctrl)
+{
+	bPressedLeftMouseButton = true;
+}
+
+void ASplineTestPlayerController::ReleaseLeftMouseButton(FKey Key, FVector2D MouseScreenPos, EInputEvent InputEvent, APlayerController* Ctrl)
+{
+	bPressedLeftMouseButton = false;
+	if (SelectedNode) {
+		SelectedNode = nullptr;
+	}
+	if (NearestNode) {
+		SelectedNode = NearestNode;
+	}
 }
 
 void ASplineTestPlayerController::AddControlPointEvent(FKey Key, FVector2D MouseScreenPos, EInputEvent InputEvent, APlayerController* Ctrl)
@@ -392,4 +491,15 @@ void ASplineTestPlayerController::FlipDisplaySmallCurvatureOfInternalKnotEvent(F
 void ASplineTestPlayerController::SplitSplineAtCenterEvent(FKey Key, EInputEvent Event, APlayerController* Ctrl)
 {
 	SplitSplineAtCenter();
+}
+
+FVector ASplineTestPlayerController::ControlPointToHitPoint(const FVector& P)
+{
+	return Canvas2D->ToCanvasPoint(FVector2D(P));
+}
+
+FVector ASplineTestPlayerController::HitPointToControlPoint(const FVector& P)
+{
+	static constexpr double Weight = 1.;
+	return FVector(Canvas2D->FromCanvasPoint(P) * Weight, Weight);
 }

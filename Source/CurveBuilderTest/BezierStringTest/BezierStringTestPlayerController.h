@@ -61,20 +61,18 @@ public:
 	virtual void BindOnEnterReleased() override;
 
 public:
-	//UFUNCTION(BlueprintCallable)
-	//	void ChangeConcatType(ESplineConcatType Type);
 
-	//UFUNCTION(BlueprintCallable)
-	//	void FlipConvertToBezier();
+	UFUNCTION(BlueprintCallable)
+		void RemakeBezierC2();
 
 	UFUNCTION(BlueprintCallable)
 		void FlipDisplayControlPoint();
 
 	UFUNCTION(BlueprintCallable)
-		void FlipDisplaySmallTangentOfInternalKnot();
+		void FlipDisplaySmallTangent();
 
 	UFUNCTION(BlueprintCallable)
-		void FlipDisplaySmallCurvatureOfInternalKnot();
+		void FlipDisplaySmallCurvature();
 
 	UFUNCTION(BlueprintCallable)
 		void ClearCanvas();
@@ -91,10 +89,6 @@ public:
 	int32 MaxSamplePointsNum = 0;
 
 	TArray<FVector> ControlPoints;
-
-	//UPROPERTY(BlueprintReadOnly)
-	//	ESplineConcatType ConcatType = ESplineConcatType::ToPoint;
-
 
 	UPROPERTY(BlueprintReadWrite)
 		bool bDisplayControlPoint = true;
@@ -117,8 +111,6 @@ protected:
 	void ResampleCurve();
 
 private:
-
-	//int32 ResampleBezier(int32 FirstLineLayer = 0);
 	
 	int32 ResampleBezierString(int32 FirstLineLayer = 0);
 
@@ -138,22 +130,16 @@ private:
 		void ClearCanvasEvent(FKey Key, EInputEvent InputEvent, APlayerController* Ctrl);
 
 	UFUNCTION()
-		void ChangeConcatTypeToPoint(FKey Key, EInputEvent Event, APlayerController* Ctrl);
-
-	UFUNCTION()
-		void ChangeConcatTypeToCurve(FKey Key, EInputEvent Event, APlayerController* Ctrl);
-
-	UFUNCTION()
-		void FlipConvertToBezierEvent(FKey Key, EInputEvent Event, APlayerController* Ctrl);
+		void RemakeBezierC2Event(FKey Key, EInputEvent Event, APlayerController* Ctrl);
 
 	UFUNCTION()
 		void FlipDisplayControlPointEvent(FKey Key, EInputEvent Event, APlayerController* Ctrl);
 
 	UFUNCTION()
-		void FlipDisplaySmallTangentOfInternalKnotEvent(FKey Key, EInputEvent Event, APlayerController* Ctrl);
+		void FlipDisplaySmallTangentEvent(FKey Key, EInputEvent Event, APlayerController* Ctrl);
 
 	UFUNCTION()
-		void FlipDisplaySmallCurvatureOfInternalKnotEvent(FKey Key, EInputEvent Event, APlayerController* Ctrl);
+		void FlipDisplaySmallCurvatureEvent(FKey Key, EInputEvent Event, APlayerController* Ctrl);
 
 	UFUNCTION()
 		void SplitSplineAtCenterEvent(FKey Key, EInputEvent Event, APlayerController* Ctrl);
@@ -167,11 +153,13 @@ public:
 
 	FSpatialBezierString3::FPointNode* SelectedNode = nullptr;
 
+	TOptional<ESelectedNodeCtrlPointType> HoldingPointType;
+
 	bool bPressedLeftMouseButton = false;
 
-	TOptional<FTransform> FixedTransform;
+	EEndPointContinuity NewPointContinuityInit = EEndPointContinuity::G2;
 
-	ESelectedNodeCtrlPointType SelectedNodeCtrlPointType = ESelectedNodeCtrlPointType::Current;
+	TOptional<FTransform> FixedTransform;
 
 protected:
 	FVector ControlPointToHitPoint(const FVector& P);

@@ -3,199 +3,158 @@
 #include "CurveControlWidget.h"
 
 
-void UFittingControlWidget::BindValues()
+void UCurveControlWidget::BindValues()
 {
-	TextGaussianSigma->SetText(FText::FromString("Sigma"));
-	TextRegressionSpan->SetText(FText::FromString("Span"));
-	TextRidgeLambda->SetText(FText::FromString("Lambda"));
-	TextPF->SetText(GetTextPF());
-	TextGF->SetText(GetTextGF());
-	TextPR->SetText(GetTextPR());
-	TextRR->SetText(GetTextRR());
-	TextAll->SetText(GetTextAll());
-	TextCurrentMethod->SetText(GetTextCurrentMethod());
-	SpinBoxSigma->ValueDelegate.BindDynamic(this, &UFittingControlWidget::GetSpinBoxSigma);
-	SpinBoxSpan->ValueDelegate.BindDynamic(this, &UFittingControlWidget::GetSpinBoxSpan);
-	SpinBoxLambda->ValueDelegate.BindDynamic(this, &UFittingControlWidget::GetSpinBoxLambda);
+	Text_Remake->SetText(FText::FromString("Remake"));
+	Text_Clear->SetText(FText::FromString("Clear"));
+	Text_PosPrefix->SetText(FText::FromString("Pos"));
+	Text_Pos->SetText(GetPos());
+	Text_ParamPrefix->SetText(FText::FromString("Parameter"));
+	Text_Param->SetText(GetParam());
+	Text_CurrentContinuity->SetText(FText::FromString("Current Continuity"));
+	Text_NextPointContinuity->SetText(FText::FromString("Next Point Continuity"));
 
-	SpinBoxSigma->SetMinValue(0.01);
-	SpinBoxSigma->SetMinSliderValue(0.01);
-	SpinBoxSigma->SetMaxSliderValue(50.0);
-	SpinBoxSigma->Delta = 0.01;
-	SpinBoxSigma->SliderExponent = 2;
+	ComboBoxString_CurrentContinuity->ClearOptions();
+	ComboBoxString_CurrentContinuity->AddOption("C0");
+	ComboBoxString_CurrentContinuity->AddOption("G1");
+	ComboBoxString_CurrentContinuity->AddOption("C1");
+	ComboBoxString_CurrentContinuity->AddOption("G2");
+	ComboBoxString_CurrentContinuity->AddOption("C2");
+	ComboBoxString_CurrentContinuity->AddOption("?");
+	ComboBoxString_CurrentContinuity->SetSelectedIndex(ComboBoxString_CurrentContinuity->GetOptionCount() - 1);
+	ComboBoxString_CurrentContinuity->SetIsEnabled(false);
 
-	SpinBoxSpan->SetMinValue(0.0);
-	SpinBoxSpan->SetMinSliderValue(0.0);
-	SpinBoxSpan->SetMaxSliderValue(50.0);
-	SpinBoxSpan->Delta = 1.0;
-	SpinBoxSpan->SliderExponent = 1;
+	ComboBoxString_NextPointContinuity->ClearOptions();
+	ComboBoxString_NextPointContinuity->AddOption("C0");
+	ComboBoxString_NextPointContinuity->AddOption("G1");
+	ComboBoxString_NextPointContinuity->AddOption("C1");
+	ComboBoxString_NextPointContinuity->AddOption("G2");
+	ComboBoxString_NextPointContinuity->AddOption("C2");
+	ComboBoxString_NextPointContinuity->SetSelectedIndex(3);
 
-	SpinBoxLambda->SetMinValue(0.0);
-	SpinBoxLambda->SetMinSliderValue(0.0);
-	SpinBoxLambda->SetMaxSliderValue(50.0);
-	SpinBoxSigma->Delta = 0.01;
-	SpinBoxSigma->SliderExponent = 2;
+	//TextGaussianSigma->SetText(FText::FromString("Sigma"));
+	//TextRegressionSpan->SetText(FText::FromString("Span"));
+	//TextRidgeLambda->SetText(FText::FromString("Lambda"));
+	//TextPF->SetText(GetTextPF());
+	//TextGF->SetText(GetTextGF());
+	//TextPR->SetText(GetTextPR());
+	//TextRR->SetText(GetTextRR());
+	//TextAll->SetText(GetTextAll());
+	//TextCurrentMethod->SetText(GetTextCurrentMethod());
+	//SpinBoxSigma->ValueDelegate.BindDynamic(this, &UCurveControlWidget::GetSpinBoxSigma);
+	//SpinBoxSpan->ValueDelegate.BindDynamic(this, &UCurveControlWidget::GetSpinBoxSpan);
+	//SpinBoxLambda->ValueDelegate.BindDynamic(this, &UCurveControlWidget::GetSpinBoxLambda);
+
+	//SpinBoxSigma->SetMinValue(0.01);
+	//SpinBoxSigma->SetMinSliderValue(0.01);
+	//SpinBoxSigma->SetMaxSliderValue(50.0);
+	//SpinBoxSigma->Delta = 0.01;
+	//SpinBoxSigma->SliderExponent = 2;
+
+	//SpinBoxSpan->SetMinValue(0.0);
+	//SpinBoxSpan->SetMinSliderValue(0.0);
+	//SpinBoxSpan->SetMaxSliderValue(50.0);
+	//SpinBoxSpan->Delta = 1.0;
+	//SpinBoxSpan->SliderExponent = 1;
+
+	//SpinBoxLambda->SetMinValue(0.0);
+	//SpinBoxLambda->SetMinSliderValue(0.0);
+	//SpinBoxLambda->SetMaxSliderValue(50.0);
+	//SpinBoxSigma->Delta = 0.01;
+	//SpinBoxSigma->SliderExponent = 2;
 }
 
-void UFittingControlWidget::BindEvents()
+void UCurveControlWidget::BindEvents()
 {
-	SpinBoxSigma->OnValueCommitted.AddDynamic(this, &UFittingControlWidget::CommitSpinBoxSigma);
-	SpinBoxSpan->OnValueCommitted.AddDynamic(this, &UFittingControlWidget::CommitSpinBoxSpan);
-	SpinBoxLambda->OnValueCommitted.AddDynamic(this, &UFittingControlWidget::CommitSpinBoxLambda);
+	//SpinBoxSigma->OnValueCommitted.AddDynamic(this, &UCurveControlWidget::CommitSpinBoxSigma);
+	//SpinBoxSpan->OnValueCommitted.AddDynamic(this, &UCurveControlWidget::CommitSpinBoxSpan);
+	//SpinBoxLambda->OnValueCommitted.AddDynamic(this, &UCurveControlWidget::CommitSpinBoxLambda);
 
-	//ButtonAll->OnReleased.AddDynamic(this, &UFittingControlWidget::ReleaseButtonAll);
-	ButtonAll->SetIsEnabled(false);
-	ButtonPF->OnReleased.AddDynamic(this, &UFittingControlWidget::ReleaseButtonPF);
-	ButtonGF->OnReleased.AddDynamic(this, &UFittingControlWidget::ReleaseButtonGF);
-	ButtonPR->OnReleased.AddDynamic(this, &UFittingControlWidget::ReleaseButtonPR);
-	ButtonRR->OnReleased.AddDynamic(this, &UFittingControlWidget::ReleaseButtonRR);
-	ButtonClear->OnReleased.AddDynamic(this, &UFittingControlWidget::ReleaseButtonClear);
+	Button_Remake->OnReleased.AddDynamic(this, &UCurveControlWidget::ReleaseButtonRemake);
+	Button_Clear->OnReleased.AddDynamic(this, &UCurveControlWidget::ReleaseButtonClear);
+	ComboBoxString_CurrentContinuity->OnSelectionChanged.AddDynamic(this, &UCurveControlWidget::SelectCurrentContinuity);
+	ComboBoxString_NextPointContinuity->OnSelectionChanged.AddDynamic(this, &UCurveControlWidget::SelectNextPointContinuity);
 }
 
-FText UFittingControlWidget::GetTextCurrentMethod()
+void UCurveControlWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
 {
-	//if (Controller) {
-	//	switch (Controller->FittingMethod) {
-	//	case EFunctionFittingMethod::PolynomialFitting:
-	//		return GetTextPF();
-	//	case EFunctionFittingMethod::GaussianFitting:
-	//		return GetTextGF();
-	//	case EFunctionFittingMethod::PolynomialRegression:
-	//		return GetTextPR();
-	//	case EFunctionFittingMethod::RidgeRegression:
-	//		return GetTextRR();
-	//	case EFunctionFittingMethod::All:
-	//		return GetTextAll();
-	//	}
-	//}
-	static FText NoneText = FText::FromString("None");
-	return NoneText;
+	Super::NativeTick(MyGeometry, InDeltaTime);
+	Text_Pos->SetText(GetPos());
+	Text_Param->SetText(GetParam());
+	UpdateCurrentContinuity();
 }
 
-FText UFittingControlWidget::GetTextPF()
+FText UCurveControlWidget::GetPos()
 {
-	static FText Text = FText::FromString("Polynomial Fitting");
-	return Text;
-}
-
-FText UFittingControlWidget::GetTextGF()
-{
-	static FText Text = FText::FromString("Gaussian Fitting");
-	return Text;
-}
-
-FText UFittingControlWidget::GetTextPR()
-{
-	static FText Text = FText::FromString("Polynomial Regression");
-	return Text;
-}
-
-FText UFittingControlWidget::GetTextRR()
-{
-	static FText Text = FText::FromString("Ridge Regression");
-	return Text;
-}
-
-FText UFittingControlWidget::GetTextAll()
-{
-	static FText Text = FText::FromString("All");
-	return Text;
-}
-
-float UFittingControlWidget::GetSpinBoxSigma()
-{
-	//if (Controller) {
-	//	return Controller->ParamsInput.GaussianSigma;
-	//}
-	return SpinBoxSigma->GetMinValue();
-}
-
-float UFittingControlWidget::GetSpinBoxSpan()
-{
-	//if (Controller) {
-	//	return static_cast<float>(Controller->ParamsInput.RegressionSpan);
-	//}
-	return SpinBoxSpan->GetMinValue();
-}
-
-float UFittingControlWidget::GetSpinBoxLambda()
-{
-	//if (Controller) {
-	//	return Controller->ParamsInput.RidgeLambda;
-	//}
-	return SpinBoxLambda->GetMinValue();
-}
-
-void UFittingControlWidget::CommitSpinBoxSigma(float InValue, ETextCommit::Type CommitMethod)
-{
-	//if (Controller) {
-	//	Controller->ParamsInput.GaussianSigma = InValue;
-	//	Controller->OnParamsInputChanged();
-	//}
-}
-
-void UFittingControlWidget::CommitSpinBoxSpan(float InValue, ETextCommit::Type CommitMethod)
-{
-	if (CommitMethod != ETextCommit::Type::Default) {
-		SpinBoxSpan->SetValue(FMath::RoundToFloat(InValue));
+	if (Controller) {
+		if (Controller->SelectedNode) {
+			FVector4* PHPtr = nullptr;
+			switch (Controller->HoldingPointType.Get(ESelectedNodeCtrlPointType::Current)) {
+			case ESelectedNodeCtrlPointType::Current:
+				PHPtr = &Controller->SelectedNode->GetValue().Pos;
+				return FText::FromString(FString::Printf(TEXT("(%.3lf, %.3lf)"), PHPtr->X, PHPtr->Y));
+			case ESelectedNodeCtrlPointType::Previous:
+				PHPtr = &Controller->SelectedNode->GetValue().PrevCtrlPointPos;
+				return FText::FromString(FString::Printf(TEXT("(%.3lf, %.3lf)"), PHPtr->X, PHPtr->Y));
+			case ESelectedNodeCtrlPointType::Next:
+				PHPtr = &Controller->SelectedNode->GetValue().NextCtrlPointPos;
+				return FText::FromString(FString::Printf(TEXT("(%.3lf, %.3lf)"), PHPtr->X, PHPtr->Y));
+			}
+		}
 	}
-	//if (Controller) {
-	//	Controller->ParamsInput.RegressionSpan = FMath::RoundToInt(InValue);
-	//	Controller->OnParamsInputChanged();
-	//}
+	return FText::FromString("?");
 }
 
-void UFittingControlWidget::CommitSpinBoxLambda(float InValue, ETextCommit::Type CommitMethod)
+FText UCurveControlWidget::GetParam()
 {
-	//if (Controller) {
-	//	Controller->ParamsInput.RidgeLambda = InValue;
-	//	Controller->OnParamsInputChanged();
-	//}
+	if (Controller) {
+		if (Controller->SelectedNode) {
+			return FText::FromString(FString::Printf(TEXT("%lf"), Controller->SelectedNode->GetValue().Param));
+		}
+	}
+	return FText::FromString("?");
 }
 
-void UFittingControlWidget::ReleaseButtonAll()
+void UCurveControlWidget::UpdateCurrentContinuity()
 {
-	//if (Controller) {
-	//	Controller->ChangeFittingMethod(EFunctionFittingMethod::All);
-	//}
-	TextCurrentMethod->SetText(GetTextCurrentMethod());
+	if (Controller) {
+		if (Controller->SelectedNode) {
+			ComboBoxString_CurrentContinuity->SetIsEnabled(true);
+			ComboBoxString_CurrentContinuity->SetSelectedIndex(static_cast<int32>(Controller->SelectedNode->GetValue().Continuity));
+		}
+		else {
+			ComboBoxString_CurrentContinuity->SetIsEnabled(false);
+			ComboBoxString_CurrentContinuity->SetSelectedIndex(ComboBoxString_CurrentContinuity->GetOptionCount() - 1);
+		}
+	}
 }
 
-void UFittingControlWidget::ReleaseButtonPF()
+void UCurveControlWidget::ReleaseButtonRemake()
 {
-	//if (Controller) {
-	//	Controller->ChangeFittingMethod(EFunctionFittingMethod::PolynomialFitting);
-	//}
-	TextCurrentMethod->SetText(GetTextCurrentMethod());
+	if (Controller) {
+		Controller->RemakeBezierC2();
+	}
 }
 
-void UFittingControlWidget::ReleaseButtonGF()
-{
-	//if (Controller) {
-	//	Controller->ChangeFittingMethod(EFunctionFittingMethod::GaussianFitting);
-	//}
-	TextCurrentMethod->SetText(GetTextCurrentMethod());
-}
-
-void UFittingControlWidget::ReleaseButtonPR()
-{
-	//if (Controller) {
-	//	Controller->ChangeFittingMethod(EFunctionFittingMethod::PolynomialRegression);
-	//}
-	TextCurrentMethod->SetText(GetTextCurrentMethod());
-}
-
-void UFittingControlWidget::ReleaseButtonRR()
-{
-	//if (Controller) {
-	//	Controller->ChangeFittingMethod(EFunctionFittingMethod::RidgeRegression);
-	//}
-	TextCurrentMethod->SetText(GetTextCurrentMethod());
-}
-
-void UFittingControlWidget::ReleaseButtonClear()
+void UCurveControlWidget::ReleaseButtonClear()
 {
 	if (Controller) {
 		Controller->ClearCanvas();
+	}
+}
+
+void UCurveControlWidget::SelectCurrentContinuity(FString SelectedItem, ESelectInfo::Type SelectionType)
+{
+	int32 Index = ComboBoxString_CurrentContinuity->FindOptionIndex(SelectedItem);
+	if (Controller && Index >= 0 && Index < ComboBoxString_CurrentContinuity->GetOptionCount() - 1) {
+		Controller->SelectedNode->GetValue().Continuity = (EEndPointContinuity)Index;
+	}
+}
+
+void UCurveControlWidget::SelectNextPointContinuity(FString SelectedItem, ESelectInfo::Type SelectionType)
+{
+	int32 Index = ComboBoxString_NextPointContinuity->FindOptionIndex(SelectedItem);
+	if (Controller && Index >= 0) {
+		Controller->NewPointContinuityInit = (EEndPointContinuity)Index;
 	}
 }

@@ -107,17 +107,18 @@ inline TVectorX<Dim+1> TRationalBezierCurve<Dim, Degree>::Split(TRationalBezierC
 {
 	double U = 1.0 - T;
 	constexpr int32 DoubleDegree = Degree << 1;
-	constexpr int32 HalfDegree = Degree >> 1;
+
 	TVectorX<Dim+1> SplitCtrlPoints[DoubleDegree + 1];
-	TVecLib<Dim+1>::CopyArray(SplitCtrlPoints, CtrlPoints, Degree + 1);
-	//SplitCtrlPoints[0] = CtrlPoints[0];
-	//SplitCtrlPoints[DoubleDegree] = CtrlPoints[Degree];
+	//TVecLib<Dim+1>::CopyArray(SplitCtrlPoints, CtrlPoints, Degree + 1);
+	for (int32 i = 0; i <= Degree; ++i) {
+		SplitCtrlPoints[i << 1] = CtrlPoints[i];
+	}
+
 	for (int32 j = 1; j <= Degree; ++j) {
-		// P(2n-j) = P(n-j,j)
-		SplitCtrlPoints[DoubleDegree - j + 1] = SplitCtrlPoints[Degree - j + 1];
 		for (int32 i = 0; i <= Degree - j; ++i) {
-			// P(j) is determined
-			SplitCtrlPoints[j + i] = SplitCtrlPoints[j + i - 1] * U + SplitCtrlPoints[j + i] * T;
+			int32 i2 = i << 1;
+			// P(j) and P(DoubleDegree - j) is determined
+			SplitCtrlPoints[j + i2] = SplitCtrlPoints[j + i2 - 1] * U + SplitCtrlPoints[j + i2 + 1] * T;
 		}
 	}
 	// Split(i,j): P(0,0), P(0,1), ..., P(0,n); P(0,n), P(1,n-1), ..., P(n,0).

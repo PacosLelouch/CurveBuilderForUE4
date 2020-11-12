@@ -77,6 +77,8 @@ public:
 
 	void GetCtrlPoints(TArray<TVectorX<Dim+1> >& CtrlPoints) const;
 
+	void GetCtrlParams(TArray<double>& CtrlParams) const;
+
 	void GetBezierCurves(TArray<TBezierCurve<Dim, 3> >& BezierCurves, TArray<TTuple<double, double> >& ParamRanges) const;
 
 public:
@@ -89,7 +91,7 @@ public:
 
 	virtual void AddPointAt(const TBezierString3ControlPoint<Dim>& PointStruct, int32 Index = 0);
 
-	virtual void AddPointWithParamWithoutChangingShape(double T);
+	virtual FPointNode* AddPointWithParamWithoutChangingShape(double T);
 
 	virtual void AdjustCtrlPointParam(double From, double To, int32 NthPointOfFrom = 0);
 

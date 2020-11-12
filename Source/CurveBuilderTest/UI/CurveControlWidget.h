@@ -4,10 +4,11 @@
 
 #include "CoreMinimal.h"
 #include "ControlWidget.h"
+#include "Components/ComboBoxString.h"
 #include "CurveControlWidget.generated.h"
 
 UCLASS(BlueprintType, Blueprintable)
-class UFittingControlWidget : public UControlWidget
+class UCurveControlWidget : public UControlWidget
 {
 	GENERATED_BODY()
 public:
@@ -16,118 +17,68 @@ public:
 
 	virtual void BindEvents() override;
 
-public:
-	UFUNCTION(BlueprintGetter)
-	FText GetTextCurrentMethod();
+	virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
 
-	UFUNCTION(BlueprintGetter)
-	FText GetTextPF();
-
-	UFUNCTION(BlueprintGetter)
-	FText GetTextGF();
-
-	UFUNCTION(BlueprintGetter)
-	FText GetTextPR();
-
-	UFUNCTION(BlueprintGetter)
-	FText GetTextRR();
-
-	UFUNCTION(BlueprintGetter)
-	FText GetTextAll();
-
-	UFUNCTION(BlueprintGetter)
-	float GetSpinBoxSigma();
-
-	UFUNCTION(BlueprintGetter)
-	float GetSpinBoxSpan();
-
-	UFUNCTION(BlueprintGetter)
-	float GetSpinBoxLambda();
+	void UpdateCurrentContinuity();
 
 public:
-	UFUNCTION(BlueprintCallable)
-	void CommitSpinBoxSigma(float InValue, ETextCommit::Type CommitMethod);
+
+	UFUNCTION(BlueprintGetter)
+	FText GetPos();
+
+	UFUNCTION(BlueprintGetter)
+	FText GetParam();
+
+public:
 
 	UFUNCTION(BlueprintCallable)
-	void CommitSpinBoxSpan(float InValue, ETextCommit::Type CommitMethod);
-
-	UFUNCTION(BlueprintCallable)
-	void CommitSpinBoxLambda(float InValue, ETextCommit::Type CommitMethod);
-
-	UFUNCTION(BlueprintCallable)
-	void ReleaseButtonAll();
-
-	UFUNCTION(BlueprintCallable)
-	void ReleaseButtonPF();
-
-	UFUNCTION(BlueprintCallable)
-	void ReleaseButtonGF();
-
-	UFUNCTION(BlueprintCallable)
-	void ReleaseButtonPR();
-
-	UFUNCTION(BlueprintCallable)
-	void ReleaseButtonRR();
+	void ReleaseButtonRemake();
 
 	UFUNCTION(BlueprintCallable)
 	void ReleaseButtonClear();
 
+	UFUNCTION(BlueprintCallable)
+	void SelectCurrentContinuity(FString SelectedItem, ESelectInfo::Type SelectionType);
+
+	UFUNCTION(BlueprintCallable)
+	void SelectNextPointContinuity(FString SelectedItem, ESelectInfo::Type SelectionType);
+
 public:
 
 	UPROPERTY(BlueprintReadOnly, Category = "Widget|Button", Meta = (BindWidget))
-	UButton* ButtonAll;
+	UButton* Button_Remake;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Widget|Text", Meta = (BindWidget))
+	UTextBlock* Text_Remake;
 
 	UPROPERTY(BlueprintReadOnly, Category = "Widget|Button", Meta = (BindWidget))
-	UButton* ButtonClear;
-
-	UPROPERTY(BlueprintReadOnly, Category = "Widget|Button", Meta = (BindWidget))
-	UButton* ButtonPF;
-
-	UPROPERTY(BlueprintReadOnly, Category = "Widget|Button", Meta = (BindWidget))
-	UButton* ButtonGF;
-
-	UPROPERTY(BlueprintReadOnly, Category = "Widget|Button", Meta = (BindWidget))
-	UButton* ButtonPR;
-
-	UPROPERTY(BlueprintReadOnly, Category = "Widget|Button", Meta = (BindWidget))
-	UButton* ButtonRR;
-
-	UPROPERTY(BlueprintReadOnly, Category = "Widget|SpinBox", Meta = (BindWidget))
-	USpinBox* SpinBoxLambda;
-
-	UPROPERTY(BlueprintReadOnly, Category = "Widget|SpinBox", Meta = (BindWidget))
-	USpinBox* SpinBoxSigma;
-
-	UPROPERTY(BlueprintReadOnly, Category = "Widget|SpinBox", Meta = (BindWidget))
-	USpinBox* SpinBoxSpan;
+	UButton* Button_Clear;
 
 	UPROPERTY(BlueprintReadOnly, Category = "Widget|Text", Meta = (BindWidget))
-	UTextBlock* TextCurrentMethod;
+	UTextBlock* Text_Clear;
 
 	UPROPERTY(BlueprintReadOnly, Category = "Widget|Text", Meta = (BindWidget))
-	UTextBlock* TextClear;
+	UTextBlock* Text_PosPrefix;
 
 	UPROPERTY(BlueprintReadOnly, Category = "Widget|Text", Meta = (BindWidget))
-	UTextBlock* TextAll;
+	UTextBlock* Text_Pos;
 
 	UPROPERTY(BlueprintReadOnly, Category = "Widget|Text", Meta = (BindWidget))
-	UTextBlock* TextPF;
+	UTextBlock* Text_ParamPrefix;
 
 	UPROPERTY(BlueprintReadOnly, Category = "Widget|Text", Meta = (BindWidget))
-	UTextBlock* TextGF;
+	UTextBlock* Text_Param;
 
 	UPROPERTY(BlueprintReadOnly, Category = "Widget|Text", Meta = (BindWidget))
-	UTextBlock* TextPR;
+	UTextBlock* Text_CurrentContinuity;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Widget|Input", Meta = (BindWidget))
+	UComboBoxString* ComboBoxString_CurrentContinuity;
 
 	UPROPERTY(BlueprintReadOnly, Category = "Widget|Text", Meta = (BindWidget))
-	UTextBlock* TextRR;
+	UTextBlock* Text_NextPointContinuity;
 
-	UPROPERTY(BlueprintReadOnly, Category = "Widget|Text", Meta = (BindWidget))
-	UTextBlock* TextGaussianSigma;
+	UPROPERTY(BlueprintReadOnly, Category = "Widget|Input", Meta = (BindWidget))
+	UComboBoxString* ComboBoxString_NextPointContinuity;
 
-	UPROPERTY(BlueprintReadOnly, Category = "Widget|Text", Meta = (BindWidget))
-	UTextBlock* TextRegressionSpan;
-
-	UPROPERTY(BlueprintReadOnly, Category = "Widget|Text", Meta = (BindWidget))
-	UTextBlock* TextRidgeLambda;
 };

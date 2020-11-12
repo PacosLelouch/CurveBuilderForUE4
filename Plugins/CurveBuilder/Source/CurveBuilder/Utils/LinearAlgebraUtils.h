@@ -171,3 +171,83 @@ template<int32 Dim>
 using TVectorX = typename TVecLib<Dim>::FType;
 
 // End Vector
+
+// Start Line Intersection
+
+enum class ELineType : uint8
+{
+	Segment, Ray, Line
+};
+
+template<int32 Dim>
+struct TLine
+{
+private:
+	using FVecType = typename TVecLib<Dim>::FType;
+public:
+	TLine(const FVecType& InStart, const FVecType& InEnd, ELineType InType = ELineType::Segment)
+		: Start(InStart), End(InEnd), Type(InType) {}
+
+	bool IsValid(double T) const 
+	{
+		if (Type == ELineType::Line) {
+			return true;
+		}
+		if (Type == ELineType::Ray) {
+			return T >= 0.;
+		}
+		return T >= 0. && T <= 1.;
+	}
+
+	FVecType GetPosition(double T) const { return Start * (1. - T) + End * T; }
+
+	FVecType Start, End;
+	ELineType Type;
+};
+
+template<int32 Dim>
+class TIntersection
+{
+private:
+	using FVecType = typename TVecLib<Dim>::FType;
+public:
+	TIntersection(const TLine<Dim>& InLine1, const TLine<Dim>& InLine2)
+		: Line1(InLine1), Line2(InLine2) 
+	{
+		CalculateResult();
+	}
+
+	bool GetIntersection(FVecType& OutResult) const
+	{
+		if (bHasIntersection) {
+			OutResult = Result;
+		}
+		return bHasIntersection;
+	}
+
+	bool operator()(FVecType& OutResult) const
+	{
+		return GetIntersection(OutResult);
+	}
+
+	bool HasIntersection() const
+	{
+		return bHasIntersection;
+	}
+
+	operator bool() const
+	{
+		return HasIntersection();
+	}
+protected:
+	bool bHasIntersect;
+	FVecType Result;
+	TLine<Dim> Line1, Line2;
+
+	void CalculateResult()
+	{
+
+	}
+};
+
+// End Line Intersection

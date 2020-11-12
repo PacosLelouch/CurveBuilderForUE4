@@ -39,6 +39,10 @@ public:
 
 	virtual void BeginPlay() override;
 
+	virtual void Tick(float Delta) override;
+
+	virtual void BindOnLeftMouseButtonPressed() override;
+	virtual void BindOnLeftMouseButtonReleased() override;
 	virtual void BindOnRightMouseButtonReleased() override;
 	virtual void BindOnCtrlAndKey1Released() override;
 	virtual void BindOnCtrlAndKey2Released() override;
@@ -112,6 +116,13 @@ private:
 	
 	int32 ResampleBSpline(int32 FirstLineLayer = 0);
 
+
+	UFUNCTION()
+		void PressLeftMouseButton(FKey Key, FVector2D MouseScreenPos, EInputEvent InputEvent, APlayerController* Ctrl);
+
+	UFUNCTION()
+		void ReleaseLeftMouseButton(FKey Key, FVector2D MouseScreenPos, EInputEvent InputEvent, APlayerController* Ctrl);
+
 	UFUNCTION()
 		void AddControlPointEvent(FKey Key, FVector2D MouseScreenPos, EInputEvent InputEvent, APlayerController* Ctrl);
 
@@ -152,4 +163,19 @@ public:
 public:
 	TArray<FSpatialBSpline3> Splines;
 	TArray<TArray<FSpatialBezierCurve3> > BezierCurves;
+
+	TOptional<FVector> NearestPoint;
+
+	FSpatialBSpline3::FPointNode* NearestNode = nullptr;
+
+	FSpatialBSpline3::FPointNode* SelectedNode = nullptr;
+
+	bool bHoldingPoint = false;
+
+	bool bPressedLeftMouseButton = false;
+
+protected:
+	FVector ControlPointToHitPoint(const FVector& P);
+
+	FVector HitPointToControlPoint(const FVector& P);
 };

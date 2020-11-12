@@ -61,7 +61,7 @@ public:
 public:
 	//FPointNode* FindNodeByParam(double Param, int32 NthNode = 0) const;
 
-	FPointNode* FindNodeByPosition(const TVectorX<Dim>& Point, int32 NthNode = 0) const;
+	FPointNode* FindNodeByPosition(const TVectorX<Dim>& Point, int32 NthNode = 0, double ToleranceSqr = 1.) const;
 
 	//void GetOpenFormPointsAndParams(TArray<TVectorX<Dim+1> >& CtrlPoints, TArray<double>& Params) const;
 
@@ -96,6 +96,8 @@ public:
 
 	// Insert a knot.
 	virtual void AddPointWithParamWithoutChangingShape(double T);
+
+	virtual void AdjustCtrlPointPos(FPointNode* Node, const TVectorX<Dim>& To, int32 NthPointOfFrom = 0);
 
 	//virtual void AdjustCtrlPointParam(double From, double To, int32 NthPointOfFrom = 0);
 

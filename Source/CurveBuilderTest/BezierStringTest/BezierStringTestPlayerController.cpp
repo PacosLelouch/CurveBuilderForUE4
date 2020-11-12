@@ -42,6 +42,10 @@ void ABezierStringTestPlayerController::Tick(float Delta)
 	if (FixedTransform) {
 	}
 
+	if (!bPressedLeftMouseButton) {
+		HoldingPointType.Reset();
+	}
+
 	Canvas2D->DisplayLines[16].Array.Empty(Canvas2D->DisplayLines[16].Array.Num());
 	Canvas2D->DisplayPoints[1].Array.Empty(Canvas2D->DisplayPoints[1].Array.Num());
 	Canvas2D->DisplayPoints[2].Array.Empty(Canvas2D->DisplayPoints[2].Array.Num());
@@ -60,8 +64,11 @@ void ABezierStringTestPlayerController::Tick(float Delta)
 
 				double Param = -1;
 				if (Spline.FindParamByPosition(Param, CtrlPoint, PointDistSqr)) {
-					//UE_LOG(LogBezierStringTest, Warning, TEXT("Param = %.6lf"), Param);
-					NearestPoint.Emplace(Spline.GetPosition(Param));
+					FVector NearestPos = Spline.GetPosition(Param);
+					if (FVector::DistSquared(NearestPos, CtrlPoint) < PointDistSqr) {
+						//UE_LOG(LogBezierStringTest, Warning, TEXT("Param = %.6lf"), Param);
+						NearestPoint.Emplace(NearestPos);
+					}
 				}
 
 				NearestNode = Spline.FindNodeByPosition(CtrlPoint, 0, NodeDistSqr);
@@ -71,16 +78,22 @@ void ABezierStringTestPlayerController::Tick(float Delta)
 						FVector SelectedPos = TVecLib<4>::Projection(SelectedNode->GetValue().Pos);
 						FVector SelectedPrevPos = TVecLib<4>::Projection(SelectedNode->GetValue().PrevCtrlPointPos);
 						FVector SelectedNextPos = TVecLib<4>::Projection(SelectedNode->GetValue().NextCtrlPointPos);
-						if (FVector::DistSquared(SelectedPos, CtrlPoint) < NodeDistSqr) {
+						if ((HoldingPointType && HoldingPointType.GetValue() == ESelectedNodeCtrlPointType::Current) || 
+								(!HoldingPointType && FVector::DistSquared(SelectedPos, CtrlPoint) < NodeDistSqr)) {
+							HoldingPointType = ESelectedNodeCtrlPointType::Current;
 							Spline.AdjustCtrlPointPos(SelectedNode, CtrlPoint, 0);
 							ResampleCurve();
 						}
-						else if (FVector::DistSquared(SelectedNextPos, CtrlPoint) < NodeDistSqr) {
+						else if ((HoldingPointType && HoldingPointType.GetValue() == ESelectedNodeCtrlPointType::Next) ||
+							(!HoldingPointType && FVector::DistSquared(SelectedNextPos, CtrlPoint) < NodeDistSqr)) {
+							HoldingPointType = ESelectedNodeCtrlPointType::Next;
 							Spline.AdjustCtrlPointTangent(SelectedNode, CtrlPoint, true, 0);
 							Canvas2D->DisplayPoints[2].Array.Add(ControlPointToHitPoint(TVecLib<4>::Projection(SelectedNode->GetValue().PrevCtrlPointPos)));
 							ResampleCurve();
 						}
-						else if (FVector::DistSquared(SelectedPrevPos, CtrlPoint) < NodeDistSqr) {
+						else if ((HoldingPointType && HoldingPointType.GetValue() == ESelectedNodeCtrlPointType::Previous) ||
+							(!HoldingPointType && FVector::DistSquared(SelectedPrevPos, CtrlPoint) < NodeDistSqr)) {
+							HoldingPointType = ESelectedNodeCtrlPointType::Previous;
 							Spline.AdjustCtrlPointTangent(SelectedNode, CtrlPoint, false, 0);
 							Canvas2D->DisplayPoints[2].Array.Add(ControlPointToHitPoint(TVecLib<4>::Projection(SelectedNode->GetValue().NextCtrlPointPos)));
 							ResampleCurve();
@@ -129,19 +142,17 @@ void ABezierStringTestPlayerController::BindOnRightMouseButtonReleased()
 
 void ABezierStringTestPlayerController::BindOnCtrlAndKey1Released()
 {
-	//OnCtrlAndKey1Released.AddDynamic(this, &ABezierStringTestPlayerController::ChangeConcatTypeToPoint);
 	OnCtrlAndKey1Released.AddDynamic(this, &ABezierStringTestPlayerController::FlipDisplayControlPointEvent);
 }
 
 void ABezierStringTestPlayerController::BindOnCtrlAndKey2Released()
 {
-	//OnCtrlAndKey2Released.AddDynamic(this, &ABezierStringTestPlayerController::ChangeConcatTypeToCurve);
-	OnCtrlAndKey2Released.AddDynamic(this, &ABezierStringTestPlayerController::FlipDisplaySmallTangentOfInternalKnotEvent);
+	OnCtrlAndKey2Released.AddDynamic(this, &ABezierStringTestPlayerController::FlipDisplaySmallTangentEvent);
 }
 
 void ABezierStringTestPlayerController::BindOnCtrlAndKey3Released()
 {
-	OnCtrlAndKey3Released.AddDynamic(this, &ABezierStringTestPlayerController::FlipDisplaySmallCurvatureOfInternalKnotEvent);
+	OnCtrlAndKey3Released.AddDynamic(this, &ABezierStringTestPlayerController::FlipDisplaySmallCurvatureEvent);
 }
 
 void ABezierStringTestPlayerController::BindOnCtrlAndKey4Released()
@@ -151,8 +162,7 @@ void ABezierStringTestPlayerController::BindOnCtrlAndKey4Released()
 
 void ABezierStringTestPlayerController::BindOnCtrlAndKey5Released()
 {
-	// Do nothing.
-	OnCtrlAndKey5Released.AddDynamic(this, &ABezierStringTestPlayerController::FlipConvertToBezierEvent);
+	OnCtrlAndKey5Released.AddDynamic(this, &ABezierStringTestPlayerController::RemakeBezierC2Event);
 }
 
 void ABezierStringTestPlayerController::BindOnCtrlAndKey0Released()
@@ -167,18 +177,16 @@ void ABezierStringTestPlayerController::BindOnEnterReleased()
 	OnEnterReleased.AddDynamic(this, &ABezierStringTestPlayerController::AddNewSplineEvent);
 }
 
-//void ABezierStringTestPlayerController::ChangeConcatType(ESplineConcatType Type)
-//{
-//	ConcatType = Type;
-//	ClearCanvas();
-//}
-
-//void ABezierStringTestPlayerController::FlipConvertToBezier()
-//{
-//	bConvertToBezier = !bConvertToBezier;
-//	UE_LOG(LogBezierStringTest, Warning, TEXT("ConvertToBezier = %s"), bConvertToBezier ? TEXT("true") : TEXT("false"));
-//	ResampleCurve();
-//}
+void ABezierStringTestPlayerController::RemakeBezierC2()
+{
+	if (Splines.Num()) {
+		Splines.Last().RemakeC2();
+		for (FSpatialBezierString3::FPointNode* Node = Splines.Last().FirstNode(); Node; Node = Node->GetNextNode()) {
+			Node->GetValue().Continuity = NewPointContinuityInit;
+		}
+		ResampleCurve();
+	}
+}
 
 void ABezierStringTestPlayerController::FlipDisplayControlPoint()
 {
@@ -187,17 +195,17 @@ void ABezierStringTestPlayerController::FlipDisplayControlPoint()
 	ResampleCurve();
 }
 
-void ABezierStringTestPlayerController::FlipDisplaySmallTangentOfInternalKnot()
+void ABezierStringTestPlayerController::FlipDisplaySmallTangent()
 {
 	bDisplaySmallTangent = !bDisplaySmallTangent;
-	UE_LOG(LogBezierStringTest, Warning, TEXT("DisplaySmallTangentOfInternalKnot = %s"), bDisplaySmallTangent ? TEXT("true") : TEXT("false"));
+	UE_LOG(LogBezierStringTest, Warning, TEXT("DisplaySmallTangent = %s"), bDisplaySmallTangent ? TEXT("true") : TEXT("false"));
 	ResampleCurve();
 }
 
-void ABezierStringTestPlayerController::FlipDisplaySmallCurvatureOfInternalKnot()
+void ABezierStringTestPlayerController::FlipDisplaySmallCurvature()
 {
 	bDisplaySmallCurvature = !bDisplaySmallCurvature;
-	UE_LOG(LogBezierStringTest, Warning, TEXT("DisplaySmallCurvatureOfInternalKnot = %s"), bDisplaySmallCurvature ? TEXT("true") : TEXT("false"));
+	UE_LOG(LogBezierStringTest, Warning, TEXT("DisplaySmallCurvature = %s"), bDisplaySmallCurvature ? TEXT("true") : TEXT("false"));
 	ResampleCurve();
 }
 
@@ -248,10 +256,14 @@ void ABezierStringTestPlayerController::AddControlPoint(const FVector& HitPoint)
 	double Param = -1;
 	if (Splines.Last().FindParamByPosition(Param, EndPoint, PointDistSqr)) {
 		//UE_LOG(LogBezierStringTest, Warning, TEXT("Param = %.6lf"), Param);
-		Splines.Last().AddPointWithParamWithoutChangingShape(Param);
+		FSpatialBezierString3::FPointNode* NewNode = Splines.Last().AddPointWithParamWithoutChangingShape(Param);
+		if (NewNode) {
+			NewNode->GetValue().Continuity = NewPointContinuityInit;
+		}
 	}
 	else {
 		Splines.Last().AddPointAtLast(EndPoint);
+		Splines.Last().LastNode()->GetValue().Continuity = NewPointContinuityInit;
 	}
 
 	ResampleCurve();
@@ -276,7 +288,7 @@ void ABezierStringTestPlayerController::ClearCanvasImpl()
 	SelectedNode = nullptr;
 	NearestPoint.Reset();
 
-	Splines.Empty(0);
+	Splines.Empty(1);
 	Splines.AddDefaulted();
 }
 
@@ -358,9 +370,9 @@ int32 ABezierStringTestPlayerController::ResampleBezierString(int32 FirstLineLay
 		UE_LOG(LogBezierStringTest, Warning, TEXT("Splines[%d] CtrlPointNum = %d"),
 			i, Splines[i].GetCtrlPointNum());
 
-		TArray<FVector4> SpCtrlPoints; //TArray<double> SpParams;
+		TArray<FVector4> SpCtrlPoints; TArray<double> SpParams;
 		Splines[i].GetCtrlPoints(SpCtrlPoints);
-		//Splines[i].GetKnotIntervals(SpParams);
+		Splines[i].GetCtrlParams(SpParams);
 
 		if (Splines[i].GetCtrlPointNum() < 2) {
 			//Canvas2D->DrawPoints(i);
@@ -383,8 +395,8 @@ int32 ABezierStringTestPlayerController::ResampleBezierString(int32 FirstLineLay
 		}
 
 		for (int32 j = 0; j < SpCtrlPoints.Num(); ++j) {
-			UE_LOG(LogBezierStringTest, Warning, TEXT("Splines[%d].Points[%d] = <%s>"),
-				i, j, *SpCtrlPoints[j].ToString());
+			UE_LOG(LogBezierStringTest, Warning, TEXT("Splines[%d].Points[%d] = <%s>, %lf"),
+				i, j, *SpCtrlPoints[j].ToString(), SpParams[j]);
 		}
 		//for (int32 j = 0; j < SpParams.Num(); ++j) {
 		//	UE_LOG(LogBezierStringTest, Warning, TEXT("Splines[%d].Knots[%d] = <%s, t = %.6lf>"),
@@ -450,7 +462,6 @@ void ABezierStringTestPlayerController::ReleaseLeftMouseButton(FKey Key, FVector
 	if (NearestNode) {
 		SelectedNode = NearestNode;
 	}
-	//TODO
 }
 
 void ABezierStringTestPlayerController::AddControlPointEvent(FKey Key, FVector2D MouseScreenPos, EInputEvent InputEvent, APlayerController* Ctrl)
@@ -480,21 +491,9 @@ void ABezierStringTestPlayerController::ClearCanvasEvent(FKey Key, EInputEvent I
 	ClearCanvas();
 }
 
-void ABezierStringTestPlayerController::ChangeConcatTypeToPoint(FKey Key, EInputEvent Event, APlayerController* Ctrl)
+void ABezierStringTestPlayerController::RemakeBezierC2Event(FKey Key, EInputEvent Event, APlayerController* Ctrl)
 {
-	UE_LOG(LogTemp, Warning, TEXT("Curve To Point"));
-	//ChangeConcatType(ESplineConcatType::ToPoint);
-}
-
-void ABezierStringTestPlayerController::ChangeConcatTypeToCurve(FKey Key, EInputEvent Event, APlayerController* Ctrl)
-{
-	UE_LOG(LogTemp, Warning, TEXT("Curve To Curve"));
-	//ChangeConcatType(ESplineConcatType::ToCurve);
-}
-
-void ABezierStringTestPlayerController::FlipConvertToBezierEvent(FKey Key, EInputEvent Event, APlayerController* Ctrl)
-{
-	//FlipConvertToBezier();
+	RemakeBezierC2();
 }
 
 void ABezierStringTestPlayerController::FlipDisplayControlPointEvent(FKey Key, EInputEvent Event, APlayerController* Ctrl)
@@ -502,14 +501,14 @@ void ABezierStringTestPlayerController::FlipDisplayControlPointEvent(FKey Key, E
 	FlipDisplayControlPoint();
 }
 
-void ABezierStringTestPlayerController::FlipDisplaySmallTangentOfInternalKnotEvent(FKey Key, EInputEvent Event, APlayerController* Ctrl)
+void ABezierStringTestPlayerController::FlipDisplaySmallTangentEvent(FKey Key, EInputEvent Event, APlayerController* Ctrl)
 {
-	FlipDisplaySmallTangentOfInternalKnot();
+	FlipDisplaySmallTangent();
 }
 
-void ABezierStringTestPlayerController::FlipDisplaySmallCurvatureOfInternalKnotEvent(FKey Key, EInputEvent Event, APlayerController* Ctrl)
+void ABezierStringTestPlayerController::FlipDisplaySmallCurvatureEvent(FKey Key, EInputEvent Event, APlayerController* Ctrl)
 {
-	FlipDisplaySmallCurvatureOfInternalKnot();
+	FlipDisplaySmallCurvature();
 }
 
 void ABezierStringTestPlayerController::SplitSplineAtCenterEvent(FKey Key, EInputEvent Event, APlayerController* Ctrl)
