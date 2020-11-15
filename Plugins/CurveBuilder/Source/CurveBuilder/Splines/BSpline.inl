@@ -389,7 +389,7 @@ inline void TClampedBSpline<Dim, Degree>::AddPointWithParamWithoutChangingShape(
 	FPointNode* NodeStart = CtrlPointsList.GetHead();
 	for (int32 i = Degree; i < Params.Num() - Degree - 1; ++i) {
 		NodeStart = NodeStart->GetNextNode();
-		if (Params[i] <= k && k < Params[i + 1]) {
+		if (Params[i] <= T && T < Params[i + 1]) {
 			k = i;
 			break;
 		}
@@ -412,7 +412,8 @@ inline void TClampedBSpline<Dim, Degree>::AddPointWithParamWithoutChangingShape(
 		}
 		NodeStart = NodeStart->GetNextNode();
 	}
-	AddNewKnotIntervalIfNecessary(T);
+	KnotIntervals.Insert(T, k - Degree + 1);
+	//AddNewKnotIntervalIfNecessary(T);
 
 	return;
 
