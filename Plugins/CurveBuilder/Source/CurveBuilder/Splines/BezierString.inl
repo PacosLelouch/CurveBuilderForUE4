@@ -8,6 +8,7 @@
 template<int32 Dim>
 inline TBezierString3<Dim>::TBezierString3(const TBezierString3<Dim>& InSpline)
 {
+	Type = ESplineType::BezierString;
 	for (const auto& Pos : InSpline.CtrlPointsList) {
 		CtrlPointsList.AddTail(Pos);
 	}
@@ -16,6 +17,7 @@ inline TBezierString3<Dim>::TBezierString3(const TBezierString3<Dim>& InSpline)
 template<int32 Dim>
 inline TBezierString3<Dim>::TBezierString3(const TArray<TBezierCurve<Dim, 3>>& InCurves)
 {
+	Type = ESplineType::BezierString;
 	FromCurveArray(InCurves);
 }
 
@@ -93,12 +95,30 @@ inline typename TBezierString3<Dim>::FPointNode* TBezierString3<Dim>::FindNodeGr
 }
 
 template<int32 Dim>
-inline typename typename TBezierString3<Dim>::FPointNode* TBezierString3<Dim>::FindNodeByPosition(const TVectorX<Dim>& Point, int32 NthNode, double ToleranceSqr) const
+inline typename TBezierString3<Dim>::FPointNode* TBezierString3<Dim>::FindNodeByPosition(const TVectorX<Dim>& Point, int32 NthNode, double ToleranceSqr) const
 {
 	int32 Count = 0;
 	FPointNode* Node = CtrlPointsList.GetHead();
 	while (Node) {
 		if (TVecLib<Dim>::SizeSquared(TVecLib<Dim+1>::Projection(Node->GetValue().Pos) - Point) < ToleranceSqr) {
+			if (Count == NthNode) {
+				return Node;
+			}
+			++Count;
+		}
+		Node = Node->GetNextNode();
+	}
+	return nullptr;
+}
+
+template<int32 Dim>
+inline typename TBezierString3<Dim>::FPointNode* TBezierString3<Dim>::FindNodeByExtentPosition(const TVectorX<Dim>& ExtentPoint, bool bFront, int32 NthNode, double ToleranceSqr) const
+{
+	int32 Count = 0;
+	FPointNode* Node = CtrlPointsList.GetHead();
+	while (Node) {
+		TVectorX<Dim> PointFound = bFront ? TVecLib<Dim+1>::Projection(Node->GetValue().NextCtrlPointPos) : TVecLib<Dim+1>::Projection(Node->GetValue().PrevCtrlPointPos);
+		if (TVecLib<Dim>::SizeSquared(PointFound - ExtentPoint) < ToleranceSqr) {
 			if (Count == NthNode) {
 				return Node;
 			}
@@ -149,6 +169,39 @@ inline void TBezierString3<Dim>::GetBezierCurves(TArray<TBezierCurve<Dim, 3> >& 
 		Node = Node->GetNextNode();
 		NextNode = Node->GetNextNode();
 	}
+}
+
+template<int32 Dim>
+inline TSharedRef<TSplineBase<Dim, 3>> TBezierString3<Dim>::CreateSameType(int32 EndContinuity) const
+{
+	TSharedRef<TSplineBase<Dim, 3> > NewSpline = MakeShared<TBezierString3<Dim> >();
+	if (EndContinuity >= 0) {
+		FPointNode* CurRefNode = CtrlPointsList.GetTail();
+		TVectorX<Dim> CurPos = TVecLib<Dim+1>::Projection(CurRefNode->GetValue().Pos);
+		TVectorX<Dim> CurRefPos = TVecLib<Dim+1>::Projection(CurRefNode->GetValue().Pos);
+		TBezierString3<Dim>& Beziers = static_cast<TBezierString3<Dim>& >(NewSpline.Get());
+		Beziers.AddPointAtLast(CurPos);
+		Beziers.LastNode()->GetValue().PrevCtrlPointPos = CurRefNode->GetValue().NextCtrlPointPos;
+		Beziers.LastNode()->GetValue().NextCtrlPointPos = CurRefNode->GetValue().PrevCtrlPointPos;
+		for (int32 i = 0; i < EndContinuity && CurRefNode; i += 2) {
+			FPointNode* PrevRefNode = CurRefNode->GetPrevNode();
+			if (PrevRefNode) {
+				TVectorX<Dim> PrevRefPos = TVecLib<Dim+1>::Projection(PrevRefNode->GetValue().Pos);
+				TVectorX<Dim> PrevPos = TVecLib<Dim+1>::Projection(PrevRefNode->GetValue().Pos);
+				TVectorX<Dim> PrevPPos = TVecLib<Dim+1>::Projection(PrevRefNode->GetValue().PrevCtrlPointPos);
+				TVectorX<Dim> PrevNPos = TVecLib<Dim+1>::Projection(PrevRefNode->GetValue().NextCtrlPointPos);
+				Beziers.AddPointAtLast(CurPos + (CurRefPos - PrevRefPos));
+				TVectorX<Dim> NextPos = TVecLib<Dim+1>::Projection(Beziers.LastNode()->GetValue().Pos);
+				Beziers.LastNode()->GetValue().PrevCtrlPointPos = TVecLib<Dim>::Homogeneous(NextPos + (PrevPPos - PrevPos), 1.);
+				Beziers.LastNode()->GetValue().NextCtrlPointPos = TVecLib<Dim>::Homogeneous(NextPos + (PrevNPos - PrevPos), 1.);
+
+				CurRefNode = PrevRefNode;
+				CurPos = TVecLib<Dim+1>::Projection(Beziers.LastNode()->GetValue().Pos);
+				CurRefPos = TVecLib<Dim+1>::Projection(CurRefNode->GetValue().Pos);
+			}
+		}
+	}
+	return NewSpline;
 }
 
 template<int32 Dim>
@@ -550,10 +603,23 @@ inline void TBezierString3<Dim>::RemovePoint(const TVectorX<Dim>& Point, int32 N
 }
 
 template<int32 Dim>
-inline void TBezierString3<Dim>::AdjustCtrlPointPos(const TVectorX<Dim>& From, const TVectorX<Dim>& To, int32 NthPointOfFrom)
+inline bool TBezierString3<Dim>::AdjustCtrlPointPos(const TVectorX<Dim>& From, const TVectorX<Dim>& To, int32 NodeIndexOffset, int32 NthPointOfFrom, double ToleranceSqr)
 {
-	FPointNode* Node = FindNodeByPosition(From, NthPointOfFrom);
-	AdjustCtrlPointPos(Node, To, NthPointOfFrom);
+	FPointNode* Node = nullptr;
+	if (NodeIndexOffset == 0) {
+		Node = FindNodeByPosition(From, NthPointOfFrom, ToleranceSqr);
+		if (Node) {
+			AdjustCtrlPointPos(Node, To, NthPointOfFrom);
+		}
+	}
+	else {
+		bool bNext = NodeIndexOffset > 0;
+		Node = FindNodeByExtentPosition(From, bNext, NthPointOfFrom, ToleranceSqr);
+		if (Node) {
+			AdjustCtrlPointTangent(Node, To, bNext, NthPointOfFrom);
+		}
+	}
+	return Node != nullptr;
 }
 
 template<int32 Dim>

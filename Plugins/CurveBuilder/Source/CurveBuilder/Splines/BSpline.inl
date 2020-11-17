@@ -9,6 +9,7 @@
 template<int32 Dim, int32 Degree>
 inline TClampedBSpline<Dim, Degree>::TClampedBSpline(const TClampedBSpline<Dim, Degree>& InSpline)
 {
+	Type = ESplineType::ClampedBSpline;
 	for (const auto& Pos : InSpline.CtrlPointsList) {
 		CtrlPointsList.AddTail(Pos);
 	}
@@ -29,6 +30,34 @@ inline TClampedBSpline<Dim, Degree>& TClampedBSpline<Dim, Degree>::operator=(con
 		KnotIntervals.Add(P);
 	}
 	return *this;
+}
+
+template<int32 Dim, int32 Degree>
+inline TSharedRef<TSplineBase<Dim, Degree>> TClampedBSpline<Dim, Degree>::CreateSameType(int32 EndContinuity) const
+{
+	TSharedRef<TSplineBase<Dim, Degree> > NewSpline = MakeShared<TClampedBSpline<Dim, Degree> >();
+	if (EndContinuity >= 0) {
+		FPointNode* CurRefNode = CtrlPointsList.GetTail();
+		TVectorX<Dim> CurPos = TVecLib<Dim+1>::Projection(CurRefNode->GetValue().Pos);
+		TVectorX<Dim> CurRefPos = TVecLib<Dim+1>::Projection(CurRefNode->GetValue().Pos);
+		NewSpline.Get().AddPointAtLast(CurPos);
+		for (int32 i = 0; i < EndContinuity; ++i) {
+			if (!CurRefNode) {
+				break;
+			}
+			FPointNode* PrevRefNode = CurRefNode->GetPrevNode();
+			TVectorX<Dim> PrevRefPos = TVecLib<Dim+1>::Projection(PrevRefNode->GetValue().Pos);
+
+			TVectorX<Dim> Diff = CurRefPos - PrevRefPos;
+			TVectorX<Dim> NextPos = CurPos + Diff;
+			NewSpline.Get().AddPointAtLast(NextPos);
+
+			CurRefNode = PrevRefNode;
+			CurPos = NextPos;
+			CurRefPos = PrevRefPos;
+		}
+	}
+	return NewSpline;
 }
 
 //template<int32 Dim, int32 Degree>
@@ -543,10 +572,26 @@ inline void TClampedBSpline<Dim, Degree>::RemovePoint(const TVectorX<Dim>& Point
 }
 
 template<int32 Dim, int32 Degree>
-inline void TClampedBSpline<Dim, Degree>::AdjustCtrlPointPos(const TVectorX<Dim>& From, const TVectorX<Dim>& To, int32 NthPointOfFrom)
+inline bool TClampedBSpline<Dim, Degree>::AdjustCtrlPointPos(const TVectorX<Dim>& From, const TVectorX<Dim>& To, int32 NodeIndexOffset, int32 NthPointOfFrom, double ToleranceSqr)
 {
-	FPointNode* Node = FindNodeByPosition(From, NthPointOfFrom);
+	FPointNode* Node = FindNodeByPosition(From, NthPointOfFrom, ToleranceSqr);
+	if (NodeIndexOffset < 0) {
+		for (int32 i = 0; i > NodeIndexOffset && Node; --i) {
+			Node = Node->GetPrevNode();
+		}
+	}
+	else if (NodeIndexOffset > 0) {
+		for (int32 i = 0; i < NodeIndexOffset && Node; ++i) {
+			Node = Node->GetNextNode();
+		}
+	}
+
+	if (!Node) {
+		return false;
+	}
+
 	AdjustCtrlPointPos(Node, To, NthPointOfFrom);
+	return true;
 }
 
 template<int32 Dim, int32 Degree>
@@ -712,9 +757,15 @@ inline TVectorX<Dim+1> TClampedBSpline<Dim, Degree>::DeBoor(
 	}
 	const auto& ParamRange = GetParamRange();
 	if (FMath::IsNearlyEqual(T, ParamRange.Get<0>())) {
+		if (OutEndIntervalIndex) {
+			(*OutEndIntervalIndex) = Degree;
+		}
 		return CtrlPoints.Num() > 0 ? CtrlPoints[0] : TVecLib<Dim+1>::Zero();
 	}
 	else if (FMath::IsNearlyEqual(T, ParamRange.Get<1>())) {
+		if (OutEndIntervalIndex) {
+			(*OutEndIntervalIndex) = Params.Num() - Degree - 1;
+		}
 		return CtrlPoints.Last();
 	}
 

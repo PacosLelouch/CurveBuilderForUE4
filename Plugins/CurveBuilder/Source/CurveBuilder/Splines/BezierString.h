@@ -31,13 +31,16 @@ struct TBezierString3ControlPoint
 
 // BezierString3
 template<int32 Dim>
-class TBezierString3 : TSplineBase<Dim>
+class TBezierString3 : public TSplineBase<Dim>
 {
 	using TSplineBase<Dim>::TSplineBase;
 public:
 	using FPointNode = typename TDoubleLinkedList<TBezierString3ControlPoint<Dim> >::TDoubleLinkedListNode;
 public:
-	FORCEINLINE TBezierString3() {}
+	FORCEINLINE TBezierString3() 
+	{
+		Type = ESplineType::BezierString;
+	}
 
 	FORCEINLINE TBezierString3(const TBezierString3<Dim>& InSpline);
 
@@ -52,11 +55,6 @@ public:
 	FORCEINLINE void RemakeC2() { UpdateBezierString(nullptr); }
 
 	virtual ~TBezierString3() { CtrlPointsList.Empty(); }
-
-	FORCEINLINE int32 GetCtrlPointNum() const
-	{
-		return CtrlPointsList.Num();
-	}
 
 	FORCEINLINE FPointNode* FirstNode() const
 	{
@@ -75,6 +73,8 @@ public:
 
 	FPointNode* FindNodeByPosition(const TVectorX<Dim>& Point, int32 NthNode = 0, double ToleranceSqr = 1.) const;
 
+	FPointNode* FindNodeByExtentPosition(const TVectorX<Dim>& ExtentPoint, bool bFront = true, int32 NthNode = 0, double ToleranceSqr = 1.) const;
+
 	void GetCtrlPoints(TArray<TVectorX<Dim+1> >& CtrlPoints) const;
 
 	void GetCtrlParams(TArray<double>& CtrlParams) const;
@@ -82,6 +82,12 @@ public:
 	void GetBezierCurves(TArray<TBezierCurve<Dim, 3> >& BezierCurves, TArray<TTuple<double, double> >& ParamRanges) const;
 
 public:
+	virtual int32 GetCtrlPointNum() const override
+	{
+		return CtrlPointsList.Num();
+	}
+
+	virtual TSharedRef<TSplineBase<Dim, 3> > CreateSameType(int32 EndContinuity = -1) const override;
 
 	virtual void Split(TBezierString3<Dim>& OutFirst, TBezierString3<Dim>& OutSecond, double T) const;
 
@@ -116,7 +122,7 @@ public:
 
 	virtual void RemovePoint(const TVectorX<Dim>& Point, int32 NthPointOfFrom = 0) override;
 
-	virtual void AdjustCtrlPointPos(const TVectorX<Dim>& From, const TVectorX<Dim>& To, int32 NthPointOfFrom = 0) override;
+	virtual bool AdjustCtrlPointPos(const TVectorX<Dim>& From, const TVectorX<Dim>& To, int32 NodeIndexOffset = 0, int32 NthPointOfFrom = 0, double ToleranceSqr = 1.) override;
 
 	virtual void Reverse() override;
 

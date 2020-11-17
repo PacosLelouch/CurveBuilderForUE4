@@ -6,11 +6,23 @@
 #include "CoreMinimal.h"
 #include "Utils/LinearAlgebraUtils.h"
 
+enum class EContactType : uint8
+{
+	Start, End,
+};
+
+enum class ESplineType : uint8
+{
+	Unknown,
+	ClampedBSpline,
+	BezierString,
+};
+
 template<int32 Dim, int32 Degree = 3>
 class TSplineBase
 {
 public:
-	FORCEINLINE TSplineBase(){}
+	FORCEINLINE TSplineBase() {}
 
 	virtual ~TSplineBase() {}
 
@@ -21,6 +33,8 @@ public:
 	FORCEINLINE static constexpr int32 SplineRank() { return Degree + 1; }
 
 	FORCEINLINE TVectorX<Dim> GetNormalizedTangent(double T) const { return GetTangent(T).GetSafeNormal(); }
+
+	FORCEINLINE ESplineType GetType() const { return Type; }
 
 	double GetLength(double T) const
 	{
@@ -54,39 +68,48 @@ public:
 		AddPointAt(TVecLib<Dim+1>::Projection(Point), Param, Index, TVecLib<Dim+1>::Last(Point));
 	}
 public:
+	virtual int32 GetCtrlPointNum() const
+	{
+		return -1;
+	}
 
-	virtual void AddPointAtLast(const TVectorX<Dim>& Point, TOptional<double> Param = TOptional<double>(), double Weight = 1.) = 0;
+	virtual TSharedRef<TSplineBase<Dim, Degree> > CreateSameType(int32 EndContinuity = -1) const 
+	{
+		return MakeShared<TSplineBase<Dim, Degree> >();
+	}
 
-	virtual void AddPointAtFirst(const TVectorX<Dim>& Point, TOptional<double> Param = TOptional<double>(), double Weight = 1.) = 0;
+	virtual void AddPointAtLast(const TVectorX<Dim>& Point, TOptional<double> Param = TOptional<double>(), double Weight = 1.) {}
 
-	virtual void AddPointAt(const TVectorX<Dim>& Point, TOptional<double> Param = TOptional<double>(), int32 Index = 0, double Weight = 1.) = 0;
+	virtual void AddPointAtFirst(const TVectorX<Dim>& Point, TOptional<double> Param = TOptional<double>(), double Weight = 1.) {}
 
-	virtual void RemovePointAt(int32 Index = 0) = 0;
+	virtual void AddPointAt(const TVectorX<Dim>& Point, TOptional<double> Param = TOptional<double>(), int32 Index = 0, double Weight = 1.) {}
+
+	virtual void RemovePointAt(int32 Index = 0) {}
 
 	// NthPointOfFrom means if there are multiple points with the same positions, which point to adjust.
-	virtual void RemovePoint(const TVectorX<Dim>& Point, int32 NthPointOfFrom = 0) = 0;
+	virtual void RemovePoint(const TVectorX<Dim>& Point, int32 NthPointOfFrom = 0) {}
 
 	// NthPointOfFrom means if there are multiple points with the same positions, which point to adjust.
-	virtual void AdjustCtrlPointPos(const TVectorX<Dim>& From, const TVectorX<Dim>& To, int32 NthPointOfFrom = 0) = 0;
+	virtual bool AdjustCtrlPointPos(const TVectorX<Dim>& From, const TVectorX<Dim>& To, int32 NodeIndexOffset = 0, int32 NthPointOfFrom = 0, double ToleranceSqr = 1.) { return false; }
 
 	//// NthPointOfFrom means if there are multiple points with the same positions, which point to adjust.
-	//virtual void AdjustCtrlPointParam(double From, double To, int32 NthPointOfFrom = 0) = 0;
+	//virtual void AdjustCtrlPointParam(double From, double To, int32 NthPointOfFrom = 0) {}
 
-	virtual void Reverse() = 0;
+	virtual void Reverse() {}
 
-	virtual TVectorX<Dim> GetPosition(double T) const = 0;
+	virtual TVectorX<Dim> GetPosition(double T) const { return TVecLib<Dim>::Zero(); }
 
-	virtual TVectorX<Dim> GetTangent(double T) const = 0;
+	virtual TVectorX<Dim> GetTangent(double T) const { return TVecLib<Dim>::Zero(); }
 
-	virtual double GetPrincipalCurvature(double T, int32 Principal = 0) const = 0;
+	virtual double GetPrincipalCurvature(double T, int32 Principal = 0) const { return -1; }
 
-	virtual double GetCurvature(double T) const = 0;
+	virtual double GetCurvature(double T) const { return -1; }
 
-	virtual void ToPolynomialForm(TArray<TArray<TVectorX<Dim+1> > >& OutPolyForms) const = 0;
+	virtual void ToPolynomialForm(TArray<TArray<TVectorX<Dim+1> > >& OutPolyForms) const {}
 
-	virtual TTuple<double, double> GetParamRange() const = 0;
+	virtual TTuple<double, double> GetParamRange() const { return MakeTuple(-1., -1.); }
 
-	virtual bool FindParamByPosition(double& OutParam, const TVectorX<Dim>& InPos, double ToleranceSqr = 1.) const = 0;
+	virtual bool FindParamByPosition(double& OutParam, const TVectorX<Dim>& InPos, double ToleranceSqr = 1.) const { return false; }
 
 public:
 	static double ConvertRange(double T, const TTuple<double, double>& RangeFrom, const TTuple<double, double>& RangeTo)
@@ -98,4 +121,6 @@ public:
 		double TN = (T - RangeFrom.Get<0>()) / DiffFrom;
 		return RangeTo.Get<0>() * (1 - TN) + RangeTo.Get<1>() * TN;
 	}
+protected:
+	ESplineType Type = ESplineType::Unknown;
 };

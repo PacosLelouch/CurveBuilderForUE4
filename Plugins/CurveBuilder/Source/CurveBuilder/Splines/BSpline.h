@@ -22,13 +22,16 @@ struct TClampedBSplineControlPoint
 
 // Clamped B-Spline
 template<int32 Dim, int32 Degree = 3>
-class TClampedBSpline : TSplineBase<Dim, Degree>
+class TClampedBSpline : public TSplineBase<Dim, Degree>
 {
 	using TSplineBase<Dim, Degree>::TSplineBase;
 public:
 	using FPointNode = typename TDoubleLinkedList<TClampedBSplineControlPoint<Dim> >::TDoubleLinkedListNode;
 public:
-	FORCEINLINE TClampedBSpline() {}
+	FORCEINLINE TClampedBSpline() 
+	{
+		Type = ESplineType::ClampedBSpline;
+	}
 
 	FORCEINLINE TClampedBSpline(const TClampedBSpline<Dim, Degree>& InSpline);
 
@@ -37,11 +40,6 @@ public:
 	FORCEINLINE void Reset() { CtrlPointsList.Empty(); KnotIntervals.Empty(KnotIntervals.Num()); }
 
 	virtual ~TClampedBSpline() { CtrlPointsList.Empty(); KnotIntervals.Empty(KnotIntervals.Num()); }
-
-	FORCEINLINE int32 GetCtrlPointNum() const
-	{
-		return CtrlPointsList.Num();
-	}
 
 	FORCEINLINE int32 GetKnotNum() const
 	{
@@ -59,6 +57,13 @@ public:
 	}
 
 public:
+	virtual int32 GetCtrlPointNum() const override
+	{
+		return CtrlPointsList.Num();
+	}
+
+	virtual TSharedRef<TSplineBase<Dim, Degree> > CreateSameType(int32 EndContinuity = -1) const override;
+
 	//FPointNode* FindNodeByParam(double Param, int32 NthNode = 0) const;
 
 	FPointNode* FindNodeByPosition(const TVectorX<Dim>& Point, int32 NthNode = 0, double ToleranceSqr = 1.) const;
@@ -114,7 +119,7 @@ public:
 
 	virtual void RemovePoint(const TVectorX<Dim>& Point, int32 NthPointOfFrom = 0) override;
 
-	virtual void AdjustCtrlPointPos(const TVectorX<Dim>& From, const TVectorX<Dim>& To, int32 NthPointOfFrom = 0) override;
+	virtual bool AdjustCtrlPointPos(const TVectorX<Dim>& From, const TVectorX<Dim>& To, int32 NodeIndexOffset = 0, int32 NthPointOfFrom = 0, double ToleranceSqr = 1.) override;
 
 	virtual void Reverse() override;
 
