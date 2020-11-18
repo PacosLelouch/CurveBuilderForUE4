@@ -109,7 +109,7 @@ private:
 		void AddControlPointEvent(FKey Key, FVector2D MouseScreenPos, EInputEvent InputEvent, APlayerController* Ctrl);
 
 	UFUNCTION()
-		void AddNewSplineEvent(FKey Key, EInputEvent InputEvent, APlayerController* Ctrl);
+		void AddNewSplineAfterSelectedSplineEvent(FKey Key, EInputEvent InputEvent, APlayerController* Ctrl);
 
 	UFUNCTION()
 		void ClearCanvasEvent(FKey Key, EInputEvent InputEvent, APlayerController* Ctrl);
@@ -129,6 +129,12 @@ private:
 	UFUNCTION()
 		void SplitSplineAtCenterEvent(FKey Key, EInputEvent Event, APlayerController* Ctrl);
 
+	UFUNCTION()
+		void FlipSelectedSplineTypeEvent(FKey Key, EInputEvent Event, APlayerController* Ctrl);
+
+	UFUNCTION()
+		void ReverseSelectedSplineTypeEvent(FKey Key, EInputEvent Event, APlayerController* Ctrl);
+
 public:
 	//TArray<FSpatialBezierString3> Splines;
 	ESplineType NewSplineType = ESplineType::ClampedBSpline;
@@ -139,8 +145,8 @@ public:
 	//FSpatialBSpline3::FPointNode* NearestNode = nullptr;
 
 	//FSpatialBSpline3::FPointNode* SelectedNode = nullptr;
-	FSpatialSplineGraph3::FSplineType* NearestSpline = nullptr;
-	FSpatialSplineGraph3::FSplineType* SelectedSpline = nullptr;
+	TWeakPtr<FSpatialSplineGraph3::FSplineType> NearestSpline = nullptr;
+	TWeakPtr<FSpatialSplineGraph3::FSplineType> SelectedSpline = nullptr;
 	void* NearestNodeRaw = nullptr;
 	void* SelectedNodeRaw = nullptr;
 

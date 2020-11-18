@@ -8,25 +8,30 @@
 template<int32 Dim>
 inline TSplineGraph<Dim, 3>::TSplineGraph(const TArray<TSharedPtr<FSplineType> >& Splines, bool bClosed)
 {
+	TArray<TSharedPtr<FSplineWrapper> > SplineWrappers;
+	SplineWrappers.Reserve(Splines.Num());
 	for (int32 i = 0; i < Splines.Num(); ++i) {
-		InternalGraphForward.Add(Splines[i], {});
-		InternalGraphBackward.Add(Splines[i], {});
+		TSharedPtr<FSplineWrapper>& SplineWrapper = SplineWrappers.Add_GetRef(MakeSheareable(new FSplineWrapper{ Splines[i] }));
+		InternalGraphForward.Add(SplineWrapper, {});
+		InternalGraphBackward.Add(SplineWrapper, {});
+		SplineToWrapper.Add(Splines[i], TWeakPtr<FSplineWrapper>(SplineWrapper));
 	}
 	for (int32 i = 0; i < Splines.Num() - 1; ++i) {
-		InternalGraphForward[Splines[i]].Add({ TWeakPtr<FSplineType>(Splines[i + 1]), EContactType::Start });
+		InternalGraphForward[Splines[i]].Add({ TWeakPtr<FSplineWrapper>(SplineWrappers[i + 1]), EContactType::Start });
 	}
 	for (int32 i = 1; i < Splines.Num(); ++i) {
-		InternalGraphBackward[Splines[i]].Add({ TWeakPtr<FSplineType>(Splines[i - 1]), EContactType::End });
+		InternalGraphBackward[Splines[i]].Add({ TWeakPtr<FSplineWrapper>(SplineWrappers[i - 1]), EContactType::End });
 	}
 	if (bClosed) {
-		InternalGraphForward[Splines.Last()].Add({ TWeakPtr<FSplineType>(Splines[0]), EContactType::Start });
-		InternalGraphBackward[Splines[0]].Add({ TWeakPtr<FSplineType>(Splines.Last()), EContactType::End });
+		InternalGraphForward[Splines.Last()].Add({ TWeakPtr<FSplineWrapper>(SplineWrappers[0]), EContactType::Start });
+		InternalGraphBackward[Splines[0]].Add({ TWeakPtr<FSplineWrapper>(SplineWrappers.Last()), EContactType::End });
 	}
 }
 
 template<int32 Dim>
 inline void TSplineGraph<Dim, 3>::Empty()
 {
+	SplineToWrapper.Empty();
 	InternalGraphForward.Empty();
 	InternalGraphBackward.Empty();
 }
@@ -58,8 +63,10 @@ template<int32 Dim>
 inline TWeakPtr<typename TSplineGraph<Dim, 3>::FSplineType> TSplineGraph<Dim, 3>::AddSplineToGraph(TSharedPtr<FSplineType> Spline, TWeakPtr<FSplineType> Prev, TWeakPtr<FSplineType> Next)
 
 {
-	InternalGraphForward.FindOrAdd(Spline, {});
-	InternalGraphBackward.FindOrAdd(Spline, {});
+	TSharedPtr<FSplineWrapper> SplineWrapper = MakeShareable(new FSplineWrapper{ Spline });
+	InternalGraphForward.FindOrAdd(SplineWrapper, {});
+	InternalGraphBackward.FindOrAdd(SplineWrapper, {});
+	SplineToWrapper.FindOrAdd(Spline, TWeakPtr<FSplineWrapper>(SplineWrapper));
 
 	TWeakPtr<FSplineType> SplineWeakPtr(Spline);
 
@@ -86,39 +93,78 @@ inline TWeakPtr<typename TSplineGraph<Dim, 3>::FSplineType> TSplineGraph<Dim, 3>
 }
 
 template<int32 Dim>
-inline TWeakPtr<typename TSplineGraph<Dim, 3>::FSplineType> TSplineGraph<Dim, 3>::CreateSplineAfterExisted(TWeakPtr<FSplineType> Prev, int32 EndContinuity)
+inline TWeakPtr<typename TSplineGraph<Dim, 3>::FSplineType> TSplineGraph<Dim, 3>::CreateSplineBesidesExisted(TWeakPtr<FSplineType> Prev, EContactType Direction, int32 EndContinuity)
 {
+	EContactType InvDirection = (Direction == EContactType::Start) ? EContactType::End : EContactType::Start;
 	if (Prev.IsValid()) {
-		auto* PrevValuePtr = InternalGraphForward.Find(Prev.Pin());
-		if (PrevValuePtr) {
-			TSharedRef<FSplineType> NewSpline = Prev.Pin().Get()->CreateSameType(EndContinuity);
-			TSharedPtr<FSplineType> NewSplinePtr(NewSpline);
-			TWeakPtr<FSplineType> NewSplineWeakPtr(NewSplinePtr);
-			InternalGraphForward.Add(NewSplinePtr, {});
-			InternalGraphBackward.Add(NewSplinePtr, { { Prev.Pin(), EContactType::End } });
-			(*PrevValuePtr).Add({ NewSplineWeakPtr, EContactType::Start });
+		TSharedPtr<FSplineType> PrevSharedPtr = Prev.Pin();
+		PrevSharedPtr->ProcessBeforeCreateSameType();
+		TWeakPtr<FSplineWrapper>* PrevWrapperPtr = SplineToWrapper.Find(PrevSharedPtr);
+		if (PrevWrapperPtr) {
+			TSharedRef<FSplineType> TempSpline = PrevSharedPtr.Get()->Copy();
+			auto* GraphPtr1 = &InternalGraphForward;
+			auto* GraphPtr2 = &InternalGraphBackward;
 
-			return NewSplineWeakPtr;
+			if (Direction == EContactType::Start)
+			{
+				GraphPtr1 = &InternalGraphBackward;
+				GraphPtr2 = &InternalGraphForward;
+				TempSpline.Get().Reverse();
+			}
+
+			TSet<TTuple<FGraphNode, int32> > Cluster;
+			GetClusterWithoutSelf(Cluster, PrevSharedPtr, Direction);
+
+			TSharedPtr<FSplineWrapper> PrevWrapperSharedPtr = PrevWrapperPtr->Pin();
+
+			TSharedRef<FSplineType> NewSpline = TempSpline.Get().CreateSameType(EndContinuity);
+			TSharedPtr<FSplineType> NewSplinePtr(NewSpline);
+			TSharedPtr<FSplineWrapper> NewSplineWrapper = MakeShareable(new FSplineWrapper{ NewSplinePtr });
+
+			GraphPtr1->Add(NewSplineWrapper, {});
+			GraphPtr2->Add(NewSplineWrapper, { { *PrevWrapperPtr, Direction } });
+			for (TTuple<FGraphNode, int32>& Tuple : Cluster)
+			{
+				if ((Tuple.Value & 1) == 0)
+				{
+					(*GraphPtr2)[NewSplineWrapper].Add(Tuple.Key);
+				}
+			}
+
+			TWeakPtr<FSplineWrapper> NewSplineWrapperWeakPtr(NewSplineWrapper);
+			auto* PrevValuePtr = GraphPtr1->Find(PrevWrapperSharedPtr);
+			(*PrevValuePtr).Add({ NewSplineWrapperWeakPtr, InvDirection });
+
+			SplineToWrapper.Add(NewSplinePtr, NewSplineWrapperWeakPtr);
+
+			return TWeakPtr<FSplineType>(NewSplinePtr);
 		}
 	}
-	return TWeakPtr<FSplineType>(nullptr);
+	return nullptr;
 }
 
 template<int32 Dim>
 inline void TSplineGraph<Dim, 3>::Connect(TWeakPtr<FSplineType> Prev, TWeakPtr<FSplineType> Next, EContactType NextContactType)
 {
-	if (Prev.IsValid() && Next.IsValid()) {
-		auto* PrevValuePtr = InternalGraphForward.Find(Prev.Pin());
-		auto* NextValuePtr = PrevValuePtr;
-		if (NextContactType == EContactType::Start) {
-			NextValuePtr = InternalGraphBackward.Find(Next.Pin());
-		}
-		else {
-			NextValuePtr = InternalGraphForward.Find(Next.Pin());
-		}
-		if (PrevValuePtr && NextValuePtr) {
-			(*PrevValuePtr).Add({ Next, NextContactType });
-			(*NextValuePtr).Add({ Prev, EContactType::End });
+	if (Prev.IsValid() && Next.IsValid()) 
+	{
+		TWeakPtr<FSplineWrapper>* PrevWrapperPtr = SplineToWrapper.Find(Prev.Pin());
+		TWeakPtr<FSplineWrapper>* NextWrapperPtr = SplineToWrapper.Find(Next.Pin());
+
+		if (PrevWrapperPtr && NextWrapperPtr) 
+		{
+			auto* PrevValuePtr = InternalGraphForward.Find(PrevWrapperPtr->Pin());
+			auto* NextValuePtr = PrevValuePtr;
+			if (NextContactType == EContactType::Start) {
+				NextValuePtr = InternalGraphBackward.Find(NextWrapperPtr->Pin());
+			}
+			else {
+				NextValuePtr = InternalGraphForward.Find(NextWrapperPtr->Pin());
+			}
+			if (PrevValuePtr && NextValuePtr) {
+				(*PrevValuePtr).Add({ *NextWrapperPtr, NextContactType });
+				(*NextValuePtr).Add({ *PrevWrapperPtr, EContactType::End });
+			}
 		}
 	}
 }
@@ -127,39 +173,46 @@ inline void TSplineGraph<Dim, 3>::Connect(TWeakPtr<FSplineType> Prev, TWeakPtr<F
 template<int32 Dim>
 inline void TSplineGraph<Dim, 3>::SplitConnection(TWeakPtr<FSplineType> Prev, TWeakPtr<FSplineType> Next, EContactType NextContactType)
 {
-	if (Prev.IsValid() && Next.IsValid()) {
-		auto* PrevFwdValuePtr = InternalGraphForward.Find(Prev.Pin());
-		auto* PrevBwdValuePtr = InternalGraphBackward.Find(Prev.Pin());
-		//auto* NextFwdValuePtr = InternalGraphForward.Find(Next.Pin());
-		//auto* NextBwdValuePtr = InternalGraphBackward.Find(Next.Pin());
-		auto* NextValuePtr = PrevFwdValuePtr;
-		if (NextContactType == EContactType::Start) {
-			NextValuePtr = InternalGraphBackward.Find(Next.Pin());
-		}
-		else {
-			NextValuePtr = InternalGraphForward.Find(Next.Pin());
-		}
-		if (PrevFwdValuePtr && PrevBwdValuePtr
-			//&& NextFwdValuePtr && NextBwdValuePtr
-			&& NextValuePtr) {
-			const FGraphNode* Node = FindGraphNodeBySplinePtrInSet(*PrevFwdValuePtr, Next);
-			if (Node) {
-				(*PrevFwdValuePtr).Remove(*Node);
+	if (Prev.IsValid() && Next.IsValid()) 
+	{
+		TWeakPtr<FSplineWrapper>* PrevWrapperPtr = SplineToWrapper.Find(Prev.Pin());
+		TWeakPtr<FSplineWrapper>* NextWrapperPtr = SplineToWrapper.Find(Next.Pin());
+
+		if (PrevWrapperPtr && NextWrapperPtr)
+		{
+			auto* PrevFwdValuePtr = InternalGraphForward.Find(PrevWrapperPtr->Pin());
+			auto* PrevBwdValuePtr = InternalGraphBackward.Find(PrevWrapperPtr->Pin());
+			//auto* NextFwdValuePtr = InternalGraphForward.Find(NextWrapperPtr->Pin());
+			//auto* NextBwdValuePtr = InternalGraphBackward.Find(NextWrapperPtr->Pin());
+			auto* NextValuePtr = PrevFwdValuePtr;
+			if (NextContactType == EContactType::Start) {
+				NextValuePtr = InternalGraphBackward.Find(NextWrapperPtr->Pin());
 			}
-			Node = FindGraphNodeBySplinePtrInSet(*PrevBwdValuePtr, Next);
-			if (Node) {
-				(*PrevFwdValuePtr).Remove(*Node);
+			else {
+				NextValuePtr = InternalGraphForward.Find(NextWrapperPtr->Pin());
 			}
-			Node = FindGraphNodeBySplinePtrInSet(*NextValuePtr, Prev);
-			if (Node) {
-				(*NextValuePtr).Remove(*Node);
+			if (PrevFwdValuePtr && PrevBwdValuePtr
+				//&& NextFwdValuePtr && NextBwdValuePtr
+				&& NextValuePtr) {
+				const FGraphNode* Node = FindGraphNodeBySplinePtrInSet(*PrevFwdValuePtr, Next);
+				if (Node) {
+					(*PrevFwdValuePtr).Remove(*Node);
+				}
+				Node = FindGraphNodeBySplinePtrInSet(*PrevBwdValuePtr, Next);
+				if (Node) {
+					(*PrevFwdValuePtr).Remove(*Node);
+				}
+				Node = FindGraphNodeBySplinePtrInSet(*NextValuePtr, Prev);
+				if (Node) {
+					(*NextValuePtr).Remove(*Node);
+				}
 			}
 		}
 	}
 }
 
 template<int32 Dim>
-inline void TSplineGraph<Dim, 3>::AdjustCtrlPointPos(const TVectorX<Dim>& From, const TVectorX<Dim>& To, int32 MoveLevel, int32 NthPointOfFrom, double ToleranceSqr)
+inline void TSplineGraph<Dim, 3>::AdjustCtrlPointPos(const TVectorX<Dim>& From, const TVectorX<Dim>& To, TWeakPtr<FSplineType> SplinePtrToAdjust, int32 MoveLevel, int32 NthPointOfFrom, double ToleranceSqr)
 {
 	static constexpr double InvDegree = 1. / 3.;
 
@@ -180,75 +233,108 @@ inline void TSplineGraph<Dim, 3>::AdjustCtrlPointPos(const TVectorX<Dim>& From, 
 	};
 	
 	bool bFindAdjustSpline = false;
-	TArray<TWeakPtr<FSplineType> > Splines;
-	GetSplines(Splines);
-	for (int32 i = Splines.Num() - 1; i >= 0; --i)
-	{
-		if (!Splines[i].IsValid()) {
-			continue;
-		}
-		const TSharedPtr<FSplineType>& SplinePtr = Splines[i].Pin();
-		if (Splines[i].Pin())
+
+	auto AdjustFuncReturnIfSucceed = [this, &From, &To, MoveLevel, NthPointOfFrom, ToleranceSqr](const TSharedPtr<FSplineType>& SplinePtr) -> bool {
+		FSplineType& Spline = *SplinePtr.Get();
+		const auto& ParamRange = Spline.GetParamRange();
+		TMap<EContactType, TVectorX<Dim> > InitialPos
 		{
-			FSplineType& Spline = *SplinePtr.Get();
-			for (EContactType ContactTypeToAdjust : { EContactType::Start, EContactType::End }) {
-				const auto& ParamRange = Spline.GetParamRange();
-				TVectorX<Dim> EndPos = Spline.GetPosition(GetEndParam(ParamRange, ContactTypeToAdjust));
-				TVectorX<Dim> EndTangent = Spline.GetTangent(GetEndParam(ParamRange, ContactTypeToAdjust));
-				if (Spline.AdjustCtrlPointPos(From, To, 0, NthPointOfFrom, ToleranceSqr))
+			{ EContactType::Start, Spline.GetPosition(GetEndParam(ParamRange, EContactType::Start)) },
+			{ EContactType::End, Spline.GetPosition(GetEndParam(ParamRange, EContactType::End)) },
+		};
+		TMap<EContactType, TVectorX<Dim> > InitialTangent
+		{
+			{ EContactType::Start, Spline.GetTangent(GetEndParam(ParamRange, EContactType::Start)) },
+			{ EContactType::End, Spline.GetTangent(GetEndParam(ParamRange, EContactType::End)) },
+		};
+		if (Spline.AdjustCtrlPointPos(From, To, 0, NthPointOfFrom, ToleranceSqr))
+		{
+			for (EContactType ContactTypeToAdjust : { EContactType::Start, EContactType::End })
+			{
+				TVectorX<Dim> NewEndPos = Spline.GetPosition(GetEndParam(ParamRange, ContactTypeToAdjust));
+				TVectorX<Dim> NewEndTangent = Spline.GetTangent(GetEndParam(ParamRange, ContactTypeToAdjust));
+
+				if ((!TVecLib<Dim>::IsNearlyZero(InitialPos[ContactTypeToAdjust] - NewEndPos)) ||
+					(!TVecLib<Dim>::IsNearlyZero(InitialTangent[ContactTypeToAdjust] - NewEndTangent)))
 				{
-					bFindAdjustSpline = true;
+					TSet<TTuple<FGraphNode, int32> > EndCluster;
+					GetClusterWithoutSelf(EndCluster, SplinePtr, ContactTypeToAdjust);
 
-					TVectorX<Dim> NewEndPos = Spline.GetPosition(GetEndParam(ParamRange, ContactTypeToAdjust));
-					TVectorX<Dim> NewEndTangent = Spline.GetTangent(GetEndParam(ParamRange, ContactTypeToAdjust));
-
-					if ((!TVecLib<Dim>::IsNearlyZero(EndPos - NewEndPos)) || (!TVecLib<Dim>::IsNearlyZero(EndTangent - NewEndTangent)))
+					for (TTuple<FGraphNode, int32>& NodePair : EndCluster)
 					{
-						TSet<TTuple<FGraphNode, int32> > EndCluster;
-						GetClusterWithoutSelf(EndCluster, SplinePtr, ContactTypeToAdjust);
-
-						for (TTuple<FGraphNode, int32>& NodePair : EndCluster)
+						FGraphNode& Node = NodePair.Key;
+						int32 Distance = NodePair.Value;
+						if (Node.SplineWrapper.IsValid() && Node.SplineWrapper.Pin()->Spline != SplinePtr)
 						{
-							FGraphNode& Node = NodePair.Key;
-							int32 Distance = NodePair.Value;
-							if (Node.Spline.IsValid() && Node.Spline.Pin() != SplinePtr)
+							FSplineType& SplineToAdjust = *Node.SplineWrapper.Pin()->Spline.Get();
+							const auto& ParamRangeToAdjust = SplineToAdjust.GetParamRange();
+							TVectorX<Dim> TangentToAdjust = SplineToAdjust.GetTangent(GetEndParam(ParamRangeToAdjust, Node.ContactType));
+							double SizeNewTangent = TVecLib<Dim>::Size(NewEndTangent);
+							double SizeTangentToAdjust = TVecLib<Dim>::Size(TangentToAdjust);
+							TVectorX<Dim> NewTangentAdjusted = FMath::IsNearlyZero(SizeNewTangent) ?
+								TangentToAdjust :
+								NewEndTangent * (SizeTangentToAdjust / SizeNewTangent);
+
+							switch (SplineToAdjust.GetType()) {
+							case ESplineType::BezierString:
 							{
-								FSplineType& SplineToAdjust = *Node.Spline.Pin().Get();
-								switch (SplineToAdjust.GetType()) {
-								case ESplineType::BezierString:
-								{
-									TBezierString3<Dim>& BezierString = static_cast<TBezierString3<Dim>&>(SplineToAdjust);
-									BezierString.AdjustCtrlPointPos(GetEndNodeBezierString(BezierString, Node.ContactType),
-										NewEndPos, NthPointOfFrom);
-									if (MoveLevel > 0) {
-										TVectorX<Dim> TangentToAdjust = BezierString.GetTangent(ParamRange.Key);
-										BezierString.AdjustCtrlPointTangent(GetEndNodeBezierString(BezierString, Node.ContactType),
-											NewEndPos + NewEndTangent * InvDegree, true, NthPointOfFrom);
-									}
+								TBezierString3<Dim>& BezierString = static_cast<TBezierString3<Dim>&>(SplineToAdjust);
+								BezierString.AdjustCtrlPointPos(GetEndNodeBezierString(BezierString, Node.ContactType),
+									NewEndPos, NthPointOfFrom);
+								if (MoveLevel > 0) {
+									BezierString.AdjustCtrlPointTangent(GetEndNodeBezierString(BezierString, Node.ContactType),
+										NewEndPos + NewTangentAdjusted * InvDegree, true, NthPointOfFrom);
 								}
-								break;
-								case ESplineType::ClampedBSpline:
-								{
-									TClampedBSpline<Dim, 3>& BSpline = static_cast<TClampedBSpline<Dim, 3>&>(SplineToAdjust);
-									BSpline.AdjustCtrlPointPos(GetEndNodeBSpline(BSpline, Node.ContactType),
-										NewEndPos, NthPointOfFrom);
-									TArray<double> Params;
-									BSpline.GetKnotIntervals(Params);
-									if (MoveLevel > 0 && Params.Num() > 1) {
-										TVectorX<Dim> NewSecondPoint = NewEndPos + ((Distance & 1) == 0 ? 1 : -1) * NewEndTangent * InvDegree * GetEndParamDiffOfBSpline(Params, Node.ContactType);
-										BSpline.AdjustCtrlPointPos(GetSecondNodeBSpline(BSpline, Node.ContactType),
-											NewSecondPoint, NthPointOfFrom);
-									}
+							}
+							break;
+							case ESplineType::ClampedBSpline:
+							{
+								TClampedBSpline<Dim, 3>& BSpline = static_cast<TClampedBSpline<Dim, 3>&>(SplineToAdjust);
+								BSpline.AdjustCtrlPointPos(GetEndNodeBSpline(BSpline, Node.ContactType),
+									NewEndPos, NthPointOfFrom);
+								TArray<double> Params;
+								BSpline.GetKnotIntervals(Params);
+								if (MoveLevel > 0 && Params.Num() > 1) {
+									double Sgn = ((Distance & 1) == 0 ? 1. : -1.) * (ContactTypeToAdjust == EContactType::Start ? 1. : -1.);
+									double InvD = InvDegree * GetEndParamDiffOfBSpline(Params, Node.ContactType);
+									TVectorX<Dim> NewSecondPoint = NewEndPos + Sgn * NewTangentAdjusted * InvD;
+									BSpline.AdjustCtrlPointPos(GetSecondNodeBSpline(BSpline, Node.ContactType),
+										NewSecondPoint, NthPointOfFrom);
 								}
-								break;
-								}
+							}
+							break;
 							}
 						}
 					}
 				}
 			}
-			if (bFindAdjustSpline) {
-				break;
+			return true;
+		}
+		return false;
+	};
+
+	if (SplinePtrToAdjust.IsValid()) 
+	{
+		AdjustFuncReturnIfSucceed(SplinePtrToAdjust.Pin());
+	}
+	else 
+	{
+
+		TArray<TWeakPtr<FSplineType> > Splines;
+		GetSplines(Splines);
+		for (int32 i = Splines.Num() - 1; i >= 0; --i)
+		{
+			if (!Splines[i].IsValid())
+			{
+				continue;
+			}
+			const TSharedPtr<FSplineType>& SplinePtr = Splines[i].Pin();
+			if (SplinePtr)
+			{
+				if (AdjustFuncReturnIfSucceed(SplinePtr))
+				{
+					break;
+				}
 			}
 		}
 	}
@@ -258,7 +344,12 @@ inline void TSplineGraph<Dim, 3>::AdjustCtrlPointPos(const TVectorX<Dim>& From, 
 template<int32 Dim>
 inline void TSplineGraph<Dim, 3>::GetClusterWithoutSelf(TSet<TTuple<FGraphNode, int32> >& Cluster, const TSharedPtr<FSplineType>& SplinePtr, EContactType Direction)
 {
-	TSet<FGraphNode>* JunctionToVisitNow = Direction == EContactType::Start ? InternalGraphBackward.Find(SplinePtr) : InternalGraphForward.Find(SplinePtr);
+	TWeakPtr<FSplineWrapper>* SplineWrapperPtr = SplineToWrapper.Find(SplinePtr);
+	if (!SplineWrapperPtr) {
+		return;
+	}
+	TSharedPtr<FSplineWrapper> SplineWrapperSharedPtr = SplineWrapperPtr->Pin();
+	TSet<FGraphNode>* JunctionToVisitNow = (Direction == EContactType::Start) ? InternalGraphBackward.Find(SplineWrapperSharedPtr) : InternalGraphForward.Find(SplineWrapperSharedPtr);
 	if (!JunctionToVisitNow) {
 		return;
 	}
@@ -282,20 +373,23 @@ inline void TSplineGraph<Dim, 3>::GetClusterWithoutSelf(TSet<TTuple<FGraphNode, 
 			continue;
 		}
 		for (FGraphNode& Node : (*JunctionToVisitNow)) {
-			if (Node.Spline.IsValid() && Node.Spline.Pin() != SplinePtr) {
-				TSet<FGraphNode>* JunctionToVisitSoon = Node.ContactType == EContactType::Start ? InternalGraphBackward.Find(Node.Spline.Pin()) : InternalGraphForward.Find(Node.Spline.Pin());
-				if (VisitedJunctions.Contains(JunctionToVisitSoon)) {
-					continue;
-				}
-				VisitedJunctions.Add(JunctionToVisitSoon);
-				JunctionQueue.Enqueue(MakeTuple(JunctionToVisitSoon, Distance + 1));
-				
-				if (VisitedNodes.Contains(&Node)) {
-					continue;
-				}
+			if (Node.SplineWrapper.IsValid()) {
+				TSharedPtr<FSplineWrapper> CurSplnieWrapperPtr = Node.SplineWrapper.Pin();
+				if (CurSplnieWrapperPtr->Spline != SplinePtr) {
+					TSet<FGraphNode>* JunctionToVisitSoon = Node.ContactType == EContactType::Start ? InternalGraphBackward.Find(CurSplnieWrapperPtr) : InternalGraphForward.Find(CurSplnieWrapperPtr);
+					if (VisitedJunctions.Contains(JunctionToVisitSoon)) {
+						continue;
+					}
+					VisitedJunctions.Add(JunctionToVisitSoon);
+					JunctionQueue.Enqueue(MakeTuple(JunctionToVisitSoon, Distance + 1));
 
-				Cluster.Add(MakeTuple(Node, Distance));
-				VisitedNodes.Add(&Node);
+					if (VisitedNodes.Contains(&Node)) {
+						continue;
+					}
+
+					Cluster.Add(MakeTuple(Node, Distance));
+					VisitedNodes.Add(&Node);
+				}
 			}
 		}
 	}
@@ -306,17 +400,149 @@ inline void TSplineGraph<Dim, 3>::GetSplines(TArray<TWeakPtr<FSplineType> >& Spl
 {
 	Splines.Empty(InternalGraphForward.Num());
 	for (const auto& Pair : InternalGraphForward) {
-		Splines.Add(TWeakPtr<FSplineType>(Pair.Key));
+		Splines.Add(TWeakPtr<FSplineType>(Pair.Key->Spline));
+	}
+}
+
+template<int32 Dim>
+inline void TSplineGraph<Dim, 3>::ReverseSpline(TWeakPtr<FSplineType> SplinePtrToReverse)
+{
+	if (SplinePtrToReverse.IsValid()) 
+	{
+		TSharedPtr<FSplineType> SplineSharedPtr = SplinePtrToReverse.Pin();
+		SplineSharedPtr->Reverse();
+
+		TWeakPtr<FSplineWrapper>* SplineWrapperWeakPtrPtr = SplineToWrapper.Find(SplineSharedPtr);
+		if (SplineWrapperWeakPtrPtr)
+		{
+			TSharedPtr<FSplineWrapper> SplineWrapperSharedPtr = SplineWrapperWeakPtrPtr->Pin();
+			auto* NextValuePtr = InternalGraphForward.Find(SplineWrapperSharedPtr);
+			auto* PrevValuePtr = InternalGraphBackward.Find(SplineWrapperSharedPtr);
+			if (NextValuePtr && PrevValuePtr)
+			{
+				Swap(*NextValuePtr, *PrevValuePtr);
+			}
+
+			for (auto& Pair : InternalGraphForward)
+			{
+				for (auto& Node : Pair.Value)
+				{
+					if (Node.SplineWrapper == SplineWrapperSharedPtr) 
+					{
+						Node.ContactType = (Node.ContactType == EContactType::Start) ? EContactType::End : EContactType::Start;
+					}
+				}
+			}
+
+			for (auto& Pair : InternalGraphBackward)
+			{
+				for (auto& Node : Pair.Value)
+				{
+					if (Node.SplineWrapper == SplineWrapperSharedPtr)
+					{
+						Node.ContactType = (Node.ContactType == EContactType::Start) ? EContactType::End : EContactType::Start;
+					}
+				}
+			}
+		}
+	}
+}
+
+template<int32 Dim>
+inline bool TSplineGraph<Dim, 3>::HasConnection(TWeakPtr<FSplineType> SplinePtr, EContactType Direction) const
+{
+	if (SplinePtr.IsValid()) 
+	{
+		const TWeakPtr<FSplineWrapper>* WrapperWeakPtrPtr = SplineToWrapper.Find(SplinePtr.Pin());
+		if (WrapperWeakPtrPtr)
+		{
+			TSharedPtr<FSplineWrapper> WrapperSharedPtr = WrapperWeakPtrPtr->Pin();
+			switch (Direction)
+			{
+			case EContactType::Start:
+			{
+				auto* ConnectionSetPtr = InternalGraphBackward.Find(WrapperSharedPtr);
+				if (ConnectionSetPtr)
+				{
+					return ConnectionSetPtr->Num() > 0;
+				}
+			}
+			break;
+			case EContactType::End:
+			{
+				auto* ConnectionSetPtr = InternalGraphForward.Find(WrapperSharedPtr);
+				if (ConnectionSetPtr)
+				{
+					return ConnectionSetPtr->Num() > 0;
+				}
+			}
+			break;
+			}
+		}
+	}
+	return false;
+}
+
+template<int32 Dim>
+inline void TSplineGraph<Dim, 3>::ChangeSplineType(TWeakPtr<FSplineType>& SplinePtr, ESplineType NewType)
+{
+	if (SplinePtr.IsValid())
+	{
+		TSharedPtr<FSplineType> SplineSharedPtr = SplinePtr.Pin();
+		if (NewType != SplineSharedPtr->GetType()) 
+		{
+			TWeakPtr<FSplineWrapper>* WrapperWeakPtrPtr = SplineToWrapper.Find(SplineSharedPtr);
+			if (WrapperWeakPtrPtr)
+			{
+				TSharedPtr<FSplineWrapper> WrapperSharedPtr = WrapperWeakPtrPtr->Pin();
+				switch (SplineSharedPtr->GetType())
+				{
+				case ESplineType::BezierString:
+					ChangeSplineTypeFromBezierString(WrapperSharedPtr, NewType);
+					break;
+				case ESplineType::ClampedBSpline:
+					ChangeSplineTypeFromBSpline(WrapperSharedPtr, NewType);
+					break;
+				}
+				SplinePtr = TWeakPtr<FSplineType>(WrapperSharedPtr->Spline);
+			}
+		}
 	}
 }
 
 template<int32 Dim>
 inline const typename TSplineGraph<Dim, 3>::FGraphNode* TSplineGraph<Dim, 3>::FindGraphNodeBySplinePtrInSet(const TSet<FGraphNode>& AdjSet, TWeakPtr<FSplineType> Spline) const
 {
-	for (const FGraphNode& Node : AdjSet) {
-		if (Node.Spline == Spline) {
-			return &Node;
+	if (Spline.IsValid()) {
+		TSharedPtr<FSplineType> SplineShared = Spline.Pin();
+		for (const FGraphNode& Node : AdjSet) {
+			if (Node.SplineWrapper.Pin()->Spline == SplineShared) {
+				return &Node;
+			}
 		}
 	}
 	return nullptr;
+}
+
+template<int32 Dim>
+inline void TSplineGraph<Dim, 3>::ChangeSplineTypeFromBezierString(TSharedPtr<FSplineWrapper> WrapperSharedPtr, ESplineType NewType)
+{
+	//TODO
+}
+
+template<int32 Dim>
+inline void TSplineGraph<Dim, 3>::ChangeSplineTypeFromBSpline(TSharedPtr<FSplineWrapper> WrapperSharedPtr, ESplineType NewType)
+{
+	TSharedPtr<FSplineType> SplinePtr = WrapperSharedPtr->Spline;
+	switch (NewType)
+	{
+	case ESplineType::BezierString:
+	{
+		auto* BSpline = static_cast<TClampedBSpline<Dim, 3>*>(SplinePtr.Get());
+		TArray<TBezierCurve<Dim, 3> > Beziers;
+		BSpline->ToBezierString(Beziers);
+		WrapperSharedPtr->Spline = MakeShareable(new TBezierString3<Dim>(Beziers));
+	}
+		break;
+	}
 }

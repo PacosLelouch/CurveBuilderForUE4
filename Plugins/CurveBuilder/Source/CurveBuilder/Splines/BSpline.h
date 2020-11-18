@@ -64,6 +64,10 @@ public:
 
 	virtual TSharedRef<TSplineBase<Dim, Degree> > CreateSameType(int32 EndContinuity = -1) const override;
 
+	virtual TSharedRef<TSplineBase<Dim, Degree> > Copy() const override;
+
+	virtual void ProcessBeforeCreateSameType() override;
+
 	//FPointNode* FindNodeByParam(double Param, int32 NthNode = 0) const;
 
 	FPointNode* FindNodeByPosition(const TVectorX<Dim>& Point, int32 NthNode = 0, double ToleranceSqr = 1.) const;

@@ -141,6 +141,28 @@ inline void TBezierString3<Dim>::GetCtrlPoints(TArray<TVectorX<Dim+1>>& CtrlPoin
 }
 
 template<int32 Dim>
+inline void TBezierString3<Dim>::GetCtrlPointsPrev(TArray<TVectorX<Dim+1>>& CtrlPoints) const
+{
+	CtrlPoints.Empty(CtrlPointsList.Num());
+	FPointNode* Node = CtrlPointsList.GetHead();
+	while (Node) {
+		CtrlPoints.Add(Node->GetValue().PrevCtrlPointPos);
+		Node = Node->GetNextNode();
+	}
+}
+
+template<int32 Dim>
+inline void TBezierString3<Dim>::GetCtrlPointsNext(TArray<TVectorX<Dim+1>>& CtrlPoints) const
+{
+	CtrlPoints.Empty(CtrlPointsList.Num());
+	FPointNode* Node = CtrlPointsList.GetHead();
+	while (Node) {
+		CtrlPoints.Add(Node->GetValue().NextCtrlPointPos);
+		Node = Node->GetNextNode();
+	}
+}
+
+template<int32 Dim>
 inline void TBezierString3<Dim>::GetCtrlParams(TArray<double>& CtrlParams) const
 {
 	CtrlParams.Empty(CtrlPointsList.Num());
@@ -202,6 +224,17 @@ inline TSharedRef<TSplineBase<Dim, 3>> TBezierString3<Dim>::CreateSameType(int32
 		}
 	}
 	return NewSpline;
+}
+
+template<int32 Dim>
+inline TSharedRef<TSplineBase<Dim, 3>> TBezierString3<Dim>::Copy() const
+{
+	return MakeShared<TBezierString3<Dim> >(*this);
+}
+
+template<int32 Dim>
+inline void TBezierString3<Dim>::ProcessBeforeCreateSameType()
+{
 }
 
 template<int32 Dim>

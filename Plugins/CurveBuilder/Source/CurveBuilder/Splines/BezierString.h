@@ -77,6 +77,10 @@ public:
 
 	void GetCtrlPoints(TArray<TVectorX<Dim+1> >& CtrlPoints) const;
 
+	void GetCtrlPointsPrev(TArray<TVectorX<Dim+1> >& CtrlPoints) const;
+
+	void GetCtrlPointsNext(TArray<TVectorX<Dim+1> >& CtrlPoints) const;
+
 	void GetCtrlParams(TArray<double>& CtrlParams) const;
 
 	void GetBezierCurves(TArray<TBezierCurve<Dim, 3> >& BezierCurves, TArray<TTuple<double, double> >& ParamRanges) const;
@@ -88,6 +92,10 @@ public:
 	}
 
 	virtual TSharedRef<TSplineBase<Dim, 3> > CreateSameType(int32 EndContinuity = -1) const override;
+
+	virtual TSharedRef<TSplineBase<Dim, 3> > Copy() const override;
+
+	virtual void ProcessBeforeCreateSameType() override;
 
 	virtual void Split(TBezierString3<Dim>& OutFirst, TBezierString3<Dim>& OutSecond, double T) const;
 

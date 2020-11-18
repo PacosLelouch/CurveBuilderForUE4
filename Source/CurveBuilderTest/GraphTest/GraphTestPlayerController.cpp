@@ -37,6 +37,7 @@ void AGraphTestPlayerController::Tick(float Delta)
 {
 	Super::Tick(Delta);
 	NearestPoint.Reset();
+	NearestSpline = nullptr;
 
 	if (FixedTransform) {
 	}
@@ -70,13 +71,13 @@ void AGraphTestPlayerController::Tick(float Delta)
 						if (FVector::DistSquared(NearestPos, CtrlPoint) < PointDistSqr) {
 							//UE_LOG(LogGraphTest, Warning, TEXT("Param = %.6lf"), Param);
 							NearestPoint.Emplace(NearestPos);
-							NearestSpline = &Spline;
+							NearestSpline = Splines[i];
 							break;
 						}
 					}
 				}
-				if (SelectedSpline) {
-					auto& Spline = *SelectedSpline;
+				if (SelectedSpline.IsValid()) {
+					auto& Spline = *SelectedSpline.Pin().Get();
 					CurSplineType = Spline.GetType();
 
 					switch (CurSplineType) {
@@ -95,14 +96,14 @@ void AGraphTestPlayerController::Tick(float Delta)
 								if ((HoldingPointType && HoldingPointType.GetValue() == ESelectedNodeCtrlPointType::Current) ||
 									(!HoldingPointType && FVector::DistSquared(SelectedPos, CtrlPoint) < NodeDistSqr)) {
 									HoldingPointType = ESelectedNodeCtrlPointType::Current;
-									Graph.AdjustCtrlPointPos(SelectedPos, CtrlPoint, 1, 0, NodeDistSqr);
+									Graph.AdjustCtrlPointPos(SelectedPos, CtrlPoint, SelectedSpline, 1, 0, NodeDistSqr);
 									//SplineBezierString.AdjustCtrlPointPos(SelectedNode, CtrlPoint, 0);
 									ResampleCurve();
 								}
 								else if ((HoldingPointType && HoldingPointType.GetValue() == ESelectedNodeCtrlPointType::Next) ||
 									(!HoldingPointType && FVector::DistSquared(SelectedNextPos, CtrlPoint) < NodeDistSqr)) {
 									HoldingPointType = ESelectedNodeCtrlPointType::Next;
-									Graph.AdjustCtrlPointPos(SelectedNextPos, CtrlPoint, 1, 0, NodeDistSqr);
+									Graph.AdjustCtrlPointPos(SelectedNextPos, CtrlPoint, SelectedSpline, 1, 0, NodeDistSqr);
 									//SplineBezierString.AdjustCtrlPointTangent(SelectedNode, CtrlPoint, true, 0);
 									Canvas2D->DisplayPoints[2].Array.Add(ControlPointToHitPoint(TVecLib<4>::Projection(SelectedNode->GetValue().PrevCtrlPointPos)));
 									ResampleCurve();
@@ -110,7 +111,7 @@ void AGraphTestPlayerController::Tick(float Delta)
 								else if ((HoldingPointType && HoldingPointType.GetValue() == ESelectedNodeCtrlPointType::Previous) ||
 									(!HoldingPointType && FVector::DistSquared(SelectedPrevPos, CtrlPoint) < NodeDistSqr)) {
 									HoldingPointType = ESelectedNodeCtrlPointType::Previous;
-									Graph.AdjustCtrlPointPos(SelectedPrevPos, CtrlPoint, 1, 0, NodeDistSqr);
+									Graph.AdjustCtrlPointPos(SelectedPrevPos, CtrlPoint, SelectedSpline, 1, 0, NodeDistSqr);
 									//SplineBezierString.AdjustCtrlPointTangent(SelectedNode, CtrlPoint, false, 0);
 									Canvas2D->DisplayPoints[2].Array.Add(ControlPointToHitPoint(TVecLib<4>::Projection(SelectedNode->GetValue().NextCtrlPointPos)));
 									ResampleCurve();
@@ -132,7 +133,7 @@ void AGraphTestPlayerController::Tick(float Delta)
 								FVector SelectedPos = TVecLib<4>::Projection(SelectedNode->GetValue().Pos);
 								if (HoldingPointType || (!HoldingPointType && FVector::DistSquared(SelectedPos, CtrlPoint) < NodeDistSqr)) {
 									HoldingPointType = ESelectedNodeCtrlPointType::Current;
-									Graph.AdjustCtrlPointPos(SelectedPos, CtrlPoint, 1, 0, NodeDistSqr);
+									Graph.AdjustCtrlPointPos(SelectedPos, CtrlPoint, SelectedSpline, 1, 0, NodeDistSqr);
 									//SplineBSpline.AdjustCtrlPointPos(SelectedNode, CtrlPoint, 0);
 									ResampleCurve();
 								}
@@ -219,12 +220,14 @@ void AGraphTestPlayerController::BindOnCtrlAndKey3Released()
 
 void AGraphTestPlayerController::BindOnCtrlAndKey4Released()
 {
-	OnCtrlAndKey4Released.AddDynamic(this, &AGraphTestPlayerController::SplitSplineAtCenterEvent);
+	//OnCtrlAndKey4Released.AddDynamic(this, &AGraphTestPlayerController::SplitSplineAtCenterEvent);
+	OnCtrlAndKey4Released.AddDynamic(this, &AGraphTestPlayerController::ReverseSelectedSplineTypeEvent);
 }
 
 void AGraphTestPlayerController::BindOnCtrlAndKey5Released()
 {
-	OnCtrlAndKey5Released.AddDynamic(this, &AGraphTestPlayerController::RemakeBezierC2Event);
+	//OnCtrlAndKey5Released.AddDynamic(this, &AGraphTestPlayerController::RemakeBezierC2Event);
+	OnCtrlAndKey5Released.AddDynamic(this, &AGraphTestPlayerController::FlipSelectedSplineTypeEvent);
 }
 
 void AGraphTestPlayerController::BindOnCtrlAndKey0Released()
@@ -236,7 +239,7 @@ void AGraphTestPlayerController::BindOnCtrlAndKey0Released()
 void AGraphTestPlayerController::BindOnEnterReleased()
 {
 	Super::BindOnEnterReleased();
-	OnEnterReleased.AddDynamic(this, &AGraphTestPlayerController::AddNewSplineEvent);
+	OnEnterReleased.AddDynamic(this, &AGraphTestPlayerController::AddNewSplineAfterSelectedSplineEvent);
 }
 
 void AGraphTestPlayerController::RemakeBezierC2()
@@ -329,18 +332,38 @@ void AGraphTestPlayerController::AddControlPoint(const FVector& HitPoint)
 {
 	FVector EndPoint = HitPointToControlPoint(HitPoint);
 
-	double Param = -1;
+	auto AddCtrlPointInternal = [this, &EndPoint](TWeakPtr<FSpatialSplineGraph3::FSplineType> SplinePtr) {
+		TWeakPtr<FSpatialSplineGraph3::FSplineType> TargetSplinePtr = SplinePtr;
 
-	TArray<TWeakPtr<FSpatialSplineGraph3::FSplineType> > Splines;
-	Graph.GetSplines(Splines);
-	bool bFind = false;
-	for (auto& SplinePtr : Splines) {
-		if (!SplinePtr.IsValid()) {
-			continue;
+		if (Graph.HasConnection(SplinePtr, EContactType::End)) {
+			TargetSplinePtr = Graph.CreateSplineBesidesExisted(SplinePtr, EContactType::End, 1);
 		}
+		auto& Spline = *TargetSplinePtr.Pin().Get();
+
+		switch (Spline.GetType()) {
+		case ESplineType::BezierString:
+		{
+			static_cast<FSpatialBezierString3&>(Spline).AddPointAtLast(EndPoint);
+			static_cast<FSpatialBezierString3&>(Spline).LastNode()->GetValue().Continuity = NewPointContinuityInit;
+		}
+		break;
+		case ESplineType::ClampedBSpline:
+		{
+			static_cast<FSpatialBSpline3&>(Spline).AddPointAtLast(EndPoint);
+		}
+		break;
+		}
+	};
+
+	auto InsertCtrlPointInternal = [this, &EndPoint](TWeakPtr<FSpatialSplineGraph3::FSplineType> SplinePtr) -> bool {
+		TWeakPtr<FSpatialSplineGraph3::FSplineType> TargetSplinePtr = SplinePtr;
+
+		double Param = -1;
+		bool bFind = false;
 		auto& Spline = *SplinePtr.Pin().Get();
 		if (Spline.FindParamByPosition(Param, EndPoint, PointDistSqr)) {
 			//UE_LOG(LogGraphTest, Warning, TEXT("Param = %.6lf"), Param);
+
 			switch (Spline.GetType()) {
 			case ESplineType::BezierString:
 			{
@@ -358,25 +381,32 @@ void AGraphTestPlayerController::AddControlPoint(const FVector& HitPoint)
 			}
 			bFind = true;
 		}
-	}
+		return bFind;
+	};
 
-	if (!bFind) {
-		if (!Splines.Last().IsValid()) {
-			return;
+	if (SelectedSpline.IsValid()) {
+		InsertCtrlPointInternal(SelectedSpline);
+		AddCtrlPointInternal(SelectedSpline);
+	}
+	else {
+		TArray<TWeakPtr<FSpatialSplineGraph3::FSplineType> > Splines;
+		Graph.GetSplines(Splines);
+		bool bFind = false;
+		for (auto& SplinePtr : Splines) {
+			if (!SplinePtr.IsValid()) {
+				continue;
+			}
+			if (InsertCtrlPointInternal(SplinePtr)) {
+				bFind = true;
+				break;
+			}
 		}
-		auto& LastSpline = *Splines.Last().Pin().Get();
-		switch (LastSpline.GetType()) {
-		case ESplineType::BezierString:
-		{
-			static_cast<FSpatialBezierString3&>(LastSpline).AddPointAtLast(EndPoint);
-			static_cast<FSpatialBezierString3&>(LastSpline).LastNode()->GetValue().Continuity = NewPointContinuityInit;
-		}
-		break;
-		case ESplineType::ClampedBSpline:
-		{
-			static_cast<FSpatialBSpline3&>(LastSpline).AddPointAtLast(EndPoint);
-		}
-		break;
+
+		if (!bFind) {
+			if (!Splines.Last().IsValid()) {
+				return;
+			}
+			AddCtrlPointInternal(Splines.Last());
 		}
 	}
 
@@ -461,7 +491,9 @@ int32 AGraphTestPlayerController::ResampleBSpline(const TArray<FSpatialBSpline3*
 		Splines[i]->GetKnotIntervals(SpParams);
 
 		if (Splines[i]->GetCtrlPointNum() < 2) {
-			if (Splines[i]->GetCtrlPointNum() > 0) {
+			if (Splines[i]->GetCtrlPointNum() > 0
+				//&& Splines[i] == static_cast<FSpatialBSpline3*>(SelectedSpline.Pin().Get())
+				) {
 				Canvas2D->DisplayPoints[0].Array.Add(ControlPointToHitPoint(TVecLib<4>::Projection(Splines[i]->FirstNode()->GetValue().Pos)));
 			}
 			continue;
@@ -470,12 +502,15 @@ int32 AGraphTestPlayerController::ResampleBSpline(const TArray<FSpatialBSpline3*
 
 
 		if (bDisplayControlPoint) {
-			for (const auto& PH : SpCtrlPoints) {
-				Canvas2D->DisplayPoints[0].Array.Add(ControlPointToHitPoint(TVecLib<4>::Projection(PH)));
-				Canvas2D->DisplayLines[SplineLayer % Canvas2D->LineLayerConfig.MaxLayerCount].Array.Add(ControlPointToHitPoint(TVecLib<4>::Projection(PH)));
+			if (Splines[i] == static_cast<FSpatialBSpline3*>(SelectedSpline.Pin().Get())) {
+				for (const auto& PH : SpCtrlPoints) {
+					Canvas2D->DisplayPoints[0].Array.Add(ControlPointToHitPoint(TVecLib<4>::Projection(PH)));
+					Canvas2D->DisplayLines[SplineLayer % Canvas2D->LineLayerConfig.MaxLayerCount].Array.Add(ControlPointToHitPoint(TVecLib<4>::Projection(PH)));
+				}
+				Canvas2D->DrawLines(SplineLayer);
+				++SplineLayer;
 			}
-			Canvas2D->DrawLines(SplineLayer);
-			++SplineLayer;
+
 			for (const auto& T : SpParams) {
 				const auto& P = Splines[i]->GetPosition(T);
 				Canvas2D->DisplayPoints[0].Array.Add(ControlPointToHitPoint(P));
@@ -545,14 +580,21 @@ int32 AGraphTestPlayerController::ResampleBezierString(const TArray<FSpatialBezi
 		UE_LOG(LogGraphTest, Warning, TEXT("Splines[%d] CtrlPointNum = %d"),
 			i, Splines[i]->GetCtrlPointNum());
 
-		TArray<FVector4> SpCtrlPoints; TArray<double> SpParams;
+		TArray<FVector4> SpCtrlPoints;
+		TArray<FVector4> SpCtrlPointsPrev;
+		TArray<FVector4> SpCtrlPointsNext;
+		TArray<double> SpParams;
 		Splines[i]->GetCtrlPoints(SpCtrlPoints);
+		Splines[i]->GetCtrlPointsPrev(SpCtrlPointsPrev);
+		Splines[i]->GetCtrlPointsNext(SpCtrlPointsNext);
 		Splines[i]->GetCtrlParams(SpParams);
 
 		if (Splines[i]->GetCtrlPointNum() < 2) {
 			//Canvas2D->DrawPoints(i);
 			if (Splines[i]->GetCtrlPointNum() > 0) {
-				Canvas2D->DisplayPoints[0].Array.Add(ControlPointToHitPoint(TVecLib<4>::Projection(Splines[i]->FirstNode()->GetValue().Pos)));
+				//if (SelectedSpline.Pin().Get() == Splines[i]) {
+					Canvas2D->DisplayPoints[0].Array.Add(ControlPointToHitPoint(TVecLib<4>::Projection(Splines[i]->FirstNode()->GetValue().Pos)));
+				//}
 			}
 			continue;
 		}
@@ -560,8 +602,17 @@ int32 AGraphTestPlayerController::ResampleBezierString(const TArray<FSpatialBezi
 
 
 		if (bDisplayControlPoint) {
-			for (const auto& PH : SpCtrlPoints) {
-				Canvas2D->DisplayPoints[0].Array.Add(ControlPointToHitPoint(TVecLib<4>::Projection(PH)));
+			if (SelectedSpline.Pin().Get() == Splines[i]) 
+			{
+				for (const auto& PH : SpCtrlPoints) {
+					Canvas2D->DisplayPoints[0].Array.Add(ControlPointToHitPoint(TVecLib<4>::Projection(PH)));
+				}
+				for (const auto& PH : SpCtrlPointsPrev) {
+					Canvas2D->DisplayPoints[0].Array.Add(ControlPointToHitPoint(TVecLib<4>::Projection(PH)));
+				}
+				for (const auto& PH : SpCtrlPointsNext) {
+					Canvas2D->DisplayPoints[0].Array.Add(ControlPointToHitPoint(TVecLib<4>::Projection(PH)));
+				}
 			}
 			//for (const auto& T : SpParams) {
 			//	const auto& P = Splines[i].GetPosition(T);
@@ -634,15 +685,17 @@ void AGraphTestPlayerController::ReleaseLeftMouseButton(FKey Key, FVector2D Mous
 	if (SelectedNodeRaw) {
 		SelectedNodeRaw = nullptr;
 	}
-	if (SelectedSpline) {
-		SelectedSpline = nullptr;
-	}
 	if (NearestNodeRaw) {
 		SelectedNodeRaw = NearestNodeRaw;
 	}
-	if (NearestSpline) {
+
+	if (SelectedSpline.IsValid() && !SelectedNodeRaw) {
+		SelectedSpline = nullptr;
+	}
+	if (NearestSpline.IsValid()) {
 		SelectedSpline = NearestSpline;
 	}
+	ResampleCurve();
 }
 
 void AGraphTestPlayerController::AddControlPointEvent(FKey Key, FVector2D MouseScreenPos, EInputEvent InputEvent, APlayerController* Ctrl)
@@ -662,11 +715,17 @@ void AGraphTestPlayerController::AddControlPointEvent(FKey Key, FVector2D MouseS
 	AddControlPoint(HitPoint);
 }
 
-void AGraphTestPlayerController::AddNewSplineEvent(FKey Key, EInputEvent InputEvent, APlayerController* Ctrl)
+void AGraphTestPlayerController::AddNewSplineAfterSelectedSplineEvent(FKey Key, EInputEvent InputEvent, APlayerController* Ctrl)
 {
-	TArray<TWeakPtr<FSpatialSplineGraph3::FSplineType> > Splines;
-	Graph.GetSplines(Splines);
-	Graph.CreateSplineAfterExisted(Splines.Last(), 1);
+	if (SelectedSpline.IsValid())
+	{
+		Graph.CreateSplineBesidesExisted(SelectedSpline, EContactType::End, 1);
+	}
+	else {
+		TArray<TWeakPtr<FSpatialSplineGraph3::FSplineType> > Splines;
+		Graph.GetSplines(Splines);
+		Graph.CreateSplineBesidesExisted(Splines.Last(), EContactType::End, 1);
+	}
 
 	ResampleCurve();
 }
@@ -699,6 +758,26 @@ void AGraphTestPlayerController::FlipDisplaySmallCurvatureEvent(FKey Key, EInput
 void AGraphTestPlayerController::SplitSplineAtCenterEvent(FKey Key, EInputEvent Event, APlayerController* Ctrl)
 {
 	SplitSplineAtCenter();
+}
+
+void AGraphTestPlayerController::FlipSelectedSplineTypeEvent(FKey Key, EInputEvent Event, APlayerController* Ctrl)
+{
+	if (SelectedSpline.IsValid()) {
+		if (SelectedSpline.Pin().Get()->GetType() == ESplineType::ClampedBSpline) {
+			Graph.ChangeSplineType(SelectedSpline, ESplineType::BezierString);
+			ResampleCurve();
+		}
+	}
+	//NewSplineType = (NewSplineType == ESplineType::ClampedBSpline) ? ESplineType::BezierString : ESplineType::ClampedBSpline;
+}
+
+void AGraphTestPlayerController::ReverseSelectedSplineTypeEvent(FKey Key, EInputEvent Event, APlayerController* Ctrl)
+{
+	if (SelectedSpline.IsValid()) {
+		UE_LOG(LogGraphTest, Warning, TEXT("Reverse Spline"));
+		Graph.ReverseSpline(SelectedSpline);
+		ResampleCurve();
+	}
 }
 
 FVector AGraphTestPlayerController::ControlPointToHitPoint(const FVector& P)

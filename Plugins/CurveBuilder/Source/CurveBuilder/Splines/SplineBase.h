@@ -78,6 +78,13 @@ public:
 		return MakeShared<TSplineBase<Dim, Degree> >();
 	}
 
+	virtual TSharedRef<TSplineBase<Dim, Degree> > Copy() const
+	{
+		return MakeShared<TSplineBase<Dim, Degree> >();
+	}
+
+	virtual void ProcessBeforeCreateSameType() {}
+
 	virtual void AddPointAtLast(const TVectorX<Dim>& Point, TOptional<double> Param = TOptional<double>(), double Weight = 1.) {}
 
 	virtual void AddPointAtFirst(const TVectorX<Dim>& Point, TOptional<double> Param = TOptional<double>(), double Weight = 1.) {}

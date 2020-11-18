@@ -60,6 +60,43 @@ inline TSharedRef<TSplineBase<Dim, Degree>> TClampedBSpline<Dim, Degree>::Create
 	return NewSpline;
 }
 
+template<int32 Dim, int32 Degree>
+inline TSharedRef<TSplineBase<Dim, Degree>> TClampedBSpline<Dim, Degree>::Copy() const
+{
+	return MakeShared<TClampedBSpline<Dim, Degree> >(*this);
+}
+
+template<int32 Dim, int32 Degree>
+inline void TClampedBSpline<Dim, Degree>::ProcessBeforeCreateSameType()
+{
+	if (CtrlPointsList.Num() == 1) {
+		return;
+	}
+
+	FPointNode* Start = CtrlPointsList.GetHead();
+	FPointNode* End = CtrlPointsList.GetTail();
+
+	auto MoveStartAndEnd = [this, &Start, &End]() {
+		if ((CtrlPointsList.Num() & 1) == 0) {
+			while (Start->GetNextNode() != End) {
+				Start = Start->GetNextNode();
+				End = End->GetPrevNode();
+			}
+		}
+		else {
+			while (Start != End) {
+				Start = Start->GetNextNode();
+				End = End->GetPrevNode();
+			}
+		}
+	};
+
+	while (CtrlPointsList.Num() <= Degree) {
+		MoveStartAndEnd();
+		CtrlPointsList.InsertNode(TClampedBSplineControlPoint<Dim>((Start->GetValue().Pos + End->GetValue().Pos) * 0.5), End);
+	}
+}
+
 //template<int32 Dim, int32 Degree>
 //inline typename TClampedBSpline<Dim, Degree>::FPointNode* TClampedBSpline<Dim, Degree>::FindNodeByParam(double Param, int32 NthNode) const
 //{
@@ -609,7 +646,7 @@ inline void TClampedBSpline<Dim, Degree>::Reverse()
 	if (KnotIntervals.Num() > 1) {
 		double SumOfEnd = KnotIntervals[0] + KnotIntervals.Last();
 		for (int32 i = 0; i < KnotIntervals.Num(); ++i) {
-			KnotIntervals[i] = SumOfEnd - KnotIntervals[i];
+			KnotIntervals[KnotIntervals.Num() - 1 - i] = SumOfEnd - KnotIntervals[i];
 		}
 	}
 }

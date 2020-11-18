@@ -23,25 +23,32 @@ public:
 	FORCEINLINE static constexpr int32 SplineDegree() { return FSplineType::SplineDegree(); }
 	FORCEINLINE static constexpr int32 SplineRank() { return FSplineType::SplineRank(); }
 
+protected:
+	// Use a wrapper to keep the pointer after changing the type of the spline.
+	struct FSplineWrapper
+	{
+		TSharedPtr<FSplineType> Spline;
+	};
+
 	struct FGraphNode
 	{
-		TWeakPtr<FSplineType> Spline;
+		TWeakPtr<FSplineWrapper> SplineWrapper;
 		EContactType ContactType = Start;
 
-		friend uint32 GetTypeHash(const FGraphNode& Node) 
+		friend uint32 GetTypeHash(const FGraphNode& Node)
 		{
-			if (Node.Spline.IsValid()) {
-				return ::PointerHash(Node.Spline.Pin().Get());
+			if (Node.SplineWrapper.IsValid()) {
+				return ::PointerHash(Node.SplineWrapper.Pin()->Spline.Get());
 			}
 			return ::PointerHash(nullptr);
 		}
 
 		bool operator==(const FGraphNode& Other) const
 		{
-			if (!Spline.IsValid() && !Other.Spline.IsValid()) {
+			if (!SplineWrapper.IsValid() && !Other.SplineWrapper.IsValid()) {
 				return true;
 			}
-			return Spline.IsValid() && Other.Spline.IsValid() && Spline == Other.Spline;
+			return SplineWrapper.IsValid() && Other.SplineWrapper.IsValid() && SplineWrapper.Pin()->Spline.Get() == Other.SplineWrapper.Pin()->Spline.Get();
 		}
 	};
 
@@ -59,24 +66,36 @@ public:
 
 	virtual TWeakPtr<FSplineType> AddSplineToGraph(TSharedPtr<FSplineType> Spline, TWeakPtr<FSplineType> Prev = nullptr, TWeakPtr<FSplineType> Next = nullptr);
 
-	virtual TWeakPtr<FSplineType> CreateSplineAfterExisted(TWeakPtr<FSplineType> Prev, int32 EndContinuity = 1);
+	virtual TWeakPtr<FSplineType> CreateSplineBesidesExisted(TWeakPtr<FSplineType> Prev, EContactType Direction = EContactType::End, int32 EndContinuity = 1);
 
 	virtual void Connect(TWeakPtr<FSplineType> Previous, TWeakPtr<FSplineType> Next, EContactType NextContactType = EContactType::Start);
 
 	virtual void SplitConnection(TWeakPtr<FSplineType> Previous, TWeakPtr<FSplineType> Next, EContactType NextContactType = EContactType::Start);
 
-	virtual void AdjustCtrlPointPos(const TVectorX<Dim>& From, const TVectorX<Dim>& To, int32 MoveLevel = 0, int32 NthPointOfFrom = 0, double ToleranceSqr = 1.);
+	virtual void AdjustCtrlPointPos(const TVectorX<Dim>& From, const TVectorX<Dim>& To, TWeakPtr<FSplineType> SplinePtrToAdjust = nullptr, int32 MoveLevel = 0, int32 NthPointOfFrom = 0, double ToleranceSqr = 1.);
 
 	// EContactType::End means forward, EContactType::Start means backward.
 	virtual void GetClusterWithoutSelf(TSet<TTuple<FGraphNode, int32> >& Cluster, const TSharedPtr<FSplineType>& SplinePtr, EContactType Direction = EContactType::End);
 
 	virtual void GetSplines(TArray<TWeakPtr<FSplineType> >& Splines) const;
 
+	virtual void ReverseSpline(TWeakPtr<FSplineType> SplinePtrToReverse);
+
+	virtual bool HasConnection(TWeakPtr<FSplineType> SplinePtr, EContactType Direction = EContactType::End) const;
+
+	virtual void ChangeSplineType(TWeakPtr<FSplineType>& SplinePtr, ESplineType NewType);
+
 protected:
-	TMap<TSharedPtr<FSplineType>, TSet<FGraphNode> > InternalGraphForward;
-	TMap<TSharedPtr<FSplineType>, TSet<FGraphNode> > InternalGraphBackward;
+	TMap<TSharedPtr<FSplineWrapper>, TSet<FGraphNode> > InternalGraphForward;
+	TMap<TSharedPtr<FSplineWrapper>, TSet<FGraphNode> > InternalGraphBackward;
+
+	TMap<TSharedPtr<FSplineType>, TWeakPtr<FSplineWrapper> > SplineToWrapper;
 
 	const FGraphNode* FindGraphNodeBySplinePtrInSet(const TSet<FGraphNode>& AdjSet, TWeakPtr<FSplineType> Spline) const;
+
+	void ChangeSplineTypeFromBezierString(TSharedPtr<FSplineWrapper> WrapperSharedPtr, ESplineType NewType);
+
+	void ChangeSplineTypeFromBSpline(TSharedPtr<FSplineWrapper> WrapperSharedPtr, ESplineType NewType);
 };
 
 #include "SplineGraph.inl"
