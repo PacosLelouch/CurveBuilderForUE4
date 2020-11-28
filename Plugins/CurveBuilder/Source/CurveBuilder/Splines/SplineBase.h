@@ -30,7 +30,7 @@ public:
 	FORCEINLINE static constexpr int32 SplineDim() { return Dim; }
 	FORCEINLINE static constexpr int32 SplineDimHomogeneous() { return Dim + 1; }
 	FORCEINLINE static constexpr int32 SplineDegree() { return Degree; }
-	FORCEINLINE static constexpr int32 SplineRank() { return Degree + 1; }
+	FORCEINLINE static constexpr int32 SplineOrder() { return Degree + 1; }
 
 	FORCEINLINE TVectorX<Dim> GetNormalizedTangent(double T) const { return GetTangent(T).GetSafeNormal(); }
 

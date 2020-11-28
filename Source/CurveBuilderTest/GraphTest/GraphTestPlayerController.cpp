@@ -96,14 +96,14 @@ void AGraphTestPlayerController::Tick(float Delta)
 								if ((HoldingPointType && HoldingPointType.GetValue() == ESelectedNodeCtrlPointType::Current) ||
 									(!HoldingPointType && FVector::DistSquared(SelectedPos, CtrlPoint) < NodeDistSqr)) {
 									HoldingPointType = ESelectedNodeCtrlPointType::Current;
-									Graph.AdjustCtrlPointPos(SelectedPos, CtrlPoint, SelectedSpline, 1, 0, NodeDistSqr);
+									Graph.AdjustCtrlPointPos(SelectedPos, CtrlPoint, SelectedSpline, 1, 0, 0, NodeDistSqr);
 									//SplineBezierString.AdjustCtrlPointPos(SelectedNode, CtrlPoint, 0);
 									ResampleCurve();
 								}
 								else if ((HoldingPointType && HoldingPointType.GetValue() == ESelectedNodeCtrlPointType::Next) ||
 									(!HoldingPointType && FVector::DistSquared(SelectedNextPos, CtrlPoint) < NodeDistSqr)) {
 									HoldingPointType = ESelectedNodeCtrlPointType::Next;
-									Graph.AdjustCtrlPointPos(SelectedNextPos, CtrlPoint, SelectedSpline, 1, 0, NodeDistSqr);
+									Graph.AdjustCtrlPointPos(SelectedNextPos, CtrlPoint, SelectedSpline, 1, 1, 0, NodeDistSqr);
 									//SplineBezierString.AdjustCtrlPointTangent(SelectedNode, CtrlPoint, true, 0);
 									Canvas2D->DisplayPoints[2].Array.Add(ControlPointToHitPoint(TVecLib<4>::Projection(SelectedNode->GetValue().PrevCtrlPointPos)));
 									ResampleCurve();
@@ -111,7 +111,7 @@ void AGraphTestPlayerController::Tick(float Delta)
 								else if ((HoldingPointType && HoldingPointType.GetValue() == ESelectedNodeCtrlPointType::Previous) ||
 									(!HoldingPointType && FVector::DistSquared(SelectedPrevPos, CtrlPoint) < NodeDistSqr)) {
 									HoldingPointType = ESelectedNodeCtrlPointType::Previous;
-									Graph.AdjustCtrlPointPos(SelectedPrevPos, CtrlPoint, SelectedSpline, 1, 0, NodeDistSqr);
+									Graph.AdjustCtrlPointPos(SelectedPrevPos, CtrlPoint, SelectedSpline, 1, -1, 0, NodeDistSqr);
 									//SplineBezierString.AdjustCtrlPointTangent(SelectedNode, CtrlPoint, false, 0);
 									Canvas2D->DisplayPoints[2].Array.Add(ControlPointToHitPoint(TVecLib<4>::Projection(SelectedNode->GetValue().NextCtrlPointPos)));
 									ResampleCurve();
@@ -133,7 +133,7 @@ void AGraphTestPlayerController::Tick(float Delta)
 								FVector SelectedPos = TVecLib<4>::Projection(SelectedNode->GetValue().Pos);
 								if (HoldingPointType || (!HoldingPointType && FVector::DistSquared(SelectedPos, CtrlPoint) < NodeDistSqr)) {
 									HoldingPointType = ESelectedNodeCtrlPointType::Current;
-									Graph.AdjustCtrlPointPos(SelectedPos, CtrlPoint, SelectedSpline, 1, 0, NodeDistSqr);
+									Graph.AdjustCtrlPointPos(SelectedPos, CtrlPoint, SelectedSpline, 1, 0, 0, NodeDistSqr);
 									//SplineBSpline.AdjustCtrlPointPos(SelectedNode, CtrlPoint, 0);
 									ResampleCurve();
 								}

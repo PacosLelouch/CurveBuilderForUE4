@@ -21,7 +21,7 @@ public:
 	FORCEINLINE static constexpr int32 SplineDim() { return FSplineType::SplineDim(); }
 	FORCEINLINE static constexpr int32 SplineDimHomogeneous() { return FSplineType::SplineDimHomogeneous(); }
 	FORCEINLINE static constexpr int32 SplineDegree() { return FSplineType::SplineDegree(); }
-	FORCEINLINE static constexpr int32 SplineRank() { return FSplineType::SplineRank(); }
+	FORCEINLINE static constexpr int32 SplineOrder() { return FSplineType::SplineOrder(); }
 
 protected:
 	// Use a wrapper to keep the pointer after changing the type of the spline.
@@ -72,7 +72,9 @@ public:
 
 	virtual void SplitConnection(TWeakPtr<FSplineType> Previous, TWeakPtr<FSplineType> Next, EContactType NextContactType = EContactType::Start);
 
-	virtual void AdjustCtrlPointPos(const TVectorX<Dim>& From, const TVectorX<Dim>& To, TWeakPtr<FSplineType> SplinePtrToAdjust = nullptr, int32 MoveLevel = 0, int32 NthPointOfFrom = 0, double ToleranceSqr = 1.);
+	virtual void AdjustCtrlPointPos(
+		const TVectorX<Dim>& From, const TVectorX<Dim>& To, TWeakPtr<FSplineType> SplinePtrToAdjust = nullptr, 
+		int32 MoveLevel = 0, int32 NodeIndexOffset = 0, int32 NthPointOfFrom = 0, double ToleranceSqr = 1.);
 
 	// EContactType::End means forward, EContactType::Start means backward.
 	virtual void GetClusterWithoutSelf(TSet<TTuple<FGraphNode, int32> >& Cluster, const TSharedPtr<FSplineType>& SplinePtr, EContactType Direction = EContactType::End);

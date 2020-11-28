@@ -26,7 +26,7 @@ struct TBezierString3ControlPoint
 	TVectorX<Dim+1> Pos;
 	TVectorX<Dim+1> PrevCtrlPointPos, NextCtrlPointPos;
 	double Param;
-	EEndPointContinuity Continuity = EEndPointContinuity::G2;
+	EEndPointContinuity Continuity = EEndPointContinuity::G1;
 };
 
 // BezierString3
