@@ -212,6 +212,22 @@ inline void TSplineGraph<Dim, 3>::SplitConnection(TWeakPtr<FSplineType> Prev, TW
 }
 
 template<int32 Dim>
+inline bool TSplineGraph<Dim, 3>::DeleteSpline(TWeakPtr<FSplineType> Spline)
+{
+	if (Spline.IsValid())
+	{
+		TSharedPtr<FSplineType> SplineSharedPtr = Spline.Pin();
+		TWeakPtr<FSplineWrapper>* SplineWrapper = SplineToWrapper.Find(SplineSharedPtr);
+
+		if (SplineWrapper)
+		{
+			UpdateDeleted(SplineWrapper);
+		}
+	}
+	return false;
+}
+
+template<int32 Dim>
 inline void TSplineGraph<Dim, 3>::AdjustCtrlPointPos(
 	const TVectorX<Dim>& From, const TVectorX<Dim>& To, TWeakPtr<FSplineType> SplinePtrToAdjust, 
 	int32 MoveLevel, int32 NodeIndexOffset, int32 NthPointOfFrom, double ToleranceSqr)
@@ -552,4 +568,48 @@ inline void TSplineGraph<Dim, 3>::ChangeSplineTypeFromBSpline(TSharedPtr<FSpline
 	}
 		break;
 	}
+}
+
+template<int32 Dim>
+inline void TSplineGraph<Dim, 3>::UpdateDeleted(TWeakPtr<FSplineWrapper> SplineWrapperToDelete)
+{
+	if (!SplineWrapperToDelete.IsValid())
+	{
+		return;
+	}
+	TSharedPtr<FSplineWrapper> WrapperSharedPtr = SplineWrapperToDelete.Pin();
+	SplineToWrapper.Remove(WrapperSharedPtr->Spline);
+
+	auto* FwdValuePtr = InternalGraphForward.Find(WrapperSharedPtr);
+	auto* BwdValuePtr = InternalGraphBackward.Find(WrapperSharedPtr);
+
+	for (auto* ValuePtr :{ InternalGraphForward.Find(WrapperSharedPtr), InternalGraphBackward.Find(WrapperSharedPtr) })
+	{
+		if (!ValuePtr)
+		{
+			continue;
+		}
+		for (const FGraphNode& Node : *ValuePtr)
+		{
+			if (!Node.SplineWrapper.IsValid())
+			{
+				continue;
+			}
+			TSharedPtr<FSplineWrapper> WrapperSharedPtr1 = Node.SplineWrapper.Pin();
+			for (auto* ValuePtr1 :{ InternalGraphForward.Find(WrapperSharedPtr1), InternalGraphBackward.Find(WrapperSharedPtr1) })
+			{
+				if (ValuePtr1)
+				{
+					const FGraphNode* NodeToRemove = FindGraphNodeBySplinePtrInSet(*ValuePtr1, WrapperSharedPtr->Spline);
+					if (NodeToRemove)
+					{
+						ValuePtr1->Remove(*NodeToRemove);
+					}
+				}
+			}
+		}
+	}
+
+	InternalGraphForward.Remove(WrapperSharedPtr);
+	InternalGraphBackward.Remove(WrapperSharedPtr);
 }
