@@ -335,16 +335,26 @@ void AGraphTestPlayerController::AddControlPoint(const FVector& HitPoint)
 	auto AddCtrlPointInternal = [this, &EndPoint](TWeakPtr<FSpatialSplineGraph3::FSplineType> SplinePtr) {
 		TWeakPtr<FSpatialSplineGraph3::FSplineType> TargetSplinePtr = SplinePtr;
 
+		bool bNewSpline = false;
 		if (Graph.HasConnection(SplinePtr, EContactType::End)) {
 			TargetSplinePtr = Graph.CreateSplineBesidesExisted(SplinePtr, EContactType::End, 1);
+			bNewSpline = true;
 		}
 		auto& Spline = *TargetSplinePtr.Pin().Get();
 
 		switch (Spline.GetType()) {
 		case ESplineType::BezierString:
 		{
-			static_cast<FSpatialBezierString3&>(Spline).AddPointAtLast(EndPoint);
-			static_cast<FSpatialBezierString3&>(Spline).LastNode()->GetValue().Continuity = NewPointContinuityInit;
+			FSpatialBezierString3& BezierString3 = static_cast<FSpatialBezierString3&>(Spline);
+			if (bNewSpline)
+			{
+				BezierString3.AdjustCtrlPointPos(BezierString3.LastNode(), EndPoint);
+			}
+			else
+			{
+				BezierString3.AddPointAtLast(EndPoint);
+				BezierString3.LastNode()->GetValue().Continuity = NewPointContinuityInit;
+			}
 		}
 		break;
 		case ESplineType::ClampedBSpline:

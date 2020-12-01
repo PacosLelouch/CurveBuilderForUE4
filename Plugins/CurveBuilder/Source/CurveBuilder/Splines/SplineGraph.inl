@@ -221,7 +221,7 @@ inline bool TSplineGraph<Dim, 3>::DeleteSpline(TWeakPtr<FSplineType> Spline)
 
 		if (SplineWrapper)
 		{
-			UpdateDeleted(SplineWrapper);
+			UpdateDeleted(*SplineWrapper);
 		}
 	}
 	return false;

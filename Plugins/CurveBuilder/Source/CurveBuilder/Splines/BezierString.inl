@@ -199,28 +199,29 @@ inline TSharedRef<TSplineBase<Dim, 3>> TBezierString3<Dim>::CreateSameType(int32
 	TSharedRef<TSplineBase<Dim, 3> > NewSpline = MakeShared<TBezierString3<Dim> >();
 	if (EndContinuity >= 0) {
 		FPointNode* CurRefNode = CtrlPointsList.GetTail();
-		TVectorX<Dim> CurPos = TVecLib<Dim+1>::Projection(CurRefNode->GetValue().Pos);
-		TVectorX<Dim> CurRefPos = TVecLib<Dim+1>::Projection(CurRefNode->GetValue().Pos);
-		TBezierString3<Dim>& Beziers = static_cast<TBezierString3<Dim>& >(NewSpline.Get());
-		Beziers.AddPointAtLast(CurPos);
-		Beziers.LastNode()->GetValue().PrevCtrlPointPos = CurRefNode->GetValue().NextCtrlPointPos;
-		Beziers.LastNode()->GetValue().NextCtrlPointPos = CurRefNode->GetValue().PrevCtrlPointPos;
-		for (int32 i = 0; i < EndContinuity && CurRefNode; i += 2) {
-			FPointNode* PrevRefNode = CurRefNode->GetPrevNode();
-			if (PrevRefNode) {
-				TVectorX<Dim> PrevRefPos = TVecLib<Dim+1>::Projection(PrevRefNode->GetValue().Pos);
-				TVectorX<Dim> PrevPos = TVecLib<Dim+1>::Projection(PrevRefNode->GetValue().Pos);
-				TVectorX<Dim> PrevPPos = TVecLib<Dim+1>::Projection(PrevRefNode->GetValue().PrevCtrlPointPos);
-				TVectorX<Dim> PrevNPos = TVecLib<Dim+1>::Projection(PrevRefNode->GetValue().NextCtrlPointPos);
-				Beziers.AddPointAtLast(CurPos + (CurRefPos - PrevRefPos));
-				TVectorX<Dim> NextPos = TVecLib<Dim+1>::Projection(Beziers.LastNode()->GetValue().Pos);
-				Beziers.LastNode()->GetValue().PrevCtrlPointPos = TVecLib<Dim>::Homogeneous(NextPos + (PrevPPos - PrevPos), 1.);
-				Beziers.LastNode()->GetValue().NextCtrlPointPos = TVecLib<Dim>::Homogeneous(NextPos + (PrevNPos - PrevPos), 1.);
+		if (CurRefNode) {
+			TVectorX<Dim> CurPos = TVecLib<Dim+1>::Projection(CurRefNode->GetValue().Pos);
+			TVectorX<Dim> CurRefPos = CurPos;
+			TBezierString3<Dim>& Beziers = static_cast<TBezierString3<Dim>&>(NewSpline.Get());
+			Beziers.AddPointAtLast(CurPos);
+			for (int32 i = 0; i < EndContinuity && CurRefNode; i += 2) {
+				FPointNode* PrevRefNode = CurRefNode->GetPrevNode();
+				if (PrevRefNode) {
+					TVectorX<Dim> PrevPos = TVecLib<Dim+1>::Projection(PrevRefNode->GetValue().Pos);
+					TVectorX<Dim> PrevPPos = TVecLib<Dim+1>::Projection(PrevRefNode->GetValue().PrevCtrlPointPos);
+					TVectorX<Dim> PrevNPos = TVecLib<Dim+1>::Projection(PrevRefNode->GetValue().NextCtrlPointPos);
+					Beziers.AddPointAtLast(CurPos + (CurRefPos - PrevPos));
+					TVectorX<Dim> NextPos = TVecLib<Dim+1>::Projection(Beziers.LastNode()->GetValue().Pos);
+					Beziers.LastNode()->GetValue().PrevCtrlPointPos = TVecLib<Dim>::Homogeneous(NextPos + (PrevPPos - PrevPos), 1.);
+					Beziers.LastNode()->GetValue().NextCtrlPointPos = TVecLib<Dim>::Homogeneous(NextPos + (PrevNPos - PrevPos), 1.);
 
-				CurRefNode = PrevRefNode;
-				CurPos = TVecLib<Dim+1>::Projection(Beziers.LastNode()->GetValue().Pos);
-				CurRefPos = TVecLib<Dim+1>::Projection(CurRefNode->GetValue().Pos);
+					CurRefNode = PrevRefNode;
+					CurPos = TVecLib<Dim+1>::Projection(Beziers.LastNode()->GetValue().Pos);
+					CurRefPos = TVecLib<Dim+1>::Projection(CurRefNode->GetValue().Pos);
+				}
 			}
+			Beziers.FirstNode()->GetValue().PrevCtrlPointPos = CtrlPointsList.GetTail()->GetValue().PrevCtrlPointPos;
+			Beziers.FirstNode()->GetValue().NextCtrlPointPos = CtrlPointsList.GetTail()->GetValue().NextCtrlPointPos;
 		}
 	}
 	return NewSpline;
