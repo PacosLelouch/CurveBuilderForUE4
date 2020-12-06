@@ -721,7 +721,7 @@ inline TVectorX<Dim> TBezierString3<Dim>::GetTangent(double T) const
 }
 
 template<int32 Dim>
-inline double TBezierString3<Dim>::GetPrincipalCurvature(double T, int32 Principal) const
+inline double TBezierString3<Dim>::GetPlanCurvature(double T, int32 PlanIndex) const
 {
 	FPointNode* EndNode = FindNodeGreaterThanParam(T);
 	if (!EndNode) {
@@ -735,7 +735,7 @@ inline double TBezierString3<Dim>::GetPrincipalCurvature(double T, int32 Princip
 	TBezierCurve<Dim, 1> Hodograph2;
 	Hodograph.CreateHodograph(Hodograph2);
 
-	return TVecLib<Dim>::PrincipalCurvature(Hodograph.GetPosition(TN), Hodograph2.GetPosition(TN), Principal);
+	return TVecLib<Dim>::PlanCurvature(Hodograph.GetPosition(TN), Hodograph2.GetPosition(TN), Principal);
 }
 
 template<int32 Dim>

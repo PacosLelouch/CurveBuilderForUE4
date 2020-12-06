@@ -98,7 +98,7 @@ void ABezierConcatPlayerController::AddControlPoint(const FVector& HitPoint)
 		FString TangentStr = FString::Printf(TEXT("Tangent:\n [(%s)->%.6f, (%s)->%.6f]"),
 			*LastCurve.GetTangent(1).ToString(), LastCurve.GetTangent(1).Size(), *NewCurve.GetTangent(0).ToString(), NewCurve.GetTangent(0).Size());
 		FString CurvatureStr = FString::Printf(TEXT("Curvature:\n [(%.6lf), (%.6lf)]"),
-			LastCurve.GetPrincipalCurvature(1, 0), NewCurve.GetPrincipalCurvature(0, 0));
+			LastCurve.GetPlanCurvature(1, 0), NewCurve.GetPlanCurvature(0, 0));
 		GEngine->AddOnScreenDebugMessage(0, 5.0f, FColor(0, 128, 255), TangentStr);
 		GEngine->AddOnScreenDebugMessage(1, 5.0f, FColor(0, 128, 255), CurvatureStr);
 		UE_LOG(LogCtrl, Warning, TEXT("%s"), *TangentStr);
@@ -125,10 +125,10 @@ void ABezierConcatPlayerController::AddControlPoint(const FVector& HitPoint)
 				*NewCurves[2].GetTangent(1).ToString(), *LastSecond.GetTangent(0).ToString()
 			);
 		FString CurvatureStr = FString::Printf(TEXT("Curvature:\n [(%.6lf), (%.6lf)]\n [(%.6lf), (%.6lf)]\n [(%.6lf), (%.6lf)]\n [(%.6lf), (%.6lf)]"),
-				LastFirst.GetPrincipalCurvature(1, 0), NewCurves[0].GetPrincipalCurvature(0, 0),
-				NewCurves[0].GetPrincipalCurvature(1, 0), NewCurves[1].GetPrincipalCurvature(0, 0),
-				NewCurves[1].GetPrincipalCurvature(1, 0), NewCurves[2].GetPrincipalCurvature(0, 0),
-				NewCurves[2].GetPrincipalCurvature(1, 0), LastSecond.GetPrincipalCurvature(0, 0)
+				LastFirst.GetPlanCurvature(1, 0), NewCurves[0].GetPlanCurvature(0, 0),
+				NewCurves[0].GetPlanCurvature(1, 0), NewCurves[1].GetPlanCurvature(0, 0),
+				NewCurves[1].GetPlanCurvature(1, 0), NewCurves[2].GetPlanCurvature(0, 0),
+				NewCurves[2].GetPlanCurvature(1, 0), LastSecond.GetPlanCurvature(0, 0)
 			);
 		GEngine->AddOnScreenDebugMessage(0, 5.0f, FColor(0, 128, 255), TangentStr);
 		GEngine->AddOnScreenDebugMessage(1, 5.0f, FColor(0, 128, 255), CurvatureStr);

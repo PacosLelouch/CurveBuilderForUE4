@@ -13,7 +13,7 @@ public:
 
 	virtual TVectorX<Dim> GetPosition(double T) const override;
 	virtual TVectorX<Dim> GetTangent(double T) const override;
-	virtual double GetPrincipalCurvature(double T, int32 Principal = 0) const override;
+	virtual double GetPlanCurvature(double T, int32 PlanIndex = 0) const override;
 	virtual double GetCurvature(double T) const override;
 	virtual void ToPolynomialForm(TVectorX<Dim+1>* OutPolyForm) const override;
 	virtual void CreateHodograph(TSplineCurveBase<Dim, CLAMP_DEGREE(Degree-1, 0)>& OutHodograph) const override;

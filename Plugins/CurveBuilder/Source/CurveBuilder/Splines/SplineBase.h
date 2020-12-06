@@ -108,7 +108,7 @@ public:
 
 	virtual TVectorX<Dim> GetTangent(double T) const { return TVecLib<Dim>::Zero(); }
 
-	virtual double GetPrincipalCurvature(double T, int32 Principal = 0) const { return -1; }
+	virtual double GetPlanCurvature(double T, int32 PlanIndex = 0) const { return -1; }
 
 	virtual double GetCurvature(double T) const { return -1; }
 

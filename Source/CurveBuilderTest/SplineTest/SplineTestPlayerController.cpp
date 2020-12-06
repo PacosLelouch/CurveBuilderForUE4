@@ -371,8 +371,8 @@ int32 ASplineTestPlayerController::ResampleBSpline(int32 FirstLineLayer)
 					i, j, *Splines[i].GetTangent(SpParams[j]).ToString(), Splines[i].GetTangent(SpParams[j]).Size());
 			}
 			if (bDisplaySmallCurvature) {
-				UE_LOG(LogSplineCtrl, Warning, TEXT("Splines[%d].PrincipalCurvatures[%d] = <%.6lf>"),
-					i, j, Splines[i].GetPrincipalCurvature(SpParams[j], 0));
+				UE_LOG(LogSplineCtrl, Warning, TEXT("Splines[%d].PlanCurvatures[%d] = <%.6lf>"),
+					i, j, Splines[i].GetPlanCurvature(SpParams[j], 0));
 			}
 		}
 
@@ -393,7 +393,7 @@ int32 ASplineTestPlayerController::ResampleBSpline(int32 FirstLineLayer)
 			if (bDisplaySmallCurvature) {
 				++AdditionalLayer;
 				Canvas2D->ToCanvasPoint(FVector2D(Splines[i].GetTangent(T)).GetRotated(90.));
-				FVector CurvaturePoint = LinePoint + ControlPointToHitPoint(Splines[i].GetTangent(T).GetSafeNormal() * 1000.).RotateAngleAxis(90., FVector::BackwardVector) * Splines[i].GetPrincipalCurvature(T, 0);
+				FVector CurvaturePoint = LinePoint + ControlPointToHitPoint(Splines[i].GetTangent(T).GetSafeNormal() * 1000.).RotateAngleAxis(90., FVector::BackwardVector) * Splines[i].GetPlanCurvature(T, 0);
 				Canvas2D->DisplayLines[(SplineLayer + AdditionalLayer) % Canvas2D->LineLayerConfig.MaxLayerCount].Array.Add(CurvaturePoint);
 			}
 		}

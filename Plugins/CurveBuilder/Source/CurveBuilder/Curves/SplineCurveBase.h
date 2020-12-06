@@ -134,7 +134,7 @@ public:
 public:
 	virtual TVectorX<Dim> GetPosition(double T) const = 0;
 	virtual TVectorX<Dim> GetTangent(double T) const = 0;
-	virtual double GetPrincipalCurvature(double T, int32 Principal = 0) const = 0;
+	virtual double GetPlanCurvature(double T, int32 PlanIndex = 0) const = 0;
 	virtual double GetCurvature(double T) const = 0;
 	virtual void ToPolynomialForm(TVectorX<Dim+1>* OutPolyForm) const = 0;
 	virtual void CreateHodograph(TSplineCurveBase<Dim, CLAMP_DEGREE(Degree-1, 0)>& OutHodograph) const = 0;

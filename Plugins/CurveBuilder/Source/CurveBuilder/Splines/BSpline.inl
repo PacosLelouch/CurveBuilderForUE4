@@ -686,7 +686,7 @@ inline TVectorX<Dim> TClampedBSpline<Dim, Degree>::GetTangent(double T) const
 }
 
 template<int32 Dim, int32 Degree>
-inline double TClampedBSpline<Dim, Degree>::GetPrincipalCurvature(double T, int32 Principal) const
+inline double TClampedBSpline<Dim, Degree>::GetPlanCurvature(double T, int32 PlanIndex) const
 {
 	if (constexpr(Degree <= 1)) {
 		return 0.0;
@@ -702,7 +702,7 @@ inline double TClampedBSpline<Dim, Degree>::GetPrincipalCurvature(double T, int3
 	TTuple<double, double> H2ParamRange = Hodograph2.GetParamRange();
 	double TH = ConvertRange(T, ParamRange, HParamRange);
 	double TH2 = ConvertRange(T, ParamRange, H2ParamRange);
-	return TVecLib<Dim>::PrincipalCurvature(Hodograph.GetPosition(TH), Hodograph2.GetPosition(TH2), Principal);
+	return TVecLib<Dim>::PlanCurvature(Hodograph.GetPosition(TH), Hodograph2.GetPosition(TH2), Principal);
 }
 
 template<int32 Dim, int32 Degree>

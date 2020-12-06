@@ -74,7 +74,7 @@ using F_Transform3 = FTransform;
 		{ FMemory::Memset(Dst, Byte, Size * sizeof(FType)); } \
 	FORCEINLINE static void CopyArray(FType* Dst, const FType* Src, SIZE_T Size) \
 		{ FMemory::Memcpy(Dst, Src, Size * sizeof(FType)); } \
-	FORCEINLINE static double PrincipalCurvature(const FType& DP, const FType& DDP, int32 Principal) \
+	FORCEINLINE static double PlanCurvature(const FType& DP, const FType& DDP, int32 PlanIndex) \
 	{ \
 		double Nu = 0., De = 0.; \
 		int32 i = Principal % Dim; \

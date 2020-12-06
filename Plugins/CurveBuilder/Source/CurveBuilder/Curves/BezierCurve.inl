@@ -30,7 +30,7 @@ inline TVectorX<Dim> TBezierCurve<Dim, Degree>::GetTangent(double T) const
 }
 
 template<int32 Dim, int32 Degree>
-inline double TBezierCurve<Dim, Degree>::GetPrincipalCurvature(double T, int32 Principal) const
+inline double TBezierCurve<Dim, Degree>::GetPlanCurvature(double T, int32 PlanIndex) const
 {
 	if (constexpr(Degree <= 1)) {
 		return 0.0;
@@ -41,7 +41,7 @@ inline double TBezierCurve<Dim, Degree>::GetPrincipalCurvature(double T, int32 P
 	TBezierCurve<Dim, CLAMP_DEGREE(Degree-2, 0)> Hodograph2;
 	Hodograph.CreateHodograph(Hodograph2);
 
-	return TVecLib<Dim>::PrincipalCurvature(Hodograph.GetPosition(T), Hodograph2.GetPosition(T), Principal);
+	return TVecLib<Dim>::PlanCurvature(Hodograph.GetPosition(T), Hodograph2.GetPosition(T), Principal);
 }
 
 template<int32 Dim, int32 Degree>
