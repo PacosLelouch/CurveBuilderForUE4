@@ -39,7 +39,7 @@ inline double TRationalBezierCurve<Dim, Degree>::GetPlanCurvature(double T, int3
 	TRationalBezierCurve<Dim, CLAMP_DEGREE(Degree-2, 0)> Hodograph2;
 	Hodograph.CreateHodograph(Hodograph2);
 
-	return TVecLib<Dim>::PlanCurvature(Hodograph.GetPosition(T), Hodograph2.GetPosition(T), Principal);
+	return TVecLib<Dim>::PlanCurvature(Hodograph.GetPosition(T), Hodograph2.GetPosition(T), PlanIndex);
 }
 
 template<int32 Dim, int32 Degree>

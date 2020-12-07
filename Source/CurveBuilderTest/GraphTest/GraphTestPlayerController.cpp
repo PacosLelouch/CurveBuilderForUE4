@@ -395,8 +395,10 @@ void AGraphTestPlayerController::AddControlPoint(const FVector& HitPoint)
 	};
 
 	if (SelectedSpline.IsValid()) {
-		InsertCtrlPointInternal(SelectedSpline);
-		AddCtrlPointInternal(SelectedSpline);
+		if (!InsertCtrlPointInternal(SelectedSpline))
+		{
+			AddCtrlPointInternal(SelectedSpline);
+		}
 	}
 	else {
 		TArray<TWeakPtr<FSpatialSplineGraph3::FSplineType> > Splines;

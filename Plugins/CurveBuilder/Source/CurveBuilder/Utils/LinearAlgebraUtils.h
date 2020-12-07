@@ -77,7 +77,7 @@ using F_Transform3 = FTransform;
 	FORCEINLINE static double PlanCurvature(const FType& DP, const FType& DDP, int32 PlanIndex) \
 	{ \
 		double Nu = 0., De = 0.; \
-		int32 i = Principal % Dim; \
+		int32 i = PlanIndex % Dim; \
 		int32 j = (i + 1) % Dim; \
 		De += DP[i] * DP[i] + DP[j] * DP[j]; \
 		double Determinant = DP[i] * DDP[j] - DP[j] * DDP[i]; \

@@ -26,6 +26,4 @@ public:
 	}
 };
 
-using FPolynomailCurveCurve = TPolynomialCurve<3, 3>;
-
 #include "PolynomialCurve.inl"

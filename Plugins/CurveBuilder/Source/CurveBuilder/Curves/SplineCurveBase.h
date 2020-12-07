@@ -113,7 +113,7 @@ public:
 	double GetLength(double T) const
 	{
 		// if (Degree < 5) 
-		TGaussLegendre<GaussLegendreN> GaussLegendre([this](double InT) -> double {
+		TGaussLegendre<NumericalCalculationConst::GaussLegendreN> GaussLegendre([this](double InT) -> double {
 			return GetTangent(InT).Size();
 		}, 0., 1.);
 		return GaussLegendre.Integrate(T);

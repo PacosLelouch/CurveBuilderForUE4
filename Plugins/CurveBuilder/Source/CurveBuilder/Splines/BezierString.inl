@@ -735,7 +735,7 @@ inline double TBezierString3<Dim>::GetPlanCurvature(double T, int32 PlanIndex) c
 	TBezierCurve<Dim, 1> Hodograph2;
 	Hodograph.CreateHodograph(Hodograph2);
 
-	return TVecLib<Dim>::PlanCurvature(Hodograph.GetPosition(TN), Hodograph2.GetPosition(TN), Principal);
+	return TVecLib<Dim>::PlanCurvature(Hodograph.GetPosition(TN), Hodograph2.GetPosition(TN), PlanIndex);
 }
 
 template<int32 Dim>

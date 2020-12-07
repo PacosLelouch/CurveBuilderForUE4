@@ -702,7 +702,7 @@ inline double TClampedBSpline<Dim, Degree>::GetPlanCurvature(double T, int32 Pla
 	TTuple<double, double> H2ParamRange = Hodograph2.GetParamRange();
 	double TH = ConvertRange(T, ParamRange, HParamRange);
 	double TH2 = ConvertRange(T, ParamRange, H2ParamRange);
-	return TVecLib<Dim>::PlanCurvature(Hodograph.GetPosition(TH), Hodograph2.GetPosition(TH2), Principal);
+	return TVecLib<Dim>::PlanCurvature(Hodograph.GetPosition(TH), Hodograph2.GetPosition(TH2), PlanIndex);
 }
 
 template<int32 Dim, int32 Degree>

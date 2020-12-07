@@ -50,7 +50,7 @@ public:
 	{
 		TTuple<double, double> ParamRange = GetParamRange();
 		// if (Degree < 5) 
-		TGaussLegendre<GaussLegendreN> GaussLegendre([this](double InT) -> double {
+		TGaussLegendre<NumericalCalculationConst::GaussLegendreN> GaussLegendre([this](double InT) -> double {
 			return GetTangent(InT).Size();
 		}, ParamRange.Get<0>(), ParamRange.Get<1>());
 		return GaussLegendre.SolveFromIntegration(S);
