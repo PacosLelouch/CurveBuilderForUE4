@@ -160,4 +160,10 @@ protected:
 	bool AdjustPointByStaticPointReturnShouldSpread(FPointNode* Node, bool bFromNext = true);
 };
 
+template<int32 Dim>
+struct TSplineTraitByType<ESplineType::BezierString, Dim, 3>
+{
+	using FSplineType = typename TBezierString3<Dim>;
+};
+
 #include "BezierString.inl"

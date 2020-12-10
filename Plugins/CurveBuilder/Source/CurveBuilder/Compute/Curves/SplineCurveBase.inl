@@ -29,5 +29,5 @@ inline bool TSplineCurveBase<Dim, Degree>::FindParamByPosition(double& OutParam,
 		}
 	}
 
-	return CurDistSqr.IsSet();
+	return CurDistSqr.IsSet() && CurDistSqr.GetValue() < ToleranceSqr;
 }

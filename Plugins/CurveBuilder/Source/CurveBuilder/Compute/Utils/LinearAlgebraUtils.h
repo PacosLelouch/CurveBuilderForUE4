@@ -66,7 +66,7 @@ using F_Transform3 = FTransform;
 		} \
 		return ReturnValue; \
 	} \
-	FORCEINLINE static double Size(FType& V) \
+	FORCEINLINE static double Size(const FType& V) \
 	{ \
 		return sqrt(SizeSquared(V)); \
 	} \

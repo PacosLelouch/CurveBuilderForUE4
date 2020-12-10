@@ -40,8 +40,8 @@ public:
 	{
 		TTuple<double, double> ParamRange = GetParamRange();
 		// if (Degree < 5) 
-		TGaussLegendre<GaussLegendreN> GaussLegendre([this](double InT) -> double {
-			return GetTangent(InT).Size();
+		TGaussLegendre<NumericalCalculationConst::GaussLegendreN> GaussLegendre([this](double InT) -> double {
+			return TVecLib<Dim>::Size(GetTangent(InT));
 		}, ParamRange.Get<0>(), ParamRange.Get<1>());
 		return GaussLegendre.Integrate(T);
 	}
@@ -51,7 +51,7 @@ public:
 		TTuple<double, double> ParamRange = GetParamRange();
 		// if (Degree < 5) 
 		TGaussLegendre<NumericalCalculationConst::GaussLegendreN> GaussLegendre([this](double InT) -> double {
-			return GetTangent(InT).Size();
+			return TVecLib<Dim>::Size(GetTangent(InT));
 		}, ParamRange.Get<0>(), ParamRange.Get<1>());
 		return GaussLegendre.SolveFromIntegration(S);
 	}
@@ -131,3 +131,16 @@ public:
 protected:
 	ESplineType Type = ESplineType::Unknown;
 };
+
+template<ESplineType Type, int32 Dim = 3, int32 Degree = 3>
+struct TSplineTraitByType
+{
+	using FSplineType = typename TSplineBase<Dim, Degree>;
+};
+
+template<typename TSClass>
+struct TSplineTraitByClass
+{
+	using FSplineType = typename TSClass;
+};
+

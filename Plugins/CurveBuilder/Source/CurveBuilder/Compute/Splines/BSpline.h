@@ -78,7 +78,7 @@ public:
 
 	void GetCtrlPoints(TArray<TVectorX<Dim+1> >& CtrlPoints) const;
 
-	void ToBezierString(TArray<TBezierCurve<Dim, Degree> >& Beziers) const;
+	void ToBezierCurves(TArray<TBezierCurve<Dim, Degree> >& Beziers) const;
 
 	void GetClampedKnotIntervals(TArray<double>& OutClampedKnotIntervals) const;
 
@@ -155,6 +155,12 @@ protected:
 	void AddPointAtTailRaw(const TVectorX<Dim+1>& CtrlPoint);
 
 	void AddKnotAtTailRaw(double Param);
+};
+
+template<int32 Dim, int32 Degree>
+struct TSplineTraitByType<ESplineType::ClampedBSpline, Dim, Degree>
+{
+	using FSplineType = typename TClampedBSpline<Dim, Degree>;
 };
 
 #include "BSpline.inl"

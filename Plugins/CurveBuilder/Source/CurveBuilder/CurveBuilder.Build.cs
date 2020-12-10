@@ -11,12 +11,16 @@ public class CurveBuilder : ModuleRules
 
 		//string DoubleWorldDir = Path.Combine(ModuleDirectory, "../DoubleWorld/");
 		string BaseDir = Path.Combine(Path.Combine(ModuleDirectory, "Source"), ModuleDirectory);
+		string ComputeDir = Path.Combine(ModuleDirectory, "Compute");
+		string RuntimeComponentDir = Path.Combine(ModuleDirectory, "RuntimeComponent");
 		string ThirdPartyDir = Path.Combine(ModuleDirectory, "ThirdParty");
 
 		PublicIncludePaths.AddRange(
 			new string[] {
 				BaseDir,
 				ThirdPartyDir,
+				ComputeDir,
+				RuntimeComponentDir,
 				//DoubleWorldDir,
 				// ... add public include paths required here ...
 			}
@@ -25,6 +29,10 @@ public class CurveBuilder : ModuleRules
 		
 		PrivateIncludePaths.AddRange(
 			new string[] {
+				BaseDir,
+				ThirdPartyDir,
+				ComputeDir,
+				RuntimeComponentDir,
 				// ... add other private include paths required here ...
 			}
 			);

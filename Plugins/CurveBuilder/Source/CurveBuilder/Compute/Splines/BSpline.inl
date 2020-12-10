@@ -207,7 +207,7 @@ inline void TClampedBSpline<Dim, Degree>::GetCtrlPoints(TArray<TVectorX<Dim+1>>&
 }
 
 template<int32 Dim, int32 Degree>
-inline void TClampedBSpline<Dim, Degree>::ToBezierString(TArray<TBezierCurve<Dim, Degree>>& Beziers) const
+inline void TClampedBSpline<Dim, Degree>::ToBezierCurves(TArray<TBezierCurve<Dim, Degree>>& Beziers) const
 {
 	Beziers.Empty();
 
@@ -729,7 +729,7 @@ template<int32 Dim, int32 Degree>
 inline void TClampedBSpline<Dim, Degree>::ToPolynomialForm(TArray<TArray<TVectorX<Dim+1> > >& OutPolyForms) const
 {
 	TArray<TBezierCurve<Dim, Degree> > Beziers;
-	ToBezierString(Beziers);
+	ToBezierCurves(Beziers);
 	OutPolyForms.Empty(Beziers.Num());
 	for (int32 i = 0; i < Beziers.Num(); ++i) {
 		TArray<TVectorX<Dim+1> >& Poly = OutPolyForms.AddDefaulted_GetRef();
@@ -751,7 +751,7 @@ template<int32 Dim, int32 Degree>
 inline bool TClampedBSpline<Dim, Degree>::FindParamByPosition(double& OutParam, const TVectorX<Dim>& InPos, double ToleranceSqr) const
 {
 	TArray<TBezierCurve<Dim, Degree> > Beziers;
-	ToBezierString(Beziers);
+	ToBezierCurves(Beziers);
 
 	TOptional<double> CurParam;
 	TOptional<double> CurDistSqr;

@@ -8,7 +8,7 @@
 
 namespace NumericalCalculationConst {
 	constexpr int32 GaussLegendreN = 5;
-	constexpr int32 NewtonIteration = 10;
+	constexpr int32 NewtonIteration = 5;
 	constexpr double NewtonOptionalClampScale = 0.75;
 }
 

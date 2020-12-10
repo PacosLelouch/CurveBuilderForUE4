@@ -11,20 +11,20 @@ inline TSplineGraph<Dim, 3>::TSplineGraph(const TArray<TSharedPtr<FSplineType> >
 	TArray<TSharedPtr<FSplineWrapper> > SplineWrappers;
 	SplineWrappers.Reserve(Splines.Num());
 	for (int32 i = 0; i < Splines.Num(); ++i) {
-		TSharedPtr<FSplineWrapper>& SplineWrapper = SplineWrappers.Add_GetRef(MakeSheareable(new FSplineWrapper{ Splines[i] }));
+		TSharedPtr<FSplineWrapper>& SplineWrapper = SplineWrappers.Add_GetRef(MakeShareable(new FSplineWrapper{ Splines[i] }));
 		InternalGraphForward.Add(SplineWrapper, {});
 		InternalGraphBackward.Add(SplineWrapper, {});
 		SplineToWrapper.Add(Splines[i], TWeakPtr<FSplineWrapper>(SplineWrapper));
 	}
 	for (int32 i = 0; i < Splines.Num() - 1; ++i) {
-		InternalGraphForward[Splines[i]].Add({ TWeakPtr<FSplineWrapper>(SplineWrappers[i + 1]), EContactType::Start });
+		InternalGraphForward[SplineToWrapper[Splines[i]].Pin()].Add({ TWeakPtr<FSplineWrapper>(SplineWrappers[i + 1]), EContactType::Start });
 	}
 	for (int32 i = 1; i < Splines.Num(); ++i) {
-		InternalGraphBackward[Splines[i]].Add({ TWeakPtr<FSplineWrapper>(SplineWrappers[i - 1]), EContactType::End });
+		InternalGraphBackward[SplineToWrapper[Splines[i]].Pin()].Add({ TWeakPtr<FSplineWrapper>(SplineWrappers[i - 1]), EContactType::End });
 	}
 	if (bClosed) {
-		InternalGraphForward[Splines.Last()].Add({ TWeakPtr<FSplineWrapper>(SplineWrappers[0]), EContactType::Start });
-		InternalGraphBackward[Splines[0]].Add({ TWeakPtr<FSplineWrapper>(SplineWrappers.Last()), EContactType::End });
+		InternalGraphForward[SplineWrappers.Last()].Add({ TWeakPtr<FSplineWrapper>(SplineWrappers[0]), EContactType::Start });
+		InternalGraphBackward[SplineWrappers[0]].Add({ TWeakPtr<FSplineWrapper>(SplineWrappers.Last()), EContactType::End });
 	}
 }
 
@@ -43,16 +43,31 @@ inline int32 TSplineGraph<Dim, 3>::Num() const
 }
 
 template<int32 Dim>
+inline TWeakPtr<typename TSplineGraph<Dim, 3>::FSplineWrapper> TSplineGraph<Dim, 3>::GetSplineWrapper(TWeakPtr<FSplineType> SplineWeakPtr)
+{
+	if (!SplineWeakPtr.IsValid())
+	{
+		return TWeakPtr<FSplineWrapper>();
+	}
+	TWeakPtr<FSplineWrapper>* WrapperWeakPtrPtr = SplineToWrapper.Find(SplineWeakPtr.Pin());
+	if (!WrapperWeakPtrPtr)
+	{
+		return TWeakPtr<FSplineWrapper>();
+	}
+	return *WrapperWeakPtrPtr;
+}
+
+template<int32 Dim>
 inline TWeakPtr<typename TSplineGraph<Dim, 3>::FSplineType> TSplineGraph<Dim, 3>::AddDefaulted(ESplineType Type)
 {
 	TSharedPtr<FSplineType> NewSpline;
 	switch (Type) {
 	case ESplineType::ClampedBSpline:
-		NewSpline = MakeShareable(new TClampedBSpline<Dim, 3>());
+		NewSpline = MakeShareable(new TSplineTraitByType<ESplineType::ClampedBSpline, Dim, 3>::FSplineType());
 		AddSplineToGraph(NewSpline);
 		break;
 	case ESplineType::BezierString:
-		NewSpline = MakeShareable(new TBezierString3<Dim>());
+		NewSpline = MakeShareable(new TSplineTraitByType<ESplineType::BezierString, Dim, 3>::FSplineType());
 		AddSplineToGraph(NewSpline);
 		break;
 	}
@@ -296,7 +311,7 @@ inline void TSplineGraph<Dim, 3>::AdjustCtrlPointPos(
 							switch (SplineToAdjust.GetType()) {
 							case ESplineType::BezierString:
 							{
-								TBezierString3<Dim>& BezierString = static_cast<TBezierString3<Dim>&>(SplineToAdjust);
+								TBezierString3<Dim>& BezierString = static_cast<TSplineTraitByType<ESplineType::BezierString, Dim, 3>::FSplineType&>(SplineToAdjust);
 								BezierString.AdjustCtrlPointPos(GetEndNodeBezierString(BezierString, Node.ContactType),
 									NewEndPos, NthPointOfFrom);
 								if (MoveLevel > 0) {
@@ -310,7 +325,7 @@ inline void TSplineGraph<Dim, 3>::AdjustCtrlPointPos(
 							break;
 							case ESplineType::ClampedBSpline:
 							{
-								TClampedBSpline<Dim, 3>& BSpline = static_cast<TClampedBSpline<Dim, 3>&>(SplineToAdjust);
+								TClampedBSpline<Dim, 3>& BSpline = static_cast<TSplineTraitByType<ESplineType::ClampedBSpline, Dim, 3>::FSplineType&>(SplineToAdjust);
 								BSpline.AdjustCtrlPointPos(GetEndNodeBSpline(BSpline, Node.ContactType),
 									NewEndPos, NthPointOfFrom);
 								TArray<double> Params;
@@ -561,7 +576,7 @@ inline void TSplineGraph<Dim, 3>::ChangeSplineTypeFromBSpline(TSharedPtr<FSpline
 	{
 		auto* BSpline = static_cast<TClampedBSpline<Dim, 3>*>(SplinePtr.Get());
 		TArray<TBezierCurve<Dim, 3> > Beziers;
-		BSpline->ToBezierString(Beziers);
+		BSpline->ToBezierCurves(Beziers);
 		SplineToWrapper.Remove(WrapperSharedPtr->Spline);
 		WrapperSharedPtr->Spline = MakeShareable(new TBezierString3<Dim>(Beziers));
 		SplineToWrapper.Add(WrapperSharedPtr->Spline, WrapperSharedPtr);

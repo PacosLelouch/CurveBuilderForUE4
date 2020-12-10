@@ -288,7 +288,7 @@ int32 ASplineTestPlayerController::ResampleBezier(int32 FirstLineLayer)
 	for (int32 i = 0; i < Splines.Num(); ++i) {
 		const auto& Spline = Splines[i];
 		auto& Beziers = BezierCurves.AddDefaulted_GetRef();
-		Spline.ToBezierString(Beziers);
+		Spline.ToBezierCurves(Beziers);
 		UE_LOG(LogSplineCtrl, Warning, TEXT("Beziers[%d] Num = %d"),
 			i, Beziers.Num());
 		

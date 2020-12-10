@@ -23,12 +23,14 @@ public:
 	FORCEINLINE static constexpr int32 SplineDegree() { return FSplineType::SplineDegree(); }
 	FORCEINLINE static constexpr int32 SplineOrder() { return FSplineType::SplineOrder(); }
 
-protected:
+public:
 	// Use a wrapper to keep the pointer after changing the type of the spline.
 	struct FSplineWrapper
 	{
 		TSharedPtr<FSplineType> Spline;
 	};
+
+protected:
 
 	struct FGraphNode
 	{
@@ -61,6 +63,8 @@ public:
 	virtual void Empty();
 
 	virtual int32 Num() const;
+
+	virtual TWeakPtr<FSplineWrapper> GetSplineWrapper(TWeakPtr<FSplineType> SplineWeakPtr);
 
 	virtual TWeakPtr<FSplineType> AddDefaulted(ESplineType Type);
 
