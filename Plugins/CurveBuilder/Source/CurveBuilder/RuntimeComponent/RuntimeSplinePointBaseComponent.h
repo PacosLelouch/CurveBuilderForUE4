@@ -6,12 +6,13 @@
 #include "CoreMinimal.h"
 #include "RuntimeSplineGraph.h"
 #include "UObject/ObjectMacros.h"
+#include "Components/BoxComponent.h"
 #include "Components/PrimitiveComponent.h"
 #include "../Compute/Splines/SplineGraph.h"
 #include "RuntimeSplinePointBaseComponent.generated.h"
 
 UCLASS(BlueprintType, ClassGroup = CustomSpline, ShowCategories = (Mobility), HideCategories = (Physics, Lighting, Rendering, Mobile))
-class CURVEBUILDER_API URuntimeSplinePointBaseComponent : public UPrimitiveComponent
+class CURVEBUILDER_API URuntimeSplinePointBaseComponent : public UBoxComponent
 {
 	GENERATED_BODY()
 public:

@@ -7,6 +7,7 @@
 #include "Logging/LogMacros.h"
 #include "Engine.h"
 #include "Engine/World.h"
+#include "CurveBuilder/RuntimeComponent/RuntimeSplineGraph.h"
 #include "CurveBuilder/RuntimeComponent/RuntimeCustomSplineBaseComponent.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogComponentTest, Warning, All)
@@ -23,9 +24,22 @@ AComponentTestPlayerController::AComponentTestPlayerController(const FObjectInit
 void AComponentTestPlayerController::BeginPlay()
 {
 	Super::BeginPlay();
-	MaxSamplePointsNum = FMath::CeilToInt((Canvas2D->CanvasBoxYZ.Max.Y - Canvas2D->CanvasBoxYZ.Min.Y) / SamplePointDT) + 1;
-	Graph.Empty();
-	CreateSplineActor(Graph.AddDefaulted(NewSplineType));
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		return;
+	}
+	GraphActor = World->SpawnActor<ARuntimeSplineGraph>();
+
+	USceneComponent* NewRootComponent = NewObject<USceneComponent>(GraphActor);
+	GraphActor->SetRootComponent(NewRootComponent);
+	GraphActor->AddInstanceComponent(NewRootComponent);
+	NewRootComponent->RegisterComponent();
+	GraphActor->SetActorRotation(FRotator(0.f, 90.f, -90.f));
+
+	MaxSamplePointsNum = FMath::CeilToInt(static_cast<double>(Canvas2D->CanvasBoxYZ.Max.Y - Canvas2D->CanvasBoxYZ.Min.Y) / SamplePointDT) + 1;
+	GetSplineGraph().Empty();
+	GetSplineGraph().AddDefaulted(NewSplineType);
 
 	FixedTransform = FTransform(AController::GetControlRotation(), GetPawn()->GetActorLocation());
 	InputYawScale = 0.;
@@ -59,9 +73,9 @@ void AComponentTestPlayerController::Tick(float Delta)
 		bool bHit = TraceToCanvas(Distance, HitPoint, WorldPos, WorldDir);
 		if (bHit) {
 			FVector CtrlPoint = HitPointToControlPoint(HitPoint);
-			if (Graph.Num()) {
+			if (GetSplineGraph().Num()) {
 				TArray<TWeakPtr<FSpatialSplineGraph3::FSplineType> > Splines;
-				Graph.GetSplines(Splines);
+				GetSplineGraph().GetSplines(Splines);
 				for (int32 i = Splines.Num() - 1; i >= 0; --i) {
 					auto& Spline = *Splines[i].Pin().Get();
 
@@ -96,14 +110,14 @@ void AComponentTestPlayerController::Tick(float Delta)
 								if ((HoldingPointType && HoldingPointType.GetValue() == ESelectedNodeCtrlPointType::Current) ||
 									(!HoldingPointType && FVector::DistSquared(SelectedPos, CtrlPoint) < NodeDistSqr)) {
 									HoldingPointType = ESelectedNodeCtrlPointType::Current;
-									Graph.AdjustCtrlPointPos(SelectedPos, CtrlPoint, SelectedSpline, 1, 0, 0, NodeDistSqr);
+									GetSplineGraph().AdjustCtrlPointPos(SelectedPos, CtrlPoint, SelectedSpline, 1, 0, 0, NodeDistSqr);
 									//SplineBezierString.AdjustCtrlPointPos(SelectedNode, CtrlPoint, 0);
 									ResampleCurve();
 								}
 								else if ((HoldingPointType && HoldingPointType.GetValue() == ESelectedNodeCtrlPointType::Next) ||
 									(!HoldingPointType && FVector::DistSquared(SelectedNextPos, CtrlPoint) < NodeDistSqr)) {
 									HoldingPointType = ESelectedNodeCtrlPointType::Next;
-									Graph.AdjustCtrlPointPos(SelectedNextPos, CtrlPoint, SelectedSpline, 1, 1, 0, NodeDistSqr);
+									GetSplineGraph().AdjustCtrlPointPos(SelectedNextPos, CtrlPoint, SelectedSpline, 1, 1, 0, NodeDistSqr);
 									//SplineBezierString.AdjustCtrlPointTangent(SelectedNode, CtrlPoint, true, 0);
 									Canvas2D->DisplayPoints[2].Array.Add(ControlPointToHitPoint(TVecLib<4>::Projection(SelectedNode->GetValue().PrevCtrlPointPos)));
 									ResampleCurve();
@@ -111,11 +125,13 @@ void AComponentTestPlayerController::Tick(float Delta)
 								else if ((HoldingPointType && HoldingPointType.GetValue() == ESelectedNodeCtrlPointType::Previous) ||
 									(!HoldingPointType && FVector::DistSquared(SelectedPrevPos, CtrlPoint) < NodeDistSqr)) {
 									HoldingPointType = ESelectedNodeCtrlPointType::Previous;
-									Graph.AdjustCtrlPointPos(SelectedPrevPos, CtrlPoint, SelectedSpline, 1, -1, 0, NodeDistSqr);
+									GetSplineGraph().AdjustCtrlPointPos(SelectedPrevPos, CtrlPoint, SelectedSpline, 1, -1, 0, NodeDistSqr);
 									//SplineBezierString.AdjustCtrlPointTangent(SelectedNode, CtrlPoint, false, 0);
 									Canvas2D->DisplayPoints[2].Array.Add(ControlPointToHitPoint(TVecLib<4>::Projection(SelectedNode->GetValue().NextCtrlPointPos)));
 									ResampleCurve();
 								}
+								URuntimeCustomSplineBaseComponent* Comp = GraphActor->GetSplineComponentBySplineWeakPtr(SelectedSpline);
+								Comp->UpdateTransformByCtrlPoint();
 							}
 						}
 					}
@@ -133,10 +149,12 @@ void AComponentTestPlayerController::Tick(float Delta)
 								FVector SelectedPos = TVecLib<4>::Projection(SelectedNode->GetValue().Pos);
 								if (HoldingPointType || (!HoldingPointType && FVector::DistSquared(SelectedPos, CtrlPoint) < NodeDistSqr)) {
 									HoldingPointType = ESelectedNodeCtrlPointType::Current;
-									Graph.AdjustCtrlPointPos(SelectedPos, CtrlPoint, SelectedSpline, 1, 0, 0, NodeDistSqr);
+									GetSplineGraph().AdjustCtrlPointPos(SelectedPos, CtrlPoint, SelectedSpline, 1, 0, 0, NodeDistSqr);
 									//SplineBSpline.AdjustCtrlPointPos(SelectedNode, CtrlPoint, 0);
 									ResampleCurve();
 								}
+								URuntimeCustomSplineBaseComponent* Comp = GraphActor->GetSplineComponentBySplineWeakPtr(SelectedSpline);
+								Comp->UpdateTransformByCtrlPoint();
 							}
 						}
 					}
@@ -244,9 +262,9 @@ void AComponentTestPlayerController::BindOnEnterReleased()
 
 void AComponentTestPlayerController::RemakeBezierC2()
 {
-	if (Graph.Num()) {
+	if (GetSplineGraph().Num()) {
 		TArray<TWeakPtr<FSpatialSplineGraph3::FSplineType> > Splines;
-		Graph.GetSplines(Splines);
+		GetSplineGraph().GetSplines(Splines);
 		for (auto& SplinePtr : Splines) {
 			if (!SplinePtr.IsValid()) {
 				continue;
@@ -300,7 +318,7 @@ void AComponentTestPlayerController::OnParamsInputChanged()
 
 void AComponentTestPlayerController::SplitSplineAtCenter()
 {
-	//if (Graph.Num() == 0) {
+	//if (GetSplineGraph().Num() == 0) {
 	//	return;
 	//}
 	//const auto& Last = Splines.Pop();
@@ -336,8 +354,9 @@ void AComponentTestPlayerController::AddControlPoint(const FVector& HitPoint)
 		TWeakPtr<FSpatialSplineGraph3::FSplineType> TargetSplinePtr = SplinePtr;
 
 		bool bNewSpline = false;
-		if (Graph.HasConnection(SplinePtr, EContactType::End)) {
-			TargetSplinePtr = Graph.CreateSplineBesidesExisted(SplinePtr, EContactType::End, 1);
+		if (GetSplineGraph().HasConnection(SplinePtr, EContactType::End)) {
+			TargetSplinePtr = GetSplineGraph().CreateSplineBesidesExisted(SplinePtr, EContactType::End, 1);
+			CreateSplineActor(TargetSplinePtr);
 
 			bNewSpline = true;
 		}
@@ -400,10 +419,12 @@ void AComponentTestPlayerController::AddControlPoint(const FVector& HitPoint)
 		{
 			AddCtrlPointInternal(SelectedSpline);
 		}
+		URuntimeCustomSplineBaseComponent* Comp = GraphActor->GetSplineComponentBySplineWeakPtr(SelectedSpline);
+		Comp->UpdateTransformByCtrlPoint();
 	}
 	else {
 		TArray<TWeakPtr<FSpatialSplineGraph3::FSplineType> > Splines;
-		Graph.GetSplines(Splines);
+		GetSplineGraph().GetSplines(Splines);
 		bool bFind = false;
 		for (auto& SplinePtr : Splines) {
 			if (!SplinePtr.IsValid()) {
@@ -420,7 +441,14 @@ void AComponentTestPlayerController::AddControlPoint(const FVector& HitPoint)
 				return;
 			}
 			AddCtrlPointInternal(Splines.Last());
+
+			if (SplineActors.Num() == 0)
+			{
+				CreateSplineActor(Splines.Last());
+			}
 		}
+		URuntimeCustomSplineBaseComponent* Comp = GraphActor->GetSplineComponentBySplineWeakPtr(Splines.Last());
+		Comp->UpdateTransformByCtrlPoint();
 	}
 
 	ResampleCurve();
@@ -446,8 +474,8 @@ void AComponentTestPlayerController::ClearCanvasImpl()
 	SelectedSpline = nullptr;
 	NearestPoint.Reset();
 
-	Graph.Empty();
-	Graph.AddDefaulted(NewSplineType);
+	GetSplineGraph().Empty();
+	GetSplineGraph().AddDefaulted(NewSplineType);
 }
 
 void AComponentTestPlayerController::ResampleCurve()
@@ -464,14 +492,14 @@ void AComponentTestPlayerController::ResampleCurve()
 	Canvas2D->ClearDrawing();
 
 	UE_LOG(LogComponentTest, Warning, TEXT("Graph Num = %d"),
-		Graph.Num());
+		GetSplineGraph().Num());
 
 	int32 CurLayer = 0;
 
 	TArray<TWeakPtr<FSpatialSplineGraph3::FSplineType> > Splines;
 	TArray<FSpatialBezierString3*> BezierStrings;
 	TArray<FSpatialBSpline3*> BSplines;
-	Graph.GetSplines(Splines);
+	GetSplineGraph().GetSplines(Splines);
 	for (auto& SplinePtr : Splines) {
 		if (SplinePtr.IsValid()) {
 			FSpatialSplineGraph3::FSplineType* SplinePtrRaw = SplinePtr.Pin().Get();
@@ -502,15 +530,21 @@ void AComponentTestPlayerController::CreateSplineActor(TWeakPtr<FSpatialSplineGr
 			NewActor->SetRootComponent(NewRootComponent);
 			NewActor->AddInstanceComponent(NewRootComponent);
 			NewRootComponent->RegisterComponent();
-			NewActor->SetActorRotation(FRotator(0.f, 90.f, -90.f));
+			//NewActor->SetActorRotation(FRotator(0.f, 90.f, -90.f));
 			SplineActors.Add(NewActor);
 			URuntimeCustomSplineBaseComponent* NewComponent = NewObject<URuntimeCustomSplineBaseComponent>(NewActor);
-			NewComponent->SplineBaseWrapperProxy = Graph.GetSplineWrapper(SplineWeakPtr).Pin();
+			NewComponent->SplineBaseWrapperProxy = GetSplineGraph().GetSplineWrapper(SplineWeakPtr).Pin();
 			NewComponent->AttachTo(NewActor->GetRootComponent());
 			NewActor->AddInstanceComponent(NewComponent);
 			NewComponent->RegisterComponent();
+			GraphActor->VirtualAttachSplineComponent(NewComponent);
 		}
 	}
+}
+
+FSpatialSplineGraph3& AComponentTestPlayerController::GetSplineGraph()
+{
+	return GraphActor->SplineGraphProxy;
 }
 
 int32 AComponentTestPlayerController::ResampleBSpline(const TArray<FSpatialBSpline3*>& Splines, int32 FirstLineLayer)
@@ -726,10 +760,16 @@ void AComponentTestPlayerController::ReleaseLeftMouseButton(FKey Key, FVector2D 
 	}
 
 	if (SelectedSpline.IsValid() && !SelectedNodeRaw) {
+		GraphActor->GetSplineComponentBySplineWeakPtr(SelectedSpline)->SetSelected(false);
 		SelectedSpline = nullptr;
 	}
 	if (NearestSpline.IsValid()) {
+		if (SelectedSpline.IsValid() && SelectedSpline != NearestSpline)
+		{
+			GraphActor->GetSplineComponentBySplineWeakPtr(SelectedSpline)->SetSelected(false);
+		}
 		SelectedSpline = NearestSpline;
+		GraphActor->GetSplineComponentBySplineWeakPtr(SelectedSpline)->SetSelected(true);
 	}
 	ResampleCurve();
 
@@ -745,10 +785,10 @@ void AComponentTestPlayerController::ReleaseLeftMouseButton(FKey Key, FVector2D 
 		HitResults, LineStart, LineEnd,
 		FCollisionObjectQueryParams::InitType::AllObjects,
 		Params);
-	DrawDebugLine(GetWorld(), LineStart, LineEnd, FColor::Red, false, 10.f, 0, 2.f);
+	//DrawDebugLine(GetWorld(), LineStart, LineEnd, FColor::Red, false, 10.f, 0, 2.f);
 	for (const FHitResult& Result : HitResults)
 	{
-		DrawDebugLine(GetWorld(), Result.TraceStart, Result.TraceEnd, FColor::Blue, false, 10.f, 0, 2.f);
+		//DrawDebugLine(GetWorld(), Result.TraceStart, Result.TraceEnd, FColor::Blue, false, 10.f, 0, 2.f);
 		UE_LOG(LogComponentTest, Warning, TEXT(R"(LineTrace Hits:
 {
 	Actor:[%s],
@@ -786,12 +826,12 @@ void AComponentTestPlayerController::AddNewSplineAfterSelectedSplineEvent(FKey K
 {
 	if (SelectedSpline.IsValid())
 	{
-		CreateSplineActor(Graph.CreateSplineBesidesExisted(SelectedSpline, EContactType::End, 1));
+		CreateSplineActor(GetSplineGraph().CreateSplineBesidesExisted(SelectedSpline, EContactType::End, 1));
 	}
 	else {
 		TArray<TWeakPtr<FSpatialSplineGraph3::FSplineType> > Splines;
-		Graph.GetSplines(Splines);
-		CreateSplineActor(Graph.CreateSplineBesidesExisted(Splines.Last(), EContactType::End, 1));
+		GetSplineGraph().GetSplines(Splines);
+		CreateSplineActor(GetSplineGraph().CreateSplineBesidesExisted(Splines.Last(), EContactType::End, 1));
 	}
 
 	ResampleCurve();
@@ -831,7 +871,7 @@ void AComponentTestPlayerController::FlipSelectedSplineTypeEvent(FKey Key, EInpu
 {
 	if (SelectedSpline.IsValid()) {
 		if (SelectedSpline.Pin().Get()->GetType() == ESplineType::ClampedBSpline) {
-			Graph.ChangeSplineType(SelectedSpline, ESplineType::BezierString);
+			GetSplineGraph().ChangeSplineType(SelectedSpline, ESplineType::BezierString);
 			ResampleCurve();
 		}
 	}
@@ -842,7 +882,7 @@ void AComponentTestPlayerController::ReverseSelectedSplineTypeEvent(FKey Key, EI
 {
 	if (SelectedSpline.IsValid()) {
 		UE_LOG(LogComponentTest, Warning, TEXT("Reverse Spline"));
-		Graph.ReverseSpline(SelectedSpline);
+		GetSplineGraph().ReverseSpline(SelectedSpline);
 		ResampleCurve();
 	}
 }

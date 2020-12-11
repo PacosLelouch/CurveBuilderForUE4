@@ -20,6 +20,7 @@ using FSpatialBezierString3 = typename TBezierString3<3>;
 //	Current,
 //	Next,
 //};
+class ARuntimeSplineGraph;
 
 UCLASS(BlueprintType, Blueprintable)
 class AComponentTestPlayerController : public ACGDemoPlayerController2D
@@ -99,6 +100,8 @@ protected:
 
 	void CreateSplineActor(TWeakPtr<FSpatialSplineGraph3::FSplineType> SplineWeakPtr);
 
+	FSpatialSplineGraph3& GetSplineGraph();
+
 private:
 	int32 ResampleBSpline(const TArray<FSpatialBSpline3*>& Splines, int32 FirstLineLayer = 0);
 
@@ -163,7 +166,9 @@ public:
 
 	TOptional<FTransform> FixedTransform;
 
-	FSpatialSplineGraph3 Graph;
+	//FSpatialSplineGraph3 Graph;
+
+	ARuntimeSplineGraph* GraphActor;
 
 protected:
 	FVector ControlPointToHitPoint(const FVector& P);
