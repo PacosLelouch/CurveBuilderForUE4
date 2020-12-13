@@ -31,10 +31,10 @@ void AComponentTestPlayerController::BeginPlay()
 	}
 	GraphActor = World->SpawnActor<ARuntimeSplineGraph>();
 
-	USceneComponent* NewRootComponent = NewObject<USceneComponent>(GraphActor);
-	GraphActor->SetRootComponent(NewRootComponent);
-	GraphActor->AddInstanceComponent(NewRootComponent);
-	NewRootComponent->RegisterComponent();
+	//USceneComponent* NewRootComponent = NewObject<USceneComponent>(GraphActor);
+	//GraphActor->SetRootComponent(NewRootComponent);
+	//GraphActor->AddInstanceComponent(NewRootComponent);
+	//NewRootComponent->RegisterComponent();
 	GraphActor->SetActorRotation(FRotator(0.f, 90.f, -90.f));
 
 	MaxSamplePointsNum = FMath::CeilToInt(static_cast<double>(Canvas2D->CanvasBoxYZ.Max.Y - Canvas2D->CanvasBoxYZ.Min.Y) / SamplePointDT) + 1;
@@ -801,6 +801,21 @@ void AComponentTestPlayerController::ReleaseLeftMouseButton(FKey Key, FVector2D 
 			*Result.Component->GetFName().ToString(),
 			*Result.Location.ToString(),
 			*Result.BoneName.ToString());
+		
+		if (Result.Component->IsA<URuntimeCustomSplineBaseComponent>())
+		{
+			static TMap<URuntimeCustomSplineBaseComponent*, FTimerHandle> Handles;
+
+			URuntimeCustomSplineBaseComponent* HitComp = Cast<URuntimeCustomSplineBaseComponent>(Result.Component);
+			HitComp->SetDrawDebugCollision(true);
+
+			FTimerHandle& Handle = Handles.FindOrAdd(HitComp, FTimerHandle());
+			GetWorldTimerManager().SetTimer(Handle, [HitComp, &Handle]()
+			{
+				HitComp->SetDrawDebugCollision(false);
+				Handle.Invalidate();
+			}, 3.f, false, 3.f);
+		}
 	}
 	UE_LOG(LogComponentTest, Warning, TEXT(R"(End Hit Results)"));
 }

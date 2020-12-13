@@ -4,17 +4,32 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Components/SceneComponent.h"
 #include "../Compute/Splines/SplineGraph.h"
 #include "RuntimeSplineGraph.generated.h"
 
 using FSpatialSplineGraph3 = typename TSplineGraph<3, 3>;
 class URuntimeCustomSplineBaseComponent;
 
+UCLASS()
+class CURVEBUILDER_API USplineGraphRootComponent : public USceneComponent
+{
+	GENERATED_BODY()
+public:
+	virtual void OnUpdateTransform(EUpdateTransformFlags UpdateTransformFlags, ETeleportType Teleport = ETeleportType::None) override;
+
+#if WITH_EDITOR
+	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+#endif
+
+};
+
 UCLASS(BlueprintType)
 class CURVEBUILDER_API ARuntimeSplineGraph : public AActor
 {
 	GENERATED_BODY()
 public:
+	ARuntimeSplineGraph(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
 	virtual void Destroyed() override;
 

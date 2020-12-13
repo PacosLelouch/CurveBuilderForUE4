@@ -2,131 +2,26 @@
 // https://github.com/PacosLelouch/
 
 #include "RuntimeCustomSplineBaseComponent.h"
-#include "PrimitiveSceneProxy.h"
+#include "RuntimeCustomSplineSceneProxy.h"
 #include "PhysicsEngine/BodySetup.h"
 #include "Engine/StaticMesh.h"
 
 static constexpr bool bDrawLineByCurveLength = false;
 
-template<int32 Dim>
-struct TRuntimeSplineDrawInfo<Dim, 3>
+URuntimeCustomSplineBaseComponent::URuntimeCustomSplineBaseComponent(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
 {
-	TRuntimeSplineDrawInfo(const URuntimeCustomSplineBaseComponent* InComponent)
-		: CurveColor(InComponent->CurveColor)
-		, CtrlSegColor(InComponent->CtrlSegColor)
-		, CtrlPointColor(InComponent->CtrlPointColor)
-		, SelectedCtrlPointColor(InComponent->SelectedCtrlPointColor)
-
-		, PointSize(InComponent->PointSize)
-		, SegLength(InComponent->SegLength)
-		, Thickness(InComponent->Thickness)
-		, DepthBias(InComponent->DepthBias)
-		, bSelected(InComponent->bSelected)
-		, SplineInternalRef(*InComponent->GetSplineProxy())
-
-		//, bDrawDebugCollision(InComponent->bDrawDebugCollision)
-		//: SplineComponent(InComponent)
-	{}
-	FLinearColor CurveColor = FLinearColor::White;
-	FLinearColor CtrlSegColor = FLinearColor::White;
-	FLinearColor CtrlPointColor = FLinearColor::White;
-	FLinearColor SelectedCtrlPointColor = FLinearColor::White;
-
-	float PointSize = 6.f;
-	float SegLength = 5.f;
-	float Thickness = 0.f;
-	float DepthBias = 0.f;
-	bool bSelected = false;
-	//bool bDrawDebugCollision = false;
-	const TSplineBase<Dim, 3>& SplineInternalRef;
-	//const URuntimeCustomSplineBaseComponent* SplineComponent;
-};
-
-class FRuntimeCustomSplineSceneProxy final : public FPrimitiveSceneProxy
-{
-public:
-	SIZE_T GetTypeHash() const override
-	{
-		static size_t UniquePointer;
-		return reinterpret_cast<size_t>(&UniquePointer);
-	}
-
-	FRuntimeCustomSplineSceneProxy(const URuntimeCustomSplineBaseComponent* InComponent)
-		: FPrimitiveSceneProxy(InComponent)
-		, SplineComponent(InComponent)
-	{}
-
-	virtual void GetDynamicMeshElements(const TArray<const FSceneView*>& Views, const FSceneViewFamily& ViewFamily, uint32 VisibilityMap, FMeshElementCollector& Collector) const override
-	{
-		QUICK_SCOPE_CYCLE_COUNTER(STAT_RuntimeCustomSplineSceneProxy_GetDynamicMeshElements);
-
-		if (!IsValid(SplineComponent))
-		{
-			return;
-		}
-
-		auto* SplineProxy = SplineComponent->GetSplineProxy();
-		if (!SplineProxy)
-		{
-			return;
-		}
-
-		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
-		{
-			if (VisibilityMap & (1 << ViewIndex))
-			{
-				const FSceneView* View = Views[ViewIndex];
-				FPrimitiveDrawInterface* PDI = Collector.GetPDI(ViewIndex);
-
-				const FMatrix& LocalToWorldMat = GetLocalToWorld();
-				//const FMatrix& LocalToWorldMat = SplineComponent->GetSplineLocalToWorldMatrix();
-
-				// Taking into account the min and maximum drawing distance
-				const float DistanceSqr = (View->ViewMatrices.GetViewOrigin() - LocalToWorldMat.GetOrigin()).SizeSquared();
-				if (DistanceSqr < FMath::Square(GetMinDrawDistance()) || DistanceSqr > FMath::Square(GetMaxDrawDistance()))
-				{
-					continue;
-				}
-
-				FSpatial3DrawInfo DrawInfo(SplineComponent);
-				
-				URuntimeCustomSplineBaseComponent::DrawRuntimeSpline(PDI, View, DrawInfo, LocalToWorldMat, ESceneDepthPriorityGroup::SDPG_Foreground);
-
-				if (SplineComponent->bDrawDebugCollision)
-				{
-					for (const FKSphylElem& Elem : SplineComponent->BodySetup->AggGeom.SphylElems)
-					{
-						FTransform LocalTransform(Elem.Rotation, Elem.Center);
-						Elem.DrawElemWire(PDI, SplineComponent->BodyInstance.GetUnrealWorldTransform() * LocalTransform, FVector::OneVector, SplineComponent->DebugCollisionColor.ToFColor(true));
-					}
-				}
-			}
-		}
-	}
-
-	virtual FPrimitiveViewRelevance GetViewRelevance(const FSceneView* View) const override
-	{
-		FPrimitiveViewRelevance Result;
-		Result.bDrawRelevance = IsValid(SplineComponent) && IsShown(View);//bDrawDebug && !IsSelected() && IsShown(View) && View->Family->EngineShowFlags.Splines;
-		Result.bDynamicRelevance = true;
-		Result.bShadowRelevance = IsShadowCast(View);
-		Result.bEditorPrimitiveRelevance = UseEditorCompositing(View);
-		return Result;
-	}
-
-	virtual uint32 GetMemoryFootprint(void) const override { return sizeof *this + GetAllocatedSize(); }
-	uint32 GetAllocatedSize(void) const { return FPrimitiveSceneProxy::GetAllocatedSize(); }
-
-protected:
-	const URuntimeCustomSplineBaseComponent* SplineComponent;
-};
+	bUseAttachParentBound = false;
+	bAlwaysCreatePhysicsState = true;
+	CanCharacterStepUpOn = ECanBeCharacterBase::ECB_No;
+	DepthPriorityGroup = ESceneDepthPriorityGroup::SDPG_Foreground;
+}
 
 void URuntimeCustomSplineBaseComponent::BeginPlay()
 {
 	Super::BeginPlay(); 
 	SetCollisionEnabled(ECollisionEnabled::QueryOnly); 
 	SetGenerateOverlapEvents(true);
-	CanCharacterStepUpOn = ECanBeCharacterBase::ECB_No;
 	SetCollisionResponseToAllChannels(ECollisionResponse::ECR_Overlap);
 }
 
@@ -142,10 +37,14 @@ FMatrix URuntimeCustomSplineBaseComponent::GetRenderMatrix() const
 
 void URuntimeCustomSplineBaseComponent::OnCreatePhysicsState()
 {
+#if true
+	Super::OnCreatePhysicsState();
+#else
 	USceneComponent::OnCreatePhysicsState();
 
 	// if we have a scene, we don't want to disable all physics and we have no bodyinstance already
-	if (true)//(!BodyInstance.IsValidBodyInstance())
+	//if (true)
+	if (!BodyInstance.IsValidBodyInstance())
 	{
 		//UE_LOG(LogPrimitiveComponent, Warning, TEXT("Creating Physics State (%s : %s)"), *GetNameSafe(GetOuter()),  *GetName());
 
@@ -153,7 +52,7 @@ void URuntimeCustomSplineBaseComponent::OnCreatePhysicsState()
 		if (UseBodySetup)
 		{
 			// Create new BodyInstance at given location.
-			FTransform BodyTransform = GetSplineLocalToWorldTransform();
+			FTransform BodyTransform = GetComponentTransform();//GetSplineLocalToWorldTransform();
 
 			// Here we make sure we don't have zero scale. This still results in a body being made and placed in
 			// world (very small) but is consistent with a body scaled to zero.
@@ -193,12 +92,67 @@ void URuntimeCustomSplineBaseComponent::OnCreatePhysicsState()
 #endif // WITH_EDITOR
 		}
 	}
+#endif
 }
 
 void URuntimeCustomSplineBaseComponent::OnUpdateTransform(EUpdateTransformFlags UpdateTransformFlags, ETeleportType Teleport)
 {
 	Super::OnUpdateTransform(UpdateTransformFlags, Teleport);
+	UpdateBounds();
 	UpdateCollision();
+	MarkRenderTransformDirty();  // Need to send new bounds to render thread
+}
+
+FBoxSphereBounds URuntimeCustomSplineBaseComponent::CalcBounds(const FTransform& LocalToWorld) const
+{
+	//FTransform RealLocalToWorld = GetSplineLocalToWorldTransform() * GetComponentTransform().Inverse() * LocalToWorld;
+	FTransform RealLocalToWorld = GetSplineLocalToComponentLocalTransform() * LocalToWorld;
+	
+	FBox Box(EForceInit::ForceInitToZero);
+	auto* Spline = GetSplineProxy();
+	if (Spline)
+	{
+		switch (Spline->GetType())
+		{
+		case ESplineType::ClampedBSpline:
+		{
+			TArray<FVector4> CPs;
+			auto* BSpline = static_cast<TSplineTraitByType<ESplineType::ClampedBSpline>::FSplineType*>(Spline);
+			BSpline->GetCtrlPoints(CPs);
+			for (const FVector4& V : CPs)
+			{
+				Box += TVecLib<4>::Projection(V);
+			}
+		}
+			break;
+
+		case ESplineType::BezierString:
+		{
+			TArray<FVector4> CPs, NextCPs, PrevCPs;
+			auto* Beziers = static_cast<TSplineTraitByType<ESplineType::BezierString>::FSplineType*>(Spline);
+			Beziers->GetCtrlPoints(CPs);
+			Beziers->GetCtrlPointsNext(NextCPs);
+			Beziers->GetCtrlPointsPrev(PrevCPs);
+			for (const FVector4& V : CPs)
+			{
+				Box += TVecLib<4>::Projection(V);
+			}
+			for (const FVector4& V : NextCPs)
+			{
+				Box += TVecLib<4>::Projection(V);
+			}
+			for (const FVector4& V : PrevCPs)
+			{
+				Box += TVecLib<4>::Projection(V);
+			}
+		}
+			break;
+		}
+	}
+
+	FBoxSphereBounds SB(Box.ExpandBy(this->CollisionSegWidth));
+	FBoxSphereBounds SBT = SB.TransformBy(RealLocalToWorld);
+	return SBT;
 }
 
 void URuntimeCustomSplineBaseComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
@@ -216,6 +170,7 @@ void URuntimeCustomSplineBaseComponent::PostEditChangeProperty(FPropertyChangedE
 			|| PropertyName == GET_MEMBER_NAME_CHECKED(URuntimeCustomSplineBaseComponent, CtrlPointColor)
 			|| PropertyName == GET_MEMBER_NAME_CHECKED(URuntimeCustomSplineBaseComponent, SelectedCtrlPointColor)
 			|| PropertyName == GET_MEMBER_NAME_CHECKED(URuntimeCustomSplineBaseComponent, CtrlSegColor)
+			|| PropertyName == GET_MEMBER_NAME_CHECKED(URuntimeCustomSplineBaseComponent, DebugCollisionLineWidth)
 			|| PropertyName == GET_MEMBER_NAME_CHECKED(URuntimeCustomSplineBaseComponent, bDrawDebugCollision))
 		{
 			MarkRenderStateDirty();
@@ -223,7 +178,12 @@ void URuntimeCustomSplineBaseComponent::PostEditChangeProperty(FPropertyChangedE
 		else if (PropertyName == GET_MEMBER_NAME_CHECKED(URuntimeCustomSplineBaseComponent, CollisionSegLength)
 			|| PropertyName == GET_MEMBER_NAME_CHECKED(URuntimeCustomSplineBaseComponent, CollisionSegWidth))
 		{
+			UpdateBounds();
 			UpdateCollision();
+			if (bDrawDebugCollision)
+			{
+				MarkRenderStateDirty();
+			}
 		}
 	}
 }
@@ -268,6 +228,11 @@ FTransform URuntimeCustomSplineBaseComponent::GetSplineLocalToWorldTransform() c
 	return GetComponentTransform();
 }
 
+FTransform URuntimeCustomSplineBaseComponent::GetSplineWorldToLocalTransform() const
+{
+	return GetSplineLocalToWorldTransform().Inverse();
+}
+
 FMatrix URuntimeCustomSplineBaseComponent::GetSplineLocalToWorldMatrix() const
 {
 	return GetSplineLocalToWorldTransform().ToMatrixWithScale();
@@ -280,6 +245,11 @@ FMatrix URuntimeCustomSplineBaseComponent::GetSplineWorldToLocalMatrix() const
 	//return FMatrix::Identity;
 }
 
+FTransform URuntimeCustomSplineBaseComponent::GetSplineLocalToComponentLocalTransform() const
+{
+	return GetSplineLocalToWorldTransform() * GetComponentTransform().Inverse();
+}
+
 void URuntimeCustomSplineBaseComponent::UpdateTransformByCtrlPoint()
 {
 	auto* Spline = GetSplineProxy();
@@ -288,7 +258,9 @@ void URuntimeCustomSplineBaseComponent::UpdateTransformByCtrlPoint()
 		TTuple<double, double> ParamRange = Spline->GetParamRange();
 		SetRelativeLocation(Spline->GetPosition(ParamRange.Get<0>()));
 	}
+	UpdateBounds();
 	UpdateCollision();
+	MarkRenderTransformDirty();
 }
 
 void URuntimeCustomSplineBaseComponent::CreateBodySetup()
@@ -298,9 +270,10 @@ void URuntimeCustomSplineBaseComponent::CreateBodySetup()
 		BodySetup = NewObject<UBodySetup>(this, NAME_None, (IsTemplate() ? RF_Public : RF_NoFlags));
 		BodySetup->BodySetupGuid = FGuid::NewGuid();
 
+		BodySetup->BuildScale3D = FVector::OneVector;
 		BodySetup->bGenerateMirroredCollision = false;
 		BodySetup->bDoubleSidedGeometry = false;
-		BodySetup->CollisionTraceFlag = CTF_UseDefault;//bUseComplexAsSimpleCollision ? CTF_UseComplexAsSimple : CTF_UseDefault;
+		BodySetup->CollisionTraceFlag = CTF_UseSimpleAsComplex;//bUseComplexAsSimpleCollision ? CTF_UseComplexAsSimple : CTF_UseDefault;
 	}
 }
 
@@ -330,16 +303,17 @@ void URuntimeCustomSplineBaseComponent::UpdateCollision()
 	int32 SegNum = FMath::FloorToInt(SegNumDbl);
 	double StepLength = ParamDiff / SegNumDbl;
 
-	FMatrix LocalToWorld = GetSplineLocalToWorldMatrix();
+	//FMatrix LocalToWorld = GetSplineLocalToWorldMatrix();
+	FMatrix SplineLocalToComponentLocal = GetSplineLocalToComponentLocalTransform().ToMatrixWithScale();
 	double T = ParamRange.Get<0>();
-	FVector Start = LocalToWorld.TransformPosition(Spline->GetPosition(T));
+	FVector Start = SplineLocalToComponentLocal.TransformPosition(Spline->GetPosition(T));
 
 	// Fill in simple collision sphyl elements
 	BodySetup->AggGeom.SphylElems.Empty(SegNum);
 	for (int32 i = 0; i < SegNum; ++i)
 	{
 		T += StepLength;
-		FVector End = LocalToWorld.TransformPosition(Spline->GetPosition(T));
+		FVector End = SplineLocalToComponentLocal.TransformPosition(Spline->GetPosition(T));
 		FVector SphylUpTangent = End - Start;
 		FVector SphylUpDirection = SphylUpTangent.GetSafeNormal();
 		//FVector SphylDirection = (FVector::UpVector ^ SphylUpDirection).GetSafeNormal();
@@ -352,22 +326,32 @@ void URuntimeCustomSplineBaseComponent::UpdateCollision()
 		//FRotator DirRotator = SphylUpDirection.ToOrientationRotator();
 		//SegElem.Rotation = (LocalToWorld.ToQuat() * DirRotator.Quaternion()).Rotator();
 		//SegElem.Rotation = (LocalToWorld.ToQuat() * SphylDirection.ToOrientationRotator().Quaternion()).Rotator();
-		SegElem.Rotation = FRotator(-90.f, 0.f, 0.f);
+		//SegElem.Rotation = (SplineLocalToComponentLocal.Rotator().Quaternion() * FRotator(-90.f, 0.f, 0.f).Quaternion()).Rotator();
+		SegElem.Rotation = (SphylUpDirection.ToOrientationQuat() * FRotator(-90.f, 0.f, 0.f).Quaternion()).Rotator();
 		BodySetup->AggGeom.SphylElems.Add(SegElem);
 		Start = End;
 	}
 	//BodySetup->AggGeom.ConvexElems = CollisionConvexElems;
 
 	// Set trace flag
-	BodySetup->CollisionTraceFlag = CTF_UseDefault;// bUseComplexAsSimpleCollision ? CTF_UseComplexAsSimple : CTF_UseDefault;
+	BodySetup->CollisionTraceFlag = CTF_UseSimpleAsComplex;// bUseComplexAsSimpleCollision ? CTF_UseComplexAsSimple : CTF_UseDefault;
 
 	// New GUID as collision has changed
-	BodySetup->BodySetupGuid = FGuid::NewGuid();
+	//BodySetup->BodySetupGuid = FGuid::NewGuid();
 	// Also we want cooked data for this
 	BodySetup->bHasCookedCollisionData = true;
 	BodySetup->InvalidatePhysicsData();
 	//BodySetup->CreatePhysicsMeshes();
 	RecreatePhysicsState();
+}
+
+void URuntimeCustomSplineBaseComponent::SetDrawDebugCollision(bool bValue)
+{
+	if (bDrawDebugCollision != bValue)
+	{
+		bDrawDebugCollision = bValue;
+		UpdateCollision();
+	}
 }
 
 //template<>
@@ -467,5 +451,63 @@ void URuntimeCustomSplineBaseComponent::DrawRuntimeSpline(FPrimitiveDrawInterfac
 		}
 		break;
 		}
+	}
+}
+
+static const FVector CollisionScale3D = FVector::OneVector;
+static const int32 DrawCollisionSides = 16;
+
+static void DrawHalfCircle(FPrimitiveDrawInterface* PDI, const FVector& Base, const FVector& X, const FVector& Y, const FColor Color, float Radius, uint8 DepthPriorityGroup, float Thickness = 0.f)
+{
+	float	AngleDelta = 2.0f * (float)PI / ((float)DrawCollisionSides);
+	FVector	LastVertex = Base + X * Radius;
+
+	for (int32 SideIndex = 0; SideIndex < (DrawCollisionSides/2); SideIndex++)
+	{
+		FVector	Vertex = Base + (X * FMath::Cos(AngleDelta * (SideIndex + 1)) + Y * FMath::Sin(AngleDelta * (SideIndex + 1))) * Radius;
+		PDI->DrawLine(LastVertex, Vertex, Color, DepthPriorityGroup, Thickness);
+		LastVertex = Vertex;
+	}
+}
+
+void URuntimeCustomSplineBaseComponent::DrawDebugCollisions(const URuntimeCustomSplineBaseComponent* SplineComponent, FPrimitiveDrawInterface* PDI, const FSceneView* View, const FMatrix& LocalToWorld, uint8 DepthPriorityGroup)
+{
+	FColor Color = SplineComponent->DebugCollisionColor.ToFColor(true);
+	float Thickness = SplineComponent->DebugCollisionLineWidth;
+	for (const FKSphylElem& Elem : SplineComponent->BodySetup->AggGeom.SphylElems)
+	{
+		FTransform LocalTransform(Elem.Rotation, Elem.Center);
+		//Elem.DrawElemWire(PDI, LocalTransform * FTransform(LocalToWorld), FVector::OneVector, SplineComponent->DebugCollisionColor.ToFColor(true));
+		
+		FMatrix ElemTM = LocalTransform.ToMatrixWithScale() * LocalToWorld;
+
+		const FVector Origin = ElemTM.GetOrigin();
+		const FVector XAxis = ElemTM.GetScaledAxis(EAxis::X);
+		const FVector YAxis = ElemTM.GetScaledAxis(EAxis::Y);
+		const FVector ZAxis = ElemTM.GetScaledAxis(EAxis::Z);
+		const float ScaledHalfLength = Elem.GetScaledCylinderLength(CollisionScale3D) * .5f;
+		const float ScaledRadius = Elem.GetScaledRadius(CollisionScale3D);
+
+		// Draw top and bottom circles
+		const FVector TopEnd = Origin + (ScaledHalfLength * ZAxis);
+		const FVector BottomEnd = Origin - (ScaledHalfLength * ZAxis);
+
+		DrawCircle(PDI, TopEnd, XAxis, YAxis, Color, ScaledRadius, DrawCollisionSides, DepthPriorityGroup, Thickness);
+		DrawCircle(PDI, BottomEnd, XAxis, YAxis, Color, ScaledRadius, DrawCollisionSides, DepthPriorityGroup, Thickness);
+
+		// Draw domed caps
+		DrawHalfCircle(PDI, TopEnd, YAxis, ZAxis, Color, ScaledRadius, DepthPriorityGroup, Thickness);
+		DrawHalfCircle(PDI, TopEnd, XAxis, ZAxis, Color, ScaledRadius, DepthPriorityGroup, Thickness);
+
+		const FVector NegZAxis = -ZAxis;
+
+		DrawHalfCircle(PDI, BottomEnd, YAxis, NegZAxis, Color, ScaledRadius, DepthPriorityGroup, Thickness);
+		DrawHalfCircle(PDI, BottomEnd, XAxis, NegZAxis, Color, ScaledRadius, DepthPriorityGroup, Thickness);
+
+		// Draw connecty lines
+		PDI->DrawLine(TopEnd + ScaledRadius*XAxis, BottomEnd + ScaledRadius*XAxis, Color, DepthPriorityGroup, Thickness);
+		PDI->DrawLine(TopEnd - ScaledRadius*XAxis, BottomEnd - ScaledRadius*XAxis, Color, DepthPriorityGroup, Thickness);
+		PDI->DrawLine(TopEnd + ScaledRadius*YAxis, BottomEnd + ScaledRadius*YAxis, Color, DepthPriorityGroup, Thickness);
+		PDI->DrawLine(TopEnd - ScaledRadius*YAxis, BottomEnd - ScaledRadius*YAxis, Color, DepthPriorityGroup, Thickness);
 	}
 }
