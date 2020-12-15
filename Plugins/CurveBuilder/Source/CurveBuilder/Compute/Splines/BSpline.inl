@@ -5,13 +5,14 @@
 
 #include "BSpline.h"
 
+#define GetValueRef GetValue().Get
 
 template<int32 Dim, int32 Degree>
 inline TClampedBSpline<Dim, Degree>::TClampedBSpline(const TClampedBSpline<Dim, Degree>& InSpline)
 {
 	Type = ESplineType::ClampedBSpline;
-	for (const auto& Pos : InSpline.CtrlPointsList) {
-		CtrlPointsList.AddTail(Pos);
+	for (const FControlPointTypeRef& Pos : InSpline.CtrlPointsList) {
+		CtrlPointsList.AddTail(MakeShared<FControlPointType>(Pos.Get()));
 	}
 	for (const auto& P : InSpline.KnotIntervals) {
 		KnotIntervals.Add(P);
@@ -33,20 +34,30 @@ inline TClampedBSpline<Dim, Degree>& TClampedBSpline<Dim, Degree>::operator=(con
 }
 
 template<int32 Dim, int32 Degree>
+inline void TClampedBSpline<Dim, Degree>::GetCtrlPointStructs(TArray<TWeakPtr<TSplineBaseControlPoint<Dim, Degree>>>& OutControlPointStructs) const
+{
+	OutControlPointStructs.Empty(CtrlPointsList.Num());
+	for (FPointNode* Node = CtrlPointsList.GetHead(); Node; Node = Node->GetNextNode())
+	{
+		OutControlPointStructs.Add(TWeakPtr<TSplineBaseControlPoint<Dim, Degree>>(Node->GetValue()));
+	}
+}
+
+template<int32 Dim, int32 Degree>
 inline TSharedRef<TSplineBase<Dim, Degree>> TClampedBSpline<Dim, Degree>::CreateSameType(int32 EndContinuity) const
 {
 	TSharedRef<TSplineBase<Dim, Degree> > NewSpline = MakeShared<TClampedBSpline<Dim, Degree> >();
 	if (EndContinuity >= 0) {
 		FPointNode* CurRefNode = CtrlPointsList.GetTail();
-		TVectorX<Dim> CurPos = TVecLib<Dim+1>::Projection(CurRefNode->GetValue().Pos);
-		TVectorX<Dim> CurRefPos = TVecLib<Dim+1>::Projection(CurRefNode->GetValue().Pos);
+		TVectorX<Dim> CurPos = TVecLib<Dim+1>::Projection(CurRefNode->GetValueRef().Pos);
+		TVectorX<Dim> CurRefPos = TVecLib<Dim+1>::Projection(CurRefNode->GetValueRef().Pos);
 		NewSpline.Get().AddPointAtLast(CurPos);
 		for (int32 i = 0; i < EndContinuity; ++i) {
 			if (!CurRefNode) {
 				break;
 			}
 			FPointNode* PrevRefNode = CurRefNode->GetPrevNode();
-			TVectorX<Dim> PrevRefPos = TVecLib<Dim+1>::Projection(PrevRefNode->GetValue().Pos);
+			TVectorX<Dim> PrevRefPos = TVecLib<Dim+1>::Projection(PrevRefNode->GetValueRef().Pos);
 
 			TVectorX<Dim> Diff = CurRefPos - PrevRefPos;
 			TVectorX<Dim> NextPos = CurPos + Diff;
@@ -93,7 +104,7 @@ inline void TClampedBSpline<Dim, Degree>::ProcessBeforeCreateSameType()
 
 	while (CtrlPointsList.Num() <= Degree) {
 		MoveStartAndEnd();
-		CtrlPointsList.InsertNode(TClampedBSplineControlPoint<Dim>((Start->GetValue().Pos + End->GetValue().Pos) * 0.5), End);
+		CtrlPointsList.InsertNode(MakeShared<FControlPointType>((Start->GetValueRef().Pos + End->GetValueRef().Pos) * 0.5), End);
 	}
 }
 
@@ -103,7 +114,7 @@ inline void TClampedBSpline<Dim, Degree>::ProcessBeforeCreateSameType()
 //	int32 Count = 0;
 //	FPointNode* Node = CtrlPointsList.GetHead();
 //	while (Node) {
-//		if (FMath::IsNearlyEqual(Node->GetValue().Param, Param)) {
+//		if (FMath::IsNearlyEqual(Node->GetValueRef().Param, Param)) {
 //			if (Count == NthNode) {
 //				return Node;
 //			}
@@ -120,7 +131,7 @@ inline typename TClampedBSpline<Dim, Degree>::FPointNode* TClampedBSpline<Dim, D
 	int32 Count = 0;
 	FPointNode* Node = CtrlPointsList.GetHead();
 	while (Node) {
-		if (TVecLib<Dim>::SizeSquared(TVecLib<Dim+1>::Projection(Node->GetValue().Pos) - Point) < ToleranceSqr) {
+		if (TVecLib<Dim>::SizeSquared(TVecLib<Dim+1>::Projection(Node->GetValueRef().Pos) - Point) < ToleranceSqr) {
 			if (Count == NthNode) {
 				return Node;
 			}
@@ -147,14 +158,14 @@ inline typename TClampedBSpline<Dim, Degree>::FPointNode* TClampedBSpline<Dim, D
 //		return;
 //	}
 //	for (int32 i = 1; i <= RepeatNum; ++i) {
-//		CtrlPoints.Add(Node->GetValue().Pos);
-//		Params.Add(Node->GetValue().Param);
+//		CtrlPoints.Add(Node->GetValueRef().Pos);
+//		Params.Add(Node->GetValueRef().Param);
 //		//Params.Add(0.);
 //	}
 //	while (Node) {
-//		for (int32 n = 0; n <= Node->GetValue().MiddleRepeatNum; ++n) {
-//			CtrlPoints.Add(Node->GetValue().Pos);
-//			Params.Add(Node->GetValue().Param);
+//		for (int32 n = 0; n <= Node->GetValueRef().MiddleRepeatNum; ++n) {
+//			CtrlPoints.Add(Node->GetValueRef().Pos);
+//			Params.Add(Node->GetValueRef().Param);
 //			//Params.Add(static_cast<double>(Index));
 //		}
 //		Node = Node->GetNextNode();
@@ -162,8 +173,8 @@ inline typename TClampedBSpline<Dim, Degree>::FPointNode* TClampedBSpline<Dim, D
 //	}
 //	if (ListNum > 1) {
 //		for (int32 i = 1; i <= RepeatNum; ++i) {
-//			CtrlPoints.Add(CtrlPointsList.GetTail()->GetValue().Pos);
-//			Params.Add(CtrlPointsList.GetTail()->GetValue().Param);
+//			CtrlPoints.Add(CtrlPointsList.GetTail()->GetValueRef().Pos);
+//			Params.Add(CtrlPointsList.GetTail()->GetValueRef().Param);
 //			//Params.Add(static_cast<double>(Index - 1));
 //		}
 //	}
@@ -185,9 +196,9 @@ inline typename TClampedBSpline<Dim, Degree>::FPointNode* TClampedBSpline<Dim, D
 //		return;
 //	}
 //	while (Node) {
-//		for (int32 n = 0; n <= Node->GetValue().MiddleRepeatNum; ++n) {
-//			CtrlPoints.Add(Node->GetValue().Pos);
-//			Params.Add(Node->GetValue().Param);
+//		for (int32 n = 0; n <= Node->GetValueRef().MiddleRepeatNum; ++n) {
+//			CtrlPoints.Add(Node->GetValueRef().Pos);
+//			Params.Add(Node->GetValueRef().Param);
 //			//Params.Add(static_cast<double>(Index));
 //		}
 //		Node = Node->GetNextNode();
@@ -201,7 +212,7 @@ inline void TClampedBSpline<Dim, Degree>::GetCtrlPoints(TArray<TVectorX<Dim+1>>&
 	CtrlPoints.Empty(CtrlPointsList.Num());
 	FPointNode* Node = CtrlPointsList.GetHead();
 	while (Node) {
-		CtrlPoints.Add(Node->GetValue().Pos);
+		CtrlPoints.Add(Node->GetValueRef().Pos);
 		Node = Node->GetNextNode();
 	}
 }
@@ -290,16 +301,16 @@ inline void TClampedBSpline<Dim, Degree>::AddNewKnotIntervalIfNecessary(TOptiona
 	double InParam = 0.;
 	int32 MaxKnotIndexSupportedByCtrlPoints = FMath::Max(CtrlPointsList.Num() - Degree, 1);
 	if (KnotIntervals.Num() == 0) {
-		InParam = Param ? Param.GetValue() : 0.;
+		InParam = Param ? Param.Get(0.) : 0.;
 		KnotIntervals.Add(InParam);
 	}
 	else if (KnotIntervals.Num() == 1) {
-		InParam = Param ? Param.GetValue() : KnotIntervals.Last() + 1.;
+		InParam = Param ? Param.Get(0.) : KnotIntervals.Last() + 1.;
 		KnotIntervals.Add(InParam);
 	}
 	else {
 		while (KnotIntervals.Num() < MaxKnotIndexSupportedByCtrlPoints + 1) {
-			InParam = Param ? Param.GetValue() : KnotIntervals.Last() + 1.;
+			InParam = Param ? Param.Get(0.) : KnotIntervals.Last() + 1.;
 			KnotIntervals.Add(InParam);
 		}
 	}
@@ -403,14 +414,14 @@ inline TVectorX<Dim+1> TClampedBSpline<Dim, Degree>::Split(
 template<int32 Dim, int32 Degree>
 inline void TClampedBSpline<Dim, Degree>::AddPointAtLast(const TClampedBSplineControlPoint<Dim>& PointStruct)
 {
-	CtrlPointsList.AddTail(PointStruct);
+	CtrlPointsList.AddTail(MakeShared<FControlPointType>(PointStruct));
 	AddNewKnotIntervalIfNecessary();
 }
 
 template<int32 Dim, int32 Degree>
 inline void TClampedBSpline<Dim, Degree>::AddPointAtFirst(const TClampedBSplineControlPoint<Dim>& PointStruct)
 {
-	CtrlPointsList.AddHead(PointStruct);
+	CtrlPointsList.AddHead(MakeShared<FControlPointType>(PointStruct));
 	AddNewKnotIntervalIfNecessary();
 }
 
@@ -427,23 +438,23 @@ inline void TClampedBSpline<Dim, Degree>::AddPointAt(const TClampedBSplineContro
 		}
 	}
 	if (NodeToInsertBefore) {
-		CtrlPointsList.InsertNode(PointStruct, NodeToInsertBefore);
+		CtrlPointsList.InsertNode(MakeShared<FControlPointType>(PointStruct), NodeToInsertBefore);
 	}
 	else {
-		CtrlPointsList.AddTail(PointStruct);
+		CtrlPointsList.AddTail(MakeShared<FControlPointType>(PointStruct));
 	}
 	AddNewKnotIntervalIfNecessary();
 }
 
 template<int32 Dim, int32 Degree>
-inline void TClampedBSpline<Dim, Degree>::AddPointWithParamWithoutChangingShape(double T)
+inline typename TClampedBSpline<Dim, Degree>::FPointNode* TClampedBSpline<Dim, Degree>::AddPointWithParamWithoutChangingShape(double T)
 {
 	if (CtrlPointsList.Num() <= Degree) {
-		return;
+		return nullptr;
 	}
 	TTuple<double, double> ParamRange = GetParamRange();
 	if (T >= ParamRange.Get<1>() || T <= ParamRange.Get<0>()) {
-		return;
+		return nullptr;
 	}
 
 	TArray<TVectorX<Dim+1> > CtrlPoints;
@@ -461,6 +472,7 @@ inline void TClampedBSpline<Dim, Degree>::AddPointWithParamWithoutChangingShape(
 		}
 	}
 
+	FPointNode* NewNode = nullptr;
 	for (int32 i = k - Degree + 1; i <= k; ++i) {
 		double De = Params[i + Degree] - Params[i];
 		double Alpha = FMath::IsNearlyZero(De) ? 0. : (T - Params[i]) / De;
@@ -470,18 +482,19 @@ inline void TClampedBSpline<Dim, Degree>::AddPointWithParamWithoutChangingShape(
 		}
 
 		if (i == k - Degree + 1) {
-			CtrlPointsList.InsertNode(TClampedBSplineControlPoint<Dim>(NewPos), NodeStart);
+			CtrlPointsList.InsertNode(MakeShared<FControlPointType>(NewPos), NodeStart);
 			NodeStart = NodeStart->GetPrevNode();
+			NewNode = NodeStart;
 		}
 		else {
-			NodeStart->GetValue().Pos = NewPos;
+			NodeStart->GetValueRef().Pos = NewPos;
 		}
 		NodeStart = NodeStart->GetNextNode();
 	}
 	KnotIntervals.Insert(T, k - Degree + 1);
 	//AddNewKnotIntervalIfNecessary(T);
 
-	return;
+	return NewNode;
 
 	//TArray<TArray<TVectorX<Dim+1> > > SplitPosArray;
 	//TArray<TArray<double> > SplitParamArray;
@@ -491,41 +504,41 @@ inline void TClampedBSpline<Dim, Degree>::AddPointWithParamWithoutChangingShape(
 	//	return;
 	//}
 
-	//TDoubleLinkedList<TClampedBSplineControlPoint<Dim> > LeftList, RightList;
+	//TDoubleLinkedList<FControlPointType> LeftList, RightList;
 	//FPointNode* Node = CtrlPointsList.GetHead();
 	//while (Node) {
-	//	if (SplitParamArray[0].Last() < Node->GetValue().Param) {
-	//		RightList.AddTail(Node->GetValue());
+	//	if (SplitParamArray[0].Last() < Node->GetValueRef().Param) {
+	//		RightList.AddTail(Node->GetValueRef());
 	//	}
-	//	else if (Node->GetValue().Param <= SplitParamArray[0][0]) {
-	//		LeftList.AddTail(Node->GetValue());
+	//	else if (Node->GetValueRef().Param <= SplitParamArray[0][0]) {
+	//		LeftList.AddTail(Node->GetValueRef());
 	//	}
 	//	Node = Node->GetNextNode();
 	//}
 
 	//CtrlPointsList.Empty();
 	//for (const auto& P : LeftList) {
-	//	CtrlPointsList.AddTail(P);
+	//	CtrlPointsList.AddTail(MakeShared<FControlPointType>(P));
 	//}
 	//for (int32 i = 0; i < SplitPosArray[0].Num(); ++i) {
 	//	CtrlPointsList.AddTail(TClampedBSplineControlPoint<Dim>(SplitPosArray[0][i], SplitParamArray[0][i]));
 	//}
 	//for (const auto& P : RightList) {
-	//	CtrlPointsList.AddTail(P);
+	//	CtrlPointsList.AddTail(MakeShared<FControlPointType>(P));
 	//}
 }
 
 template<int32 Dim, int32 Degree>
-inline void TClampedBSpline<Dim, Degree>::AdjustCtrlPointPos(FPointNode* Node, const TVectorX<Dim>& To, int32 NthPointOfFrom)
+inline bool TClampedBSpline<Dim, Degree>::AdjustCtrlPointPos(FPointNode* Node, const TVectorX<Dim>& To, int32 NthPointOfFrom)
 {
-	Node->GetValue().Pos = TVecLib<Dim>::Homogeneous(To, 1.);
+	return AdjustCtrlPointPos(Node->GetValueRef(), To, NthPointOfFrom);
 }
 
 //template<int32 Dim, int32 Degree>
 //inline void TClampedBSpline<Dim, Degree>::AdjustCtrlPointParam(double From, double To, int32 NthPointOfFrom)
 //{
 //	FPointNode* Node = FindNodeByParam(From, NthPointOfFrom);
-//	Node->GetValue().Param = To;
+//	Node->GetValueRef().Param = To;
 //}
 
 //template<int32 Dim, int32 Degree>
@@ -538,16 +551,16 @@ inline void TClampedBSpline<Dim, Degree>::AdjustCtrlPointPos(FPointNode* Node, c
 template<int32 Dim, int32 Degree>
 inline void TClampedBSpline<Dim, Degree>::AddPointAtLast(const TVectorX<Dim>& Point, TOptional<double> Param, double Weight)
 {
-	//double InParam = Param ? Param.GetValue() : (CtrlPointsList.Num() > 0 ? GetParamRange().Get<1>() + 1. : 0.);
-	CtrlPointsList.AddTail(TClampedBSplineControlPoint<Dim>(TVecLib<Dim>::Homogeneous(Point, Weight)));
+	//double InParam = Param ? Param.Get(0.) : (CtrlPointsList.Num() > 0 ? GetParamRange().Get<1>() + 1. : 0.);
+	CtrlPointsList.AddTail(MakeShared<FControlPointType>(TVecLib<Dim>::Homogeneous(Point, Weight)));
 	AddNewKnotIntervalIfNecessary(Param);
 }
 
 template<int32 Dim, int32 Degree>
 inline void TClampedBSpline<Dim, Degree>::AddPointAtFirst(const TVectorX<Dim>& Point, TOptional<double> Param, double Weight)
 {
-	//double InParam = Param ? Param.GetValue() : (CtrlPointsList.Num() > 0 ? GetParamRange().Get<1>() + 1. : 0.);
-	CtrlPointsList.AddHead(TClampedBSplineControlPoint<Dim>(TVecLib<Dim>::Homogeneous(Point, Weight)));
+	//double InParam = Param ? Param.Get(0.) : (CtrlPointsList.Num() > 0 ? GetParamRange().Get<1>() + 1. : 0.);
+	CtrlPointsList.AddHead(MakeShared<FControlPointType>(TVecLib<Dim>::Homogeneous(Point, Weight)));
 	AddNewKnotIntervalIfNecessary(Param);
 }
 
@@ -566,23 +579,23 @@ inline void TClampedBSpline<Dim, Degree>::AddPointAt(const TVectorX<Dim>& Point,
 	if (NodeToInsertBefore) {
 		FPointNode* BeforeNodeToInsertBefore = CtrlPointsList.GetHead();
 		if (BeforeNodeToInsertBefore == NodeToInsertBefore) {
-			//double InParam = Param ? Param.GetValue() : GetParamRange().Get<0>() - 1.;
-			CtrlPointsList.AddHead(TClampedBSplineControlPoint<Dim>(TVecLib<Dim>::Homogeneous(Point, Weight)));
+			//double InParam = Param ? Param.Get(0.) : GetParamRange().Get<0>() - 1.;
+			CtrlPointsList.AddHead(MakeShared<FControlPointType>(TVecLib<Dim>::Homogeneous(Point, Weight)));
 			AddNewKnotIntervalIfNecessary(Param);
 		}
 		else {
 			while (BeforeNodeToInsertBefore->GetNextNode() != NodeToInsertBefore) {
 				BeforeNodeToInsertBefore = BeforeNodeToInsertBefore->GetNextNode();
 			}
-			//double InParam = Param ? Param.GetValue() :
-			//	(NodeToInsertBefore->GetValue().Param + BeforeNodeToInsertBefore->GetValue().Param) * 0.5;
-			CtrlPointsList.InsertNode(TClampedBSplineControlPoint<Dim>(TVecLib<Dim>::Homogeneous(Point, Weight)), NodeToInsertBefore);
+			//double InParam = Param ? Param.Get(0.) :
+			//	(NodeToInsertBefore->GetValueRef().Param + BeforeNodeToInsertBefore->GetValueRef().Param) * 0.5;
+			CtrlPointsList.InsertNode(MakeShared<FControlPointType>(TVecLib<Dim>::Homogeneous(Point, Weight)), NodeToInsertBefore);
 			AddNewKnotIntervalIfNecessary(Param);
 		}
 	}
 	else {
-		//double InParam = Param ? Param.GetValue() : (CtrlPointsList.Num() > 0 ? GetParamRange().Get<1>() + 1. : 0.);
-		CtrlPointsList.AddTail(TClampedBSplineControlPoint<Dim>(TVecLib<Dim>::Homogeneous(Point, Weight)));
+		//double InParam = Param ? Param.Get(0.) : (CtrlPointsList.Num() > 0 ? GetParamRange().Get<1>() + 1. : 0.);
+		CtrlPointsList.AddTail(MakeShared<FControlPointType>(TVecLib<Dim>::Homogeneous(Point, Weight)));
 		AddNewKnotIntervalIfNecessary(Param);
 	}
 }
@@ -609,16 +622,34 @@ inline void TClampedBSpline<Dim, Degree>::RemovePoint(const TVectorX<Dim>& Point
 }
 
 template<int32 Dim, int32 Degree>
-inline bool TClampedBSpline<Dim, Degree>::AdjustCtrlPointPos(const TVectorX<Dim>& From, const TVectorX<Dim>& To, int32 NodeIndexOffset, int32 NthPointOfFrom, double ToleranceSqr)
+inline bool TClampedBSpline<Dim, Degree>::AdjustCtrlPointPos(TSplineBaseControlPoint<Dim, Degree>& PointStructToAdjust, const TVectorX<Dim>& To, int32 TangentFlag, int32 NthPointOfFrom)
+{
+	if (NthPointOfFrom != 0)
+	{
+		for (FPointNode* Node = CtrlPointsList.GetHead(); Node; Node = Node->GetNextNode())
+		{
+			if (&Node->GetValueRef() == &PointStructToAdjust)
+			{
+				return AdjustCtrlPointPos(Node, To, NthPointOfFrom);
+			}
+		}
+		return false;
+	}
+	static_cast<TSplineTraitByType<ESplineType::ClampedBSpline, Dim, Degree>::FControlPointType&>(PointStructToAdjust).Pos = TVecLib<Dim>::Homogeneous(To, 1.);
+	return true;
+}
+
+template<int32 Dim, int32 Degree>
+inline bool TClampedBSpline<Dim, Degree>::AdjustCtrlPointPos(const TVectorX<Dim>& From, const TVectorX<Dim>& To, int32 TangentFlag, int32 NthPointOfFrom, double ToleranceSqr)
 {
 	FPointNode* Node = FindNodeByPosition(From, NthPointOfFrom, ToleranceSqr);
-	if (NodeIndexOffset < 0) {
-		for (int32 i = 0; i > NodeIndexOffset && Node; --i) {
+	if (TangentFlag < 0) {
+		for (int32 i = 0; i > TangentFlag && Node; --i) {
 			Node = Node->GetPrevNode();
 		}
 	}
-	else if (NodeIndexOffset > 0) {
-		for (int32 i = 0; i < NodeIndexOffset && Node; ++i) {
+	else if (TangentFlag > 0) {
+		for (int32 i = 0; i < TangentFlag && Node; ++i) {
 			Node = Node->GetNextNode();
 		}
 	}
@@ -635,13 +666,13 @@ template<int32 Dim, int32 Degree>
 inline void TClampedBSpline<Dim, Degree>::Reverse()
 {
 	// Can B-Spline reverse?
-	TDoubleLinkedList<TClampedBSplineControlPoint<Dim> > NewList;
+	TDoubleLinkedList<TClampedBSplineControlPoint<Dim, Degree> > NewList;
 	for (const auto& Point : CtrlPointsList) {
-		NewList.AddHead(Point);
+		NewList.AddHead(Point.Get());
 	}
 	CtrlPointsList.Empty();
 	for (const auto& Point : NewList) {
-		CtrlPointsList.AddTail(Point);
+		CtrlPointsList.AddTail(MakeShared<FControlPointType>(Point));
 	}
 	if (KnotIntervals.Num() > 1) {
 		double SumOfEnd = KnotIntervals[0] + KnotIntervals.Last();
@@ -659,7 +690,7 @@ inline TVectorX<Dim> TClampedBSpline<Dim, Degree>::GetPosition(double T) const
 		return TVecLib<Dim>::Zero();
 	}
 	else if (ListNum == 1) {
-		return TVecLib<Dim+1>::Projection(CtrlPointsList.GetHead()->GetValue().Pos);
+		return TVecLib<Dim+1>::Projection(CtrlPointsList.GetHead()->GetValueRef().Pos);
 	}
 	TArray<TVectorX<Dim+1> > CtrlPoints;
 	TArray<double> Params;
@@ -763,7 +794,7 @@ inline bool TClampedBSpline<Dim, Degree>::FindParamByPosition(double& OutParam, 
 			if (CurParam) {
 				TVectorX<Dim> NewPos = NewBezier.GetPosition(NewParamNormal);
 				double NewDistSqr = TVecLib<Dim>::SizeSquared(NewPos - InPos);
-				if (NewDistSqr < CurDistSqr.GetValue()) {
+				if (NewDistSqr < CurDistSqr.Get(0.)) {
 					CurDistSqr = NewDistSqr;
 					CurParam = NewParam;
 				}
@@ -778,7 +809,7 @@ inline bool TClampedBSpline<Dim, Degree>::FindParamByPosition(double& OutParam, 
 	}
 
 	if (CurParam) {
-		OutParam = CurParam.GetValue();
+		OutParam = CurParam.Get(0.);
 		return true;
 	}
 	return false;
@@ -902,7 +933,7 @@ inline TVectorX<Dim+1> TClampedBSpline<Dim, Degree>::CoxDeBoor(double T, const T
 template<int32 Dim, int32 Degree>
 inline void TClampedBSpline<Dim, Degree>::AddPointAtTailRaw(const TVectorX<Dim+1>& CtrlPoint)
 {
-	CtrlPointsList.AddTail(CtrlPoint);
+	CtrlPointsList.AddTail(MakeShared<FControlPointType>(CtrlPoint));
 }
 
 template<int32 Dim, int32 Degree>
@@ -910,3 +941,5 @@ inline void TClampedBSpline<Dim, Degree>::AddKnotAtTailRaw(double Param)
 {
 	KnotIntervals.Add(Param);
 }
+
+#undef GetValueRef

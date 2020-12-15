@@ -8,9 +8,9 @@
 #include "Logging/LogMacros.h"
 #include "Engine.h"
 
-DECLARE_LOG_CATEGORY_EXTERN(LogSplineCtrl, Warning, All);
+#define GetValueRef GetValue().Get
 
-DEFINE_LOG_CATEGORY(LogSplineCtrl);
+DEFINE_LOG_CATEGORY_STATIC(LogSplineCtrl, Warning, All)
 
 static const double PointDistSqr = 16.0;
 static const double NodeDistSqr = 100.0;
@@ -69,7 +69,7 @@ void ASplineTestPlayerController::Tick(float Delta)
 
 				if (SelectedNode) {
 					if (bPressedLeftMouseButton) {
-						FVector SelectedPos = TVecLib<4>::Projection(SelectedNode->GetValue().Pos);
+						FVector SelectedPos = TVecLib<4>::Projection(SelectedNode->GetValueRef().Pos);
 						if (bHoldingPoint || (!bHoldingPoint && FVector::DistSquared(SelectedPos, CtrlPoint) < NodeDistSqr)) {
 							bHoldingPoint = true;
 							Spline.AdjustCtrlPointPos(SelectedNode, CtrlPoint, 0);
@@ -84,13 +84,13 @@ void ASplineTestPlayerController::Tick(float Delta)
 				Canvas2D->DisplayPoints[1].Array.Add(ControlPointToHitPoint(NearestPoint.GetValue()));
 			}
 			if (NearestNode) {
-				Canvas2D->DisplayPoints[1].Array.Add(ControlPointToHitPoint(TVecLib<4>::Projection(NearestNode->GetValue().Pos)));
+				Canvas2D->DisplayPoints[1].Array.Add(ControlPointToHitPoint(TVecLib<4>::Projection(NearestNode->GetValueRef().Pos)));
 			}
 		}
 	}
 
 	if (SelectedNode) {
-		Canvas2D->DisplayPoints[2].Array.Add(ControlPointToHitPoint(TVecLib<4>::Projection(SelectedNode->GetValue().Pos)));
+		Canvas2D->DisplayPoints[2].Array.Add(ControlPointToHitPoint(TVecLib<4>::Projection(SelectedNode->GetValueRef().Pos)));
 	}
 	Canvas2D->DrawPoints(1);
 	Canvas2D->DrawPoints(2);
@@ -339,7 +339,7 @@ int32 ASplineTestPlayerController::ResampleBSpline(int32 FirstLineLayer)
 
 		if (Splines[i].GetCtrlPointNum() < 2) {
 			if (Splines[i].GetCtrlPointNum() > 0) {
-				Canvas2D->DisplayPoints[0].Array.Add(ControlPointToHitPoint(TVecLib<4>::Projection(Splines[i].FirstNode()->GetValue().Pos)));
+				Canvas2D->DisplayPoints[0].Array.Add(ControlPointToHitPoint(TVecLib<4>::Projection(Splines[i].FirstNode()->GetValueRef().Pos)));
 			}
 			continue;
 		}
@@ -503,3 +503,5 @@ FVector ASplineTestPlayerController::HitPointToControlPoint(const FVector& P)
 	static constexpr double Weight = 1.;
 	return FVector(Canvas2D->FromCanvasPoint(P) * Weight, Weight);
 }
+
+#undef GetValueRef

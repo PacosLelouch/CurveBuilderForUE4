@@ -17,6 +17,7 @@ class TSplineGraph<Dim, 3>
 {
 public:
 	using FSplineType = typename TSplineBase<Dim, 3>;
+	using FControlPointType = typename TSplineBaseControlPoint<Dim, 3>;
 
 	FORCEINLINE static constexpr int32 SplineDim() { return FSplineType::SplineDim(); }
 	FORCEINLINE static constexpr int32 SplineDimHomogeneous() { return FSplineType::SplineDimHomogeneous(); }
@@ -56,7 +57,26 @@ protected:
 
 public:
 	FORCEINLINE TSplineGraph() {}
-	FORCEINLINE virtual ~TSplineGraph() {}
+	FORCEINLINE virtual ~TSplineGraph() 
+	{
+		for (auto& Pair : InternalGraphForward)
+		{
+			Pair.Get<0>().Reset();
+		}
+		InternalGraphForward.Empty();
+
+		for (auto& Pair : InternalGraphBackward)
+		{
+			Pair.Get<0>().Reset();
+		}
+		InternalGraphBackward.Empty();
+
+		for (auto& Pair : SplineToWrapper)
+		{
+			Pair.Get<0>().Reset();
+		}
+		SplineToWrapper.Empty();
+	}
 
 	FORCEINLINE TSplineGraph(const TArray<TSharedPtr<FSplineType> >& Splines, bool bClosed = false);
 
@@ -79,8 +99,12 @@ public:
 	virtual bool DeleteSpline(TWeakPtr<FSplineType> Spline);
 
 	virtual void AdjustCtrlPointPos(
+		FControlPointType& PointStructToAdjust, const TVectorX<Dim>& To, TWeakPtr<FSplineType> SplinePtrToAdjust = nullptr,
+		int32 MoveLevel = 0, int32 TangentFlag = 0, int32 NthPointOfFrom = 0);
+
+	virtual void AdjustCtrlPointPos(
 		const TVectorX<Dim>& From, const TVectorX<Dim>& To, TWeakPtr<FSplineType> SplinePtrToAdjust = nullptr, 
-		int32 MoveLevel = 0, int32 NodeIndexOffset = 0, int32 NthPointOfFrom = 0, double ToleranceSqr = 1.);
+		int32 MoveLevel = 0, int32 TangentFlag = 0, int32 NthPointOfFrom = 0, double ToleranceSqr = 1.);
 
 	// EContactType::End means forward, EContactType::Start means backward.
 	virtual void GetClusterWithoutSelf(TSet<TTuple<FGraphNode, int32> >& Cluster, const TSharedPtr<FSplineType>& SplinePtr, EContactType Direction = EContactType::End);
@@ -106,6 +130,12 @@ protected:
 	void ChangeSplineTypeFromBSpline(TSharedPtr<FSplineWrapper> WrapperSharedPtr, ESplineType NewType);
 
 	void UpdateDeleted(TWeakPtr<FSplineWrapper> SplineWrapperToDelete);
+
+	void AdjustAuxiliaryFunc(
+		const TSharedPtr<FSplineType>& SplinePtr, const TTuple<double, double>& ParamRange,
+		const TMap<EContactType, TVectorX<Dim> >& InitialPos,
+		const TMap<EContactType, TVectorX<Dim> >& InitialTangent,
+		int32 MoveLevel = 1, int32 NthPointOfFrom = 0);
 };
 
 #include "SplineGraph.inl"

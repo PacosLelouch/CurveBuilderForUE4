@@ -242,32 +242,24 @@ inline bool TSplineGraph<Dim, 3>::DeleteSpline(TWeakPtr<FSplineType> Spline)
 	return false;
 }
 
-template<int32 Dim>
-inline void TSplineGraph<Dim, 3>::AdjustCtrlPointPos(
-	const TVectorX<Dim>& From, const TVectorX<Dim>& To, TWeakPtr<FSplineType> SplinePtrToAdjust, 
-	int32 MoveLevel, int32 NodeIndexOffset, int32 NthPointOfFrom, double ToleranceSqr)
-{
-	static constexpr double InvDegree = 1. / 3.;
+static constexpr double InvDegree = 1. / 3.;
 
-	static const auto GetEndNodeBezierString = [](TBezierString3<Dim>& Spline, EContactType Type) {
-		return Type == EContactType::Start ? Spline.FirstNode() : Spline.LastNode();
-	};
-	static const auto GetEndNodeBSpline = [](TClampedBSpline<Dim, 3>& Spline, EContactType Type) {
-		return Type == EContactType::Start ? Spline.FirstNode() : Spline.LastNode();
-	};
-	static const auto GetSecondNodeBSpline = [](TClampedBSpline<Dim, 3>& Spline, EContactType Type) {
-		return Type == EContactType::Start ? Spline.FirstNode()->GetNextNode() : Spline.LastNode()->GetPrevNode();
-	};
-	static const auto GetEndParam = [](const TTuple<double, double>& ParamRange, EContactType Type) {
-		return Type == EContactType::Start ? ParamRange.Key : ParamRange.Value;
-	};
-	static const auto GetEndParamDiffOfBSpline = [](const TArray<double>& Params, EContactType Type) {
-		return Type == EContactType::Start ? Params[1] - Params[0] : Params[Params.Num() - 1] - Params[Params.Num() - 2];
-	};
-	
+static double GetEndParam(const TTuple<double, double>& ParamRange, EContactType Type) 
+{
+	return Type == EContactType::Start ? ParamRange.Key : ParamRange.Value;
+}
+
+static double GetEndParamDiffOfBSpline(const TArray<double>& Params, EContactType Type) 
+{
+	return Type == EContactType::Start ? Params[1] - Params[0] : Params[Params.Num() - 1] - Params[Params.Num() - 2];
+}
+
+template<int32 Dim>
+inline void TSplineGraph<Dim, 3>::AdjustCtrlPointPos(FControlPointType& PointStructToAdjust, const TVectorX<Dim>& To, TWeakPtr<FSplineType> SplinePtrToAdjust, int32 MoveLevel, int32 TangentFlag, int32 NthPointOfFrom)
+{
 	bool bFindAdjustSpline = false;
 
-	auto AdjustFuncReturnIfSucceed = [this, &From, &To, MoveLevel, NodeIndexOffset, NthPointOfFrom, ToleranceSqr](const TSharedPtr<FSplineType>& SplinePtr) -> bool {
+	auto AdjustFuncReturnIfSucceed = [this, &PointStructToAdjust, &To, MoveLevel, NthPointOfFrom, TangentFlag](const TSharedPtr<FSplineType>& SplinePtr) -> bool {
 		FSplineType& Spline = *SplinePtr.Get();
 		const auto& ParamRange = Spline.GetParamRange();
 		TMap<EContactType, TVectorX<Dim> > InitialPos
@@ -280,70 +272,63 @@ inline void TSplineGraph<Dim, 3>::AdjustCtrlPointPos(
 			{ EContactType::Start, Spline.GetTangent(GetEndParam(ParamRange, EContactType::Start)) },
 			{ EContactType::End, Spline.GetTangent(GetEndParam(ParamRange, EContactType::End)) },
 		};
-		if (Spline.AdjustCtrlPointPos(From, To, NodeIndexOffset, NthPointOfFrom, ToleranceSqr))
+		if (Spline.AdjustCtrlPointPos(PointStructToAdjust, To, NthPointOfFrom, TangentFlag))
 		{
-			for (EContactType ContactTypeToAdjust : { EContactType::Start, EContactType::End })
+			AdjustAuxiliaryFunc(SplinePtr, ParamRange, InitialPos, InitialTangent, MoveLevel, NthPointOfFrom);
+			return true;
+		}
+		return false;
+	};
+
+	if (SplinePtrToAdjust.IsValid())
+	{
+		AdjustFuncReturnIfSucceed(SplinePtrToAdjust.Pin());
+	}
+	else
+	{
+		TArray<TWeakPtr<FSplineType> > Splines;
+		GetSplines(Splines);
+		for (int32 i = Splines.Num() - 1; i >= 0; --i)
+		{
+			if (!Splines[i].IsValid())
 			{
-				TVectorX<Dim> NewEndPos = Spline.GetPosition(GetEndParam(ParamRange, ContactTypeToAdjust));
-				TVectorX<Dim> NewEndTangent = Spline.GetTangent(GetEndParam(ParamRange, ContactTypeToAdjust));
-
-				if ((!TVecLib<Dim>::IsNearlyZero(InitialPos[ContactTypeToAdjust] - NewEndPos)) ||
-					(!TVecLib<Dim>::IsNearlyZero(InitialTangent[ContactTypeToAdjust] - NewEndTangent)))
+				continue;
+			}
+			const TSharedPtr<FSplineType>& SplinePtr = Splines[i].Pin();
+			if (SplinePtr)
+			{
+				if (AdjustFuncReturnIfSucceed(SplinePtr))
 				{
-					TSet<TTuple<FGraphNode, int32> > EndCluster;
-					GetClusterWithoutSelf(EndCluster, SplinePtr, ContactTypeToAdjust);
-
-					for (TTuple<FGraphNode, int32>& NodePair : EndCluster)
-					{
-						FGraphNode& Node = NodePair.Key;
-						int32 Distance = NodePair.Value;
-						if (Node.SplineWrapper.IsValid() && Node.SplineWrapper.Pin()->Spline != SplinePtr)
-						{
-							FSplineType& SplineToAdjust = *Node.SplineWrapper.Pin()->Spline.Get();
-							const auto& ParamRangeToAdjust = SplineToAdjust.GetParamRange();
-							TVectorX<Dim> TangentToAdjust = SplineToAdjust.GetTangent(GetEndParam(ParamRangeToAdjust, Node.ContactType));
-							double SizeNewTangent = TVecLib<Dim>::Size(NewEndTangent);
-							double SizeTangentToAdjust = TVecLib<Dim>::Size(TangentToAdjust);
-							TVectorX<Dim> NewTangentAdjusted = FMath::IsNearlyZero(SizeNewTangent) ?
-								TangentToAdjust :
-								NewEndTangent * (SizeTangentToAdjust / SizeNewTangent);
-
-							switch (SplineToAdjust.GetType()) {
-							case ESplineType::BezierString:
-							{
-								TBezierString3<Dim>& BezierString = static_cast<TSplineTraitByType<ESplineType::BezierString, Dim, 3>::FSplineType&>(SplineToAdjust);
-								BezierString.AdjustCtrlPointPos(GetEndNodeBezierString(BezierString, Node.ContactType),
-									NewEndPos, NthPointOfFrom);
-								if (MoveLevel > 0) {
-									double Sgn = ((Distance & 1) == 0 ? 1. : -1.) * (ContactTypeToAdjust == EContactType::Start ? 1. : -1.);
-									//double bStart = (ContactTypeToAdjust == EContactType::Start ? true : false);
-									BezierString.AdjustCtrlPointTangent(GetEndNodeBezierString(BezierString, Node.ContactType),
-										NewEndPos + Sgn * NewTangentAdjusted * InvDegree, 
-										(Node.ContactType == EContactType::Start) ? true : false, NthPointOfFrom);
-								}
-							}
-							break;
-							case ESplineType::ClampedBSpline:
-							{
-								TClampedBSpline<Dim, 3>& BSpline = static_cast<TSplineTraitByType<ESplineType::ClampedBSpline, Dim, 3>::FSplineType&>(SplineToAdjust);
-								BSpline.AdjustCtrlPointPos(GetEndNodeBSpline(BSpline, Node.ContactType),
-									NewEndPos, NthPointOfFrom);
-								TArray<double> Params;
-								BSpline.GetKnotIntervals(Params);
-								if (MoveLevel > 0 && Params.Num() > 1) {
-									double Sgn = ((Distance & 1) == 0 ? 1. : -1.) * (ContactTypeToAdjust == EContactType::Start ? 1. : -1.);
-									double InvD = InvDegree * GetEndParamDiffOfBSpline(Params, Node.ContactType);
-									TVectorX<Dim> NewSecondPoint = NewEndPos + Sgn * NewTangentAdjusted * InvD;
-									BSpline.AdjustCtrlPointPos(GetSecondNodeBSpline(BSpline, Node.ContactType),
-										NewSecondPoint, NthPointOfFrom);
-								}
-							}
-							break;
-							}
-						}
-					}
+					break;
 				}
 			}
+		}
+	}
+}
+
+template<int32 Dim>
+inline void TSplineGraph<Dim, 3>::AdjustCtrlPointPos(
+	const TVectorX<Dim>& From, const TVectorX<Dim>& To, TWeakPtr<FSplineType> SplinePtrToAdjust, 
+	int32 MoveLevel, int32 TangentFlag, int32 NthPointOfFrom, double ToleranceSqr)
+{
+	bool bFindAdjustSpline = false;
+
+	auto AdjustFuncReturnIfSucceed = [this, &From, &To, MoveLevel, TangentFlag, NthPointOfFrom, ToleranceSqr](const TSharedPtr<FSplineType>& SplinePtr) -> bool {
+		FSplineType& Spline = *SplinePtr.Get();
+		const auto& ParamRange = Spline.GetParamRange();
+		TMap<EContactType, TVectorX<Dim> > InitialPos
+		{
+			{ EContactType::Start, Spline.GetPosition(GetEndParam(ParamRange, EContactType::Start)) },
+			{ EContactType::End, Spline.GetPosition(GetEndParam(ParamRange, EContactType::End)) },
+		};
+		TMap<EContactType, TVectorX<Dim> > InitialTangent
+		{
+			{ EContactType::Start, Spline.GetTangent(GetEndParam(ParamRange, EContactType::Start)) },
+			{ EContactType::End, Spline.GetTangent(GetEndParam(ParamRange, EContactType::End)) },
+		};
+		if (Spline.AdjustCtrlPointPos(From, To, TangentFlag, NthPointOfFrom, ToleranceSqr))
+		{
+			AdjustAuxiliaryFunc(SplinePtr, ParamRange, InitialPos, InitialTangent, MoveLevel, NthPointOfFrom);
 			return true;
 		}
 		return false;
@@ -355,7 +340,6 @@ inline void TSplineGraph<Dim, 3>::AdjustCtrlPointPos(
 	}
 	else 
 	{
-
 		TArray<TWeakPtr<FSplineType> > Splines;
 		GetSplines(Splines);
 		for (int32 i = Splines.Num() - 1; i >= 0; --i)
@@ -627,4 +611,85 @@ inline void TSplineGraph<Dim, 3>::UpdateDeleted(TWeakPtr<FSplineWrapper> SplineW
 
 	InternalGraphForward.Remove(WrapperSharedPtr);
 	InternalGraphBackward.Remove(WrapperSharedPtr);
+}
+
+template<int32 Dim>
+inline void TSplineGraph<Dim, 3>::AdjustAuxiliaryFunc(
+	const TSharedPtr<FSplineType>& SplinePtr, const TTuple<double, double>& ParamRange,
+	const TMap<EContactType, TVectorX<Dim> >& InitialPos,
+	const TMap<EContactType, TVectorX<Dim> >& InitialTangent,
+	int32 MoveLevel, int32 NthPointOfFrom)
+{
+	FSplineType& Spline = *SplinePtr.Get();
+	static const auto GetEndNodeBezierString = [](TBezierString3<Dim>& Spline, EContactType Type) {
+		return Type == EContactType::Start ? Spline.FirstNode() : Spline.LastNode();
+	};
+	static const auto GetEndNodeBSpline = [](TClampedBSpline<Dim, 3>& Spline, EContactType Type) {
+		return Type == EContactType::Start ? Spline.FirstNode() : Spline.LastNode();
+	};
+	static const auto GetSecondNodeBSpline = [](TClampedBSpline<Dim, 3>& Spline, EContactType Type) {
+		return Type == EContactType::Start ? Spline.FirstNode()->GetNextNode() : Spline.LastNode()->GetPrevNode();
+	};
+	for (EContactType ContactTypeToAdjust : { EContactType::Start, EContactType::End })
+	{
+		TVectorX<Dim> NewEndPos = Spline.GetPosition(GetEndParam(ParamRange, ContactTypeToAdjust));
+		TVectorX<Dim> NewEndTangent = Spline.GetTangent(GetEndParam(ParamRange, ContactTypeToAdjust));
+
+		if ((!TVecLib<Dim>::IsNearlyZero(InitialPos[ContactTypeToAdjust] - NewEndPos)) ||
+			(!TVecLib<Dim>::IsNearlyZero(InitialTangent[ContactTypeToAdjust] - NewEndTangent)))
+		{
+			TSet<TTuple<FGraphNode, int32> > EndCluster;
+			GetClusterWithoutSelf(EndCluster, SplinePtr, ContactTypeToAdjust);
+
+			for (TTuple<FGraphNode, int32>& NodePair : EndCluster)
+			{
+				FGraphNode& Node = NodePair.Key;
+				int32 Distance = NodePair.Value;
+				if (Node.SplineWrapper.IsValid() && Node.SplineWrapper.Pin()->Spline != SplinePtr)
+				{
+					FSplineType& SplineToAdjust = *Node.SplineWrapper.Pin()->Spline.Get();
+					const auto& ParamRangeToAdjust = SplineToAdjust.GetParamRange();
+					TVectorX<Dim> TangentToAdjust = SplineToAdjust.GetTangent(GetEndParam(ParamRangeToAdjust, Node.ContactType));
+					double SizeNewTangent = TVecLib<Dim>::Size(NewEndTangent);
+					double SizeTangentToAdjust = TVecLib<Dim>::Size(TangentToAdjust);
+					TVectorX<Dim> NewTangentAdjusted = FMath::IsNearlyZero(SizeNewTangent) ?
+						TangentToAdjust :
+						NewEndTangent * (SizeTangentToAdjust / SizeNewTangent);
+
+					switch (SplineToAdjust.GetType()) {
+					case ESplineType::BezierString:
+					{
+						TBezierString3<Dim>& BezierString = static_cast<TSplineTraitByType<ESplineType::BezierString, Dim, 3>::FSplineType&>(SplineToAdjust);
+						BezierString.AdjustCtrlPointPos(GetEndNodeBezierString(BezierString, Node.ContactType),
+							NewEndPos, NthPointOfFrom);
+						if (MoveLevel > 0) {
+							double Sgn = ((Distance & 1) == 0 ? 1. : -1.) * (ContactTypeToAdjust == EContactType::Start ? 1. : -1.);
+							//double bStart = (ContactTypeToAdjust == EContactType::Start ? true : false);
+							BezierString.AdjustCtrlPointTangent(GetEndNodeBezierString(BezierString, Node.ContactType),
+								NewEndPos + Sgn * NewTangentAdjusted * InvDegree,
+								(Node.ContactType == EContactType::Start) ? true : false, NthPointOfFrom);
+						}
+					}
+					break;
+					case ESplineType::ClampedBSpline:
+					{
+						TClampedBSpline<Dim, 3>& BSpline = static_cast<TSplineTraitByType<ESplineType::ClampedBSpline, Dim, 3>::FSplineType&>(SplineToAdjust);
+						BSpline.AdjustCtrlPointPos(GetEndNodeBSpline(BSpline, Node.ContactType),
+							NewEndPos, NthPointOfFrom);
+						TArray<double> Params;
+						BSpline.GetKnotIntervals(Params);
+						if (MoveLevel > 0 && Params.Num() > 1) {
+							double Sgn = ((Distance & 1) == 0 ? 1. : -1.) * (ContactTypeToAdjust == EContactType::Start ? 1. : -1.);
+							double InvD = InvDegree * GetEndParamDiffOfBSpline(Params, Node.ContactType);
+							TVectorX<Dim> NewSecondPoint = NewEndPos + Sgn * NewTangentAdjusted * InvD;
+							BSpline.AdjustCtrlPointPos(GetSecondNodeBSpline(BSpline, Node.ContactType),
+								NewSecondPoint, NthPointOfFrom);
+						}
+					}
+					break;
+					}
+				}
+			}
+		}
+	}
 }

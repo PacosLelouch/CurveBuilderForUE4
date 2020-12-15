@@ -91,7 +91,7 @@ public:
 	virtual void RemovePoint(double Param, int32 NthPointOfFrom = 0) {}
 
 	// NthPointOfFrom means if there are multiple points with the same positions, which point to adjust.
-	virtual bool AdjustCtrlPointValue(double FromP, double ToV, int32 NodeIndexOffset = 0, int32 NthPointOfFrom = 0, double ToleranceSqr = 1.) { return false; }
+	virtual bool AdjustCtrlPointValue(double FromP, double ToV, int32 TangentFlag = 0, int32 NthPointOfFrom = 0, double ToleranceSqr = 1.) { return false; }
 
 	//// NthPointOfFrom means if there are multiple points with the same positions, which point to adjust.
 	//virtual void AdjustCtrlPointParam(double From, double To, int32 NthPointOfFrom = 0) {}

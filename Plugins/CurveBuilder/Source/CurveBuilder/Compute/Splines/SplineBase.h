@@ -19,8 +19,26 @@ enum class ESplineType : uint8
 };
 
 template<int32 Dim, int32 Degree = 3>
+struct TSplineBaseControlPoint
+{
+	TSplineBaseControlPoint() : Pos(TVecLib<Dim+1>::Zero()) {}
+	TSplineBaseControlPoint(const TVectorX<Dim+1>& InPos) : Pos(InPos) {}
+
+	virtual TSharedRef<TSplineBaseControlPoint<Dim, Degree>> Copy() const
+	{
+		return MakeShared<TSplineBaseControlPoint<Dim, Degree>>(*this);
+	}
+
+	TVectorX<Dim+1> Pos;
+};
+
+template<int32 Dim, int32 Degree = 3>
 class TSplineBase
 {
+public:
+	using FControlPointType = typename TSplineBaseControlPoint<Dim, Degree>;
+	using FControlPointTypeRef = typename TSharedRef<FControlPointType>;
+	using FPointNode = typename TDoubleLinkedList<FControlPointTypeRef>::TDoubleLinkedListNode;
 public:
 	FORCEINLINE TSplineBase() {}
 
@@ -73,6 +91,8 @@ public:
 		return -1;
 	}
 
+	virtual void GetCtrlPointStructs(TArray<TWeakPtr<TSplineBaseControlPoint<Dim, Degree>>>& OutControlPointStructs) const {}
+
 	virtual TSharedRef<TSplineBase<Dim, Degree> > CreateSameType(int32 EndContinuity = -1) const 
 	{
 		return MakeShared<TSplineBase<Dim, Degree> >();
@@ -96,8 +116,10 @@ public:
 	// NthPointOfFrom means if there are multiple points with the same positions, which point to adjust.
 	virtual void RemovePoint(const TVectorX<Dim>& Point, int32 NthPointOfFrom = 0) {}
 
+	virtual bool AdjustCtrlPointPos(TSplineBaseControlPoint<Dim, Degree>& PointStructToAdjust, const TVectorX<Dim>& To, int32 TangentFlag = 0, int32 NthPointOfFrom = 0) { return false; }
+
 	// NthPointOfFrom means if there are multiple points with the same positions, which point to adjust.
-	virtual bool AdjustCtrlPointPos(const TVectorX<Dim>& From, const TVectorX<Dim>& To, int32 NodeIndexOffset = 0, int32 NthPointOfFrom = 0, double ToleranceSqr = 1.) { return false; }
+	virtual bool AdjustCtrlPointPos(const TVectorX<Dim>& From, const TVectorX<Dim>& To, int32 TangentFlag = 0, int32 NthPointOfFrom = 0, double ToleranceSqr = 1.) { return false; }
 
 	//// NthPointOfFrom means if there are multiple points with the same positions, which point to adjust.
 	//virtual void AdjustCtrlPointParam(double From, double To, int32 NthPointOfFrom = 0) {}
@@ -136,6 +158,7 @@ template<ESplineType Type, int32 Dim = 3, int32 Degree = 3>
 struct TSplineTraitByType
 {
 	using FSplineType = typename TSplineBase<Dim, Degree>;
+	using FControlPointType = typename TSplineBaseControlPoint<Dim, Degree>;
 };
 
 template<typename TSClass>

@@ -26,15 +26,23 @@ ACGDemoCanvas2D::ACGDemoCanvas2D()
 	BackgroundPMC = CreateDefaultSubobject<UProceduralMeshComponent>(TEXT("Background"));
 	BackgroundPMC->AttachToComponent(EditableRootComponent, FAttachmentTransformRules::KeepRelativeTransform);
 	BackgroundPMC->SetMaterial(0, VertexColorMaterial);
+	BackgroundPMC->SetCollisionResponseToAllChannels(ECollisionResponse::ECR_Overlap);
+	BackgroundPMC->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 
 	DrawPointsPMC = CreateDefaultSubobject<UProceduralMeshComponent>(TEXT("DrawPoints"));
 	DrawPointsPMC->AttachToComponent(EditableRootComponent, FAttachmentTransformRules::KeepRelativeTransform);
+	DrawPointsPMC->SetCollisionResponseToAllChannels(ECollisionResponse::ECR_Overlap);
+	DrawPointsPMC->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 
 	DrawLinesPMC = CreateDefaultSubobject<UProceduralMeshComponent>(TEXT("DrawLines"));
 	DrawLinesPMC->AttachToComponent(EditableRootComponent, FAttachmentTransformRules::KeepRelativeTransform);
+	DrawLinesPMC->SetCollisionResponseToAllChannels(ECollisionResponse::ECR_Overlap);
+	DrawLinesPMC->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 
 	DrawPolygonsPMC = CreateDefaultSubobject<UProceduralMeshComponent>(TEXT("DrawPolygons"));
 	DrawPolygonsPMC->AttachToComponent(EditableRootComponent, FAttachmentTransformRules::KeepRelativeTransform);
+	DrawPolygonsPMC->SetCollisionResponseToAllChannels(ECollisionResponse::ECR_Overlap);
+	DrawPolygonsPMC->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 }
 
 // Called when the game starts or when spawned

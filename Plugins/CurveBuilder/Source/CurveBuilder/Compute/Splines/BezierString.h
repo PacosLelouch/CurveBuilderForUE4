@@ -15,15 +15,21 @@ THIRD_PARTY_INCLUDES_START
 THIRD_PARTY_INCLUDES_END
 
 template<int32 Dim>
-struct TBezierString3ControlPoint
+struct TBezierString3ControlPoint : public TSplineBaseControlPoint<Dim, 3>
 {
-	TBezierString3ControlPoint() : Pos(TVecLib<Dim+1>::Zero()), PrevCtrlPointPos(TVecLib<Dim+1>::Zero()), NextCtrlPointPos(TVecLib<Dim+1>::Zero()), Param(0.) {}
-	TBezierString3ControlPoint(const TVectorX<Dim+1>& InPos, double InParam = 0.) : Pos(InPos), PrevCtrlPointPos(TVecLib<Dim+1>::Zero()), NextCtrlPointPos(TVecLib<Dim+1>::Zero()), Param(InParam) {}
-	TBezierString3ControlPoint(const TVectorX<Dim+1>& InPos, const TVectorX<Dim+1>& PrevPos, const TVectorX<Dim+1>& NextPos, double InParam = 0.) : Pos(InPos), PrevCtrlPointPos(PrevPos), NextCtrlPointPos(NextPos), Param(InParam) {}
-	TBezierString3ControlPoint(const TBezierString3ControlPoint<Dim>& InP) : Pos(InP.Pos), PrevCtrlPointPos(InP.PrevCtrlPointPos), NextCtrlPointPos(InP.NextCtrlPointPos), Param(InP.Param) {}
-	TBezierString3ControlPoint<Dim>& operator=(const TBezierString3ControlPoint<Dim>& InP) { Pos = InP.Pos; PrevCtrlPointPos = InP.PrevCtrlPointPos; NextCtrlPointPos = InP.NextCtrlPointPos; Param = InP.Param; return *this; }
+	using Super = typename TSplineBaseControlPoint<Dim, 3>;
 
-	TVectorX<Dim+1> Pos;
+	TBezierString3ControlPoint() : Super(TVecLib<Dim+1>::Zero()), PrevCtrlPointPos(TVecLib<Dim+1>::Zero()), NextCtrlPointPos(TVecLib<Dim+1>::Zero()), Param(0.) {}
+	TBezierString3ControlPoint(const TVectorX<Dim+1>& InPos, double InParam = 0.) : Super(InPos), PrevCtrlPointPos(TVecLib<Dim+1>::Zero()), NextCtrlPointPos(TVecLib<Dim+1>::Zero()), Param(InParam) {}
+	TBezierString3ControlPoint(const TVectorX<Dim+1>& InPos, const TVectorX<Dim+1>& PrevPos, const TVectorX<Dim+1>& NextPos, double InParam = 0.) : Super(InPos), PrevCtrlPointPos(PrevPos), NextCtrlPointPos(NextPos), Param(InParam) {}
+	TBezierString3ControlPoint(const TBezierString3ControlPoint<Dim>& InP) : Super(InP.Pos), PrevCtrlPointPos(InP.PrevCtrlPointPos), NextCtrlPointPos(InP.NextCtrlPointPos), Param(InP.Param) {}
+	TBezierString3ControlPoint<Dim>& operator=(const TBezierString3ControlPoint<Dim>& InP) { Pos = InP.Pos; PrevCtrlPointPos = InP.PrevCtrlPointPos; NextCtrlPointPos = InP.NextCtrlPointPos; Param = InP.Param; return *this; }
+	
+	virtual TSharedRef<TSplineBaseControlPoint<Dim, 3> > Copy() const override
+	{
+		return MakeShared<TBezierString3ControlPoint<Dim> >(*this);
+	}
+
 	TVectorX<Dim+1> PrevCtrlPointPos, NextCtrlPointPos;
 	double Param;
 	EEndPointContinuity Continuity = EEndPointContinuity::G1;
@@ -35,7 +41,9 @@ class TBezierString3 : public TSplineBase<Dim>
 {
 	using TSplineBase<Dim>::TSplineBase;
 public:
-	using FPointNode = typename TDoubleLinkedList<TBezierString3ControlPoint<Dim> >::TDoubleLinkedListNode;
+	using FControlPointType = typename TBezierString3ControlPoint<Dim>;
+	using FControlPointTypeRef = typename TSharedRef<FControlPointType>;
+	using FPointNode = typename TDoubleLinkedList<FControlPointTypeRef>::TDoubleLinkedListNode;
 public:
 	FORCEINLINE TBezierString3() 
 	{
@@ -91,6 +99,8 @@ public:
 		return CtrlPointsList.Num();
 	}
 
+	virtual void GetCtrlPointStructs(TArray<TWeakPtr<TSplineBaseControlPoint<Dim, 3>>>& OutControlPointStructs) const override;
+
 	virtual TSharedRef<TSplineBase<Dim, 3> > CreateSameType(int32 EndContinuity = -1) const override;
 
 	virtual TSharedRef<TSplineBase<Dim, 3> > Copy() const override;
@@ -111,13 +121,13 @@ public:
 
 	virtual void ChangeCtrlPointContinuous(double From, EEndPointContinuity Continuity, int32 NthPointOfFrom = 0);
 
-	virtual void AdjustCtrlPointTangent(double From, const TVectorX<Dim>& To, bool bNext = true, int32 NthPointOfFrom = 0);
+	virtual bool AdjustCtrlPointTangent(double From, const TVectorX<Dim>& To, bool bNext = true, int32 NthPointOfFrom = 0);
 
-	virtual void AdjustCtrlPointTangent(FPointNode* Node, const TVectorX<Dim>& To, bool bNext = true, int32 NthPointOfFrom = 0);
+	virtual bool AdjustCtrlPointTangent(FPointNode* Node, const TVectorX<Dim>& To, bool bNext = true, int32 NthPointOfFrom = 0);
 
 	virtual void RemovePoint(double Param, int32 NthPointOfFrom = 0);
 
-	virtual void AdjustCtrlPointPos(FPointNode* Node, const TVectorX<Dim>& To, int32 NthPointOfFrom = 0);
+	virtual bool AdjustCtrlPointPos(FPointNode* Node, const TVectorX<Dim>& To, int32 NthPointOfFrom = 0);
 
 public:
 	virtual void AddPointAtLast(const TVectorX<Dim>& Point, TOptional<double> Param = TOptional<double>(), double Weight = 1.) override;
@@ -130,7 +140,9 @@ public:
 
 	virtual void RemovePoint(const TVectorX<Dim>& Point, int32 NthPointOfFrom = 0) override;
 
-	virtual bool AdjustCtrlPointPos(const TVectorX<Dim>& From, const TVectorX<Dim>& To, int32 NodeIndexOffset = 0, int32 NthPointOfFrom = 0, double ToleranceSqr = 1.) override;
+	virtual bool AdjustCtrlPointPos(TSplineBaseControlPoint<Dim, 3>& PointStructToAdjust, const TVectorX<Dim>& To, int32 TangentFlag = 0, int32 NthPointOfFrom = 0) override;
+
+	virtual bool AdjustCtrlPointPos(const TVectorX<Dim>& From, const TVectorX<Dim>& To, int32 TangentFlag = 0, int32 NthPointOfFrom = 0, double ToleranceSqr = 1.) override;
 
 	virtual void Reverse() override;
 
@@ -149,7 +161,7 @@ public:
 	virtual bool FindParamByPosition(double& OutParam, const TVectorX<Dim>& InPos, double ToleranceSqr = 1.) const override;
 
 protected:
-	TDoubleLinkedList<TBezierString3ControlPoint<Dim> > CtrlPointsList;
+	TDoubleLinkedList<FControlPointTypeRef> CtrlPointsList;
 
 	double GetNormalizedParam(const FPointNode* StartNode, const FPointNode* EndNode, double T) const;
 
@@ -164,6 +176,7 @@ template<int32 Dim>
 struct TSplineTraitByType<ESplineType::BezierString, Dim, 3>
 {
 	using FSplineType = typename TBezierString3<Dim>;
+	using FControlPointType = typename TBezierString3ControlPoint<Dim>;
 };
 
 #include "BezierString.inl"

@@ -2,6 +2,7 @@
 
 #include "CurveControlWidget.h"
 
+#define GetValueRef GetValue().Get
 
 void UCurveControlWidget::BindValues()
 {
@@ -91,13 +92,13 @@ FText UCurveControlWidget::GetPos()
 			FVector4* PHPtr = nullptr;
 			switch (Controller->HoldingPointType.Get(ESelectedNodeCtrlPointType::Current)) {
 			case ESelectedNodeCtrlPointType::Current:
-				PHPtr = &Controller->SelectedNode->GetValue().Pos;
+				PHPtr = &Controller->SelectedNode->GetValueRef().Pos;
 				return FText::FromString(FString::Printf(TEXT("(%.3lf, %.3lf)"), PHPtr->X, PHPtr->Y));
 			case ESelectedNodeCtrlPointType::Previous:
-				PHPtr = &Controller->SelectedNode->GetValue().PrevCtrlPointPos;
+				PHPtr = &Controller->SelectedNode->GetValueRef().PrevCtrlPointPos;
 				return FText::FromString(FString::Printf(TEXT("(%.3lf, %.3lf)"), PHPtr->X, PHPtr->Y));
 			case ESelectedNodeCtrlPointType::Next:
-				PHPtr = &Controller->SelectedNode->GetValue().NextCtrlPointPos;
+				PHPtr = &Controller->SelectedNode->GetValueRef().NextCtrlPointPos;
 				return FText::FromString(FString::Printf(TEXT("(%.3lf, %.3lf)"), PHPtr->X, PHPtr->Y));
 			}
 		}
@@ -109,7 +110,7 @@ FText UCurveControlWidget::GetParam()
 {
 	if (Controller) {
 		if (Controller->SelectedNode) {
-			return FText::FromString(FString::Printf(TEXT("%lf"), Controller->SelectedNode->GetValue().Param));
+			return FText::FromString(FString::Printf(TEXT("%lf"), Controller->SelectedNode->GetValueRef().Param));
 		}
 	}
 	return FText::FromString("?");
@@ -120,7 +121,7 @@ void UCurveControlWidget::UpdateCurrentContinuity()
 	if (Controller) {
 		if (Controller->SelectedNode) {
 			ComboBoxString_CurrentContinuity->SetIsEnabled(true);
-			ComboBoxString_CurrentContinuity->SetSelectedIndex(static_cast<int32>(Controller->SelectedNode->GetValue().Continuity));
+			ComboBoxString_CurrentContinuity->SetSelectedIndex(static_cast<int32>(Controller->SelectedNode->GetValueRef().Continuity));
 		}
 		else {
 			ComboBoxString_CurrentContinuity->SetIsEnabled(false);
@@ -147,7 +148,7 @@ void UCurveControlWidget::SelectCurrentContinuity(FString SelectedItem, ESelectI
 {
 	int32 Index = ComboBoxString_CurrentContinuity->FindOptionIndex(SelectedItem);
 	if (Controller && Index >= 0 && Index < ComboBoxString_CurrentContinuity->GetOptionCount() - 1) {
-		Controller->SelectedNode->GetValue().Continuity = (EEndPointContinuity)Index;
+		Controller->SelectedNode->GetValueRef().Continuity = (EEndPointContinuity)Index;
 	}
 }
 
@@ -158,3 +159,5 @@ void UCurveControlWidget::SelectNextPointContinuity(FString SelectedItem, ESelec
 		Controller->NewPointContinuityInit = (EEndPointContinuity)Index;
 	}
 }
+
+#undef GetValueRef

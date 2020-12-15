@@ -9,15 +9,20 @@
 #include "Utils/NumericalCalculationUtils.h"
 #include "Curves/BezierCurve.h"
 
-template<int32 Dim>
-struct TClampedBSplineControlPoint
+template<int32 Dim, int32 Degree = 3>
+struct TClampedBSplineControlPoint : public TSplineBaseControlPoint<Dim, Degree>
 {
-	TClampedBSplineControlPoint() : Pos(TVecLib<Dim+1>::Zero()) {}
-	TClampedBSplineControlPoint(const TVectorX<Dim+1>& InPos) : Pos(InPos) {}
-	TClampedBSplineControlPoint(const TClampedBSplineControlPoint<Dim>& InP) : Pos(InP.Pos) {}
+	using Super = typename TSplineBaseControlPoint<Dim, Degree>;
+
+	TClampedBSplineControlPoint() : Super(TVecLib<Dim+1>::Zero()) {}
+	TClampedBSplineControlPoint(const TVectorX<Dim+1>& InPos) : Super(InPos) {}
+	TClampedBSplineControlPoint(const TClampedBSplineControlPoint<Dim>& InP) : Super(InP.Pos) {}
 	TClampedBSplineControlPoint<Dim>& operator=(const TClampedBSplineControlPoint<Dim>& InP) { Pos = InP.Pos; return *this; }
 
-	TVectorX<Dim+1> Pos;
+	virtual TSharedRef<TSplineBaseControlPoint<Dim, Degree> > Copy() const
+	{
+		return MakeShared<TClampedBSplineControlPoint<Dim, Degree> >(*this);
+	}
 };
 
 // Clamped B-Spline
@@ -26,7 +31,9 @@ class TClampedBSpline : public TSplineBase<Dim, Degree>
 {
 	using TSplineBase<Dim, Degree>::TSplineBase;
 public:
-	using FPointNode = typename TDoubleLinkedList<TClampedBSplineControlPoint<Dim> >::TDoubleLinkedListNode;
+	using FControlPointType = typename TClampedBSplineControlPoint<Dim, Degree>;
+	using FControlPointTypeRef = typename TSharedRef<FControlPointType>;
+	using FPointNode = typename TDoubleLinkedList<FControlPointTypeRef>::TDoubleLinkedListNode;
 public:
 	FORCEINLINE TClampedBSpline() 
 	{
@@ -61,6 +68,8 @@ public:
 	{
 		return CtrlPointsList.Num();
 	}
+
+	virtual void GetCtrlPointStructs(TArray<TWeakPtr<TSplineBaseControlPoint<Dim, Degree>>>& OutControlPointStructs) const override;
 
 	virtual TSharedRef<TSplineBase<Dim, Degree> > CreateSameType(int32 EndContinuity = -1) const override;
 
@@ -104,9 +113,9 @@ public:
 	virtual void AddPointAt(const TClampedBSplineControlPoint<Dim>& PointStruct, int32 Index = 0);
 
 	// Insert a knot.
-	virtual void AddPointWithParamWithoutChangingShape(double T);
+	virtual FPointNode* AddPointWithParamWithoutChangingShape(double T);
 
-	virtual void AdjustCtrlPointPos(FPointNode* Node, const TVectorX<Dim>& To, int32 NthPointOfFrom = 0);
+	virtual bool AdjustCtrlPointPos(FPointNode* Node, const TVectorX<Dim>& To, int32 NthPointOfFrom = 0);
 
 	//virtual void AdjustCtrlPointParam(double From, double To, int32 NthPointOfFrom = 0);
 
@@ -123,7 +132,9 @@ public:
 
 	virtual void RemovePoint(const TVectorX<Dim>& Point, int32 NthPointOfFrom = 0) override;
 
-	virtual bool AdjustCtrlPointPos(const TVectorX<Dim>& From, const TVectorX<Dim>& To, int32 NodeIndexOffset = 0, int32 NthPointOfFrom = 0, double ToleranceSqr = 1.) override;
+	virtual bool AdjustCtrlPointPos(TSplineBaseControlPoint<Dim, Degree>& PointStructToAdjust, const TVectorX<Dim>& To, int32 TangentFlag = 0, int32 NthPointOfFrom = 0) override;
+
+	virtual bool AdjustCtrlPointPos(const TVectorX<Dim>& From, const TVectorX<Dim>& To, int32 TangentFlag = 0, int32 NthPointOfFrom = 0, double ToleranceSqr = 1.) override;
 
 	virtual void Reverse() override;
 
@@ -142,7 +153,7 @@ public:
 	virtual bool FindParamByPosition(double& OutParam, const TVectorX<Dim>& InPos, double ToleranceSqr = 1.) const override;
 
 protected:
-	TDoubleLinkedList<TClampedBSplineControlPoint<Dim> > CtrlPointsList;
+	TDoubleLinkedList<FControlPointTypeRef> CtrlPointsList;
 	TArray<double> KnotIntervals;
 
 	// DeBoor is more efficient than Cox-DeBoor. Reference: https://en.wikipedia.org/wiki/De_Boor%27s_algorithm
@@ -161,6 +172,7 @@ template<int32 Dim, int32 Degree>
 struct TSplineTraitByType<ESplineType::ClampedBSpline, Dim, Degree>
 {
 	using FSplineType = typename TClampedBSpline<Dim, Degree>;
+	using FControlPointType = typename TClampedBSplineControlPoint<Dim, Degree>;
 };
 
 #include "BSpline.inl"

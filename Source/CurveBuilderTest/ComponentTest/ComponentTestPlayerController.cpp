@@ -10,6 +10,8 @@
 #include "CurveBuilder/RuntimeComponent/RuntimeSplineGraph.h"
 #include "CurveBuilder/RuntimeComponent/RuntimeCustomSplineBaseComponent.h"
 
+#define GetValueRef GetValue().Get
+
 DEFINE_LOG_CATEGORY_STATIC(LogComponentTest, Warning, All)
 
 static const double PointDistSqr = 16.0;
@@ -104,9 +106,9 @@ void AComponentTestPlayerController::Tick(float Delta)
 
 						if (SelectedNode) {
 							if (bPressedLeftMouseButton) {
-								FVector SelectedPos = TVecLib<4>::Projection(SelectedNode->GetValue().Pos);
-								FVector SelectedPrevPos = TVecLib<4>::Projection(SelectedNode->GetValue().PrevCtrlPointPos);
-								FVector SelectedNextPos = TVecLib<4>::Projection(SelectedNode->GetValue().NextCtrlPointPos);
+								FVector SelectedPos = TVecLib<4>::Projection(SelectedNode->GetValueRef().Pos);
+								FVector SelectedPrevPos = TVecLib<4>::Projection(SelectedNode->GetValueRef().PrevCtrlPointPos);
+								FVector SelectedNextPos = TVecLib<4>::Projection(SelectedNode->GetValueRef().NextCtrlPointPos);
 								if ((HoldingPointType && HoldingPointType.GetValue() == ESelectedNodeCtrlPointType::Current) ||
 									(!HoldingPointType && FVector::DistSquared(SelectedPos, CtrlPoint) < NodeDistSqr)) {
 									HoldingPointType = ESelectedNodeCtrlPointType::Current;
@@ -119,7 +121,7 @@ void AComponentTestPlayerController::Tick(float Delta)
 									HoldingPointType = ESelectedNodeCtrlPointType::Next;
 									GetSplineGraph().AdjustCtrlPointPos(SelectedNextPos, CtrlPoint, SelectedSpline, 1, 1, 0, NodeDistSqr);
 									//SplineBezierString.AdjustCtrlPointTangent(SelectedNode, CtrlPoint, true, 0);
-									Canvas2D->DisplayPoints[2].Array.Add(ControlPointToHitPoint(TVecLib<4>::Projection(SelectedNode->GetValue().PrevCtrlPointPos)));
+									Canvas2D->DisplayPoints[2].Array.Add(ControlPointToHitPoint(TVecLib<4>::Projection(SelectedNode->GetValueRef().PrevCtrlPointPos)));
 									ResampleCurve();
 								}
 								else if ((HoldingPointType && HoldingPointType.GetValue() == ESelectedNodeCtrlPointType::Previous) ||
@@ -127,7 +129,7 @@ void AComponentTestPlayerController::Tick(float Delta)
 									HoldingPointType = ESelectedNodeCtrlPointType::Previous;
 									GetSplineGraph().AdjustCtrlPointPos(SelectedPrevPos, CtrlPoint, SelectedSpline, 1, -1, 0, NodeDistSqr);
 									//SplineBezierString.AdjustCtrlPointTangent(SelectedNode, CtrlPoint, false, 0);
-									Canvas2D->DisplayPoints[2].Array.Add(ControlPointToHitPoint(TVecLib<4>::Projection(SelectedNode->GetValue().NextCtrlPointPos)));
+									Canvas2D->DisplayPoints[2].Array.Add(ControlPointToHitPoint(TVecLib<4>::Projection(SelectedNode->GetValueRef().NextCtrlPointPos)));
 									ResampleCurve();
 								}
 								URuntimeCustomSplineBaseComponent* Comp = GraphActor->GetSplineComponentBySplineWeakPtr(SelectedSpline);
@@ -146,7 +148,7 @@ void AComponentTestPlayerController::Tick(float Delta)
 
 						if (SelectedNode) {
 							if (bPressedLeftMouseButton) {
-								FVector SelectedPos = TVecLib<4>::Projection(SelectedNode->GetValue().Pos);
+								FVector SelectedPos = TVecLib<4>::Projection(SelectedNode->GetValueRef().Pos);
 								if (HoldingPointType || (!HoldingPointType && FVector::DistSquared(SelectedPos, CtrlPoint) < NodeDistSqr)) {
 									HoldingPointType = ESelectedNodeCtrlPointType::Current;
 									GetSplineGraph().AdjustCtrlPointPos(SelectedPos, CtrlPoint, SelectedSpline, 1, 0, 0, NodeDistSqr);
@@ -170,7 +172,7 @@ void AComponentTestPlayerController::Tick(float Delta)
 			if (NearestNodeRaw) {
 				switch (CurSplineType) {
 				case ESplineType::BezierString:
-					Canvas2D->DisplayPoints[1].Array.Add(ControlPointToHitPoint(TVecLib<4>::Projection(static_cast<FSpatialBezierString3::FPointNode*>(NearestNodeRaw)->GetValue().Pos)));
+					Canvas2D->DisplayPoints[1].Array.Add(ControlPointToHitPoint(TVecLib<4>::Projection(static_cast<FSpatialBezierString3::FPointNode*>(NearestNodeRaw)->GetValueRef().Pos)));
 					break;
 				}
 			}
@@ -181,21 +183,21 @@ void AComponentTestPlayerController::Tick(float Delta)
 		switch (CurSplineType) {
 		case ESplineType::BezierString:
 			Canvas2D->DisplayLines[16].Array.Add(ControlPointToHitPoint(
-				TVecLib<4>::Projection(static_cast<FSpatialBezierString3::FPointNode*>(SelectedNodeRaw)->GetValue().PrevCtrlPointPos)));
+				TVecLib<4>::Projection(static_cast<FSpatialBezierString3::FPointNode*>(SelectedNodeRaw)->GetValueRef().PrevCtrlPointPos)));
 			Canvas2D->DisplayPoints[1].Array.Add(ControlPointToHitPoint(
-				TVecLib<4>::Projection(static_cast<FSpatialBezierString3::FPointNode*>(SelectedNodeRaw)->GetValue().PrevCtrlPointPos)));
+				TVecLib<4>::Projection(static_cast<FSpatialBezierString3::FPointNode*>(SelectedNodeRaw)->GetValueRef().PrevCtrlPointPos)));
 			Canvas2D->DisplayLines[16].Array.Add(ControlPointToHitPoint(
-				TVecLib<4>::Projection(static_cast<FSpatialBezierString3::FPointNode*>(SelectedNodeRaw)->GetValue().Pos)));
+				TVecLib<4>::Projection(static_cast<FSpatialBezierString3::FPointNode*>(SelectedNodeRaw)->GetValueRef().Pos)));
 			Canvas2D->DisplayPoints[2].Array.Add(ControlPointToHitPoint(
-				TVecLib<4>::Projection(static_cast<FSpatialBezierString3::FPointNode*>(SelectedNodeRaw)->GetValue().Pos)));
+				TVecLib<4>::Projection(static_cast<FSpatialBezierString3::FPointNode*>(SelectedNodeRaw)->GetValueRef().Pos)));
 			Canvas2D->DisplayLines[16].Array.Add(ControlPointToHitPoint(
-				TVecLib<4>::Projection(static_cast<FSpatialBezierString3::FPointNode*>(SelectedNodeRaw)->GetValue().NextCtrlPointPos)));
+				TVecLib<4>::Projection(static_cast<FSpatialBezierString3::FPointNode*>(SelectedNodeRaw)->GetValueRef().NextCtrlPointPos)));
 			Canvas2D->DisplayPoints[1].Array.Add(ControlPointToHitPoint(
-				TVecLib<4>::Projection(static_cast<FSpatialBezierString3::FPointNode*>(SelectedNodeRaw)->GetValue().NextCtrlPointPos)));
+				TVecLib<4>::Projection(static_cast<FSpatialBezierString3::FPointNode*>(SelectedNodeRaw)->GetValueRef().NextCtrlPointPos)));
 			break;
 		case ESplineType::ClampedBSpline:
 			Canvas2D->DisplayPoints[2].Array.Add(ControlPointToHitPoint(
-				TVecLib<4>::Projection(static_cast<FSpatialBSpline3::FPointNode*>(SelectedNodeRaw)->GetValue().Pos)));
+				TVecLib<4>::Projection(static_cast<FSpatialBSpline3::FPointNode*>(SelectedNodeRaw)->GetValueRef().Pos)));
 			break;
 		}
 	}
@@ -276,7 +278,7 @@ void AComponentTestPlayerController::RemakeBezierC2()
 				auto& SplineBezierString = static_cast<FSpatialBezierString3&>(Spline);
 				SplineBezierString.RemakeC2();
 				for (FSpatialBezierString3::FPointNode* Node = SplineBezierString.FirstNode(); Node; Node = Node->GetNextNode()) {
-					Node->GetValue().Continuity = NewPointContinuityInit;
+					Node->GetValueRef().Continuity = NewPointContinuityInit;
 				}
 			}
 			break;
@@ -361,6 +363,7 @@ void AComponentTestPlayerController::AddControlPoint(const FVector& HitPoint)
 			bNewSpline = true;
 		}
 		auto& Spline = *TargetSplinePtr.Pin().Get();
+		URuntimeCustomSplineBaseComponent* Comp = GraphActor->GetSplineComponentBySplineWeakPtr(TargetSplinePtr);
 
 		switch (Spline.GetType()) {
 		case ESplineType::BezierString:
@@ -369,17 +372,35 @@ void AComponentTestPlayerController::AddControlPoint(const FVector& HitPoint)
 			if (bNewSpline)
 			{
 				BezierString3.AdjustCtrlPointPos(BezierString3.LastNode(), EndPoint);
+				for (FSpatialBezierString3::FPointNode* Node = BezierString3.FirstNode(); Node; Node = Node->GetNextNode())
+				{
+					Comp->AddPointInternal(Node->GetValue(), -1);
+					Comp->AddPointInternal(Node->GetValue(), 0);
+					Comp->AddPointInternal(Node->GetValue(), 1);
+				}
 			}
 			else
 			{
 				BezierString3.AddPointAtLast(EndPoint);
-				BezierString3.LastNode()->GetValue().Continuity = NewPointContinuityInit;
+				BezierString3.LastNode()->GetValueRef().Continuity = NewPointContinuityInit;
+				Comp->AddPointInternal(BezierString3.LastNode()->GetValue(), -1);
+				Comp->AddPointInternal(BezierString3.LastNode()->GetValue(), 0);
+				Comp->AddPointInternal(BezierString3.LastNode()->GetValue(), 1);
 			}
 		}
 		break;
 		case ESplineType::ClampedBSpline:
 		{
-			static_cast<FSpatialBSpline3&>(Spline).AddPointAtLast(EndPoint);
+			FSpatialBSpline3& BSpline3 = static_cast<FSpatialBSpline3&>(Spline);
+			if (bNewSpline)
+			{
+				for (FSpatialBSpline3::FPointNode* Node = BSpline3.FirstNode(); Node; Node = Node->GetNextNode())
+				{
+					Comp->AddPointInternal(Node->GetValue(), 0);
+				}
+			}
+			BSpline3.AddPointAtLast(EndPoint);
+			Comp->AddPointInternal(BSpline3.LastNode()->GetValue(), 0);
 		}
 		break;
 		}
@@ -391,6 +412,8 @@ void AComponentTestPlayerController::AddControlPoint(const FVector& HitPoint)
 		double Param = -1;
 		bool bFind = false;
 		auto& Spline = *SplinePtr.Pin().Get();
+		URuntimeCustomSplineBaseComponent* Comp = GraphActor->GetSplineComponentBySplineWeakPtr(SplinePtr);
+
 		if (Spline.FindParamByPosition(Param, EndPoint, PointDistSqr)) {
 			//UE_LOG(LogComponentTest, Warning, TEXT("Param = %.6lf"), Param);
 
@@ -399,13 +422,19 @@ void AComponentTestPlayerController::AddControlPoint(const FVector& HitPoint)
 			{
 				FSpatialBezierString3::FPointNode* NewNode = static_cast<FSpatialBezierString3&>(Spline).AddPointWithParamWithoutChangingShape(Param);
 				if (NewNode) {
-					NewNode->GetValue().Continuity = NewPointContinuityInit;
+					NewNode->GetValueRef().Continuity = NewPointContinuityInit;
+					Comp->AddPointInternal(NewNode->GetValue(), -1);
+					Comp->AddPointInternal(NewNode->GetValue(), 0);
+					Comp->AddPointInternal(NewNode->GetValue(), 1);
 				}
 			}
 			break;
 			case ESplineType::ClampedBSpline:
 			{
-				static_cast<FSpatialBSpline3&>(Spline).AddPointWithParamWithoutChangingShape(Param);
+				FSpatialBSpline3::FPointNode* NewNode = static_cast<FSpatialBSpline3&>(Spline).AddPointWithParamWithoutChangingShape(Param);
+				if (NewNode) {
+					Comp->AddPointInternal(NewNode->GetValue(), 0);
+				}
 			}
 			break;
 			}
@@ -440,12 +469,12 @@ void AComponentTestPlayerController::AddControlPoint(const FVector& HitPoint)
 			if (!Splines.Last().IsValid()) {
 				return;
 			}
-			AddCtrlPointInternal(Splines.Last());
 
 			if (SplineActors.Num() == 0)
 			{
 				CreateSplineActor(Splines.Last());
 			}
+			AddCtrlPointInternal(Splines.Last());
 		}
 		URuntimeCustomSplineBaseComponent* Comp = GraphActor->GetSplineComponentBySplineWeakPtr(Splines.Last());
 		Comp->UpdateTransformByCtrlPoint();
@@ -473,6 +502,11 @@ void AComponentTestPlayerController::ClearCanvasImpl()
 	NearestSpline = nullptr;
 	SelectedSpline = nullptr;
 	NearestPoint.Reset();
+
+	GraphActor->Destroy();
+	GraphActor = GetWorld()->SpawnActor<ARuntimeSplineGraph>();
+
+	GraphActor->SetActorRotation(FRotator(0.f, 90.f, -90.f));
 
 	GetSplineGraph().Empty();
 	GetSplineGraph().AddDefaulted(NewSplineType);
@@ -534,7 +568,7 @@ void AComponentTestPlayerController::CreateSplineActor(TWeakPtr<FSpatialSplineGr
 			SplineActors.Add(NewActor);
 			URuntimeCustomSplineBaseComponent* NewComponent = NewObject<URuntimeCustomSplineBaseComponent>(NewActor);
 			NewComponent->SplineBaseWrapperProxy = GetSplineGraph().GetSplineWrapper(SplineWeakPtr).Pin();
-			NewComponent->AttachTo(NewActor->GetRootComponent());
+			NewComponent->AttachToComponent(NewActor->GetRootComponent(), FAttachmentTransformRules::KeepRelativeTransform);
 			NewActor->AddInstanceComponent(NewComponent);
 			NewComponent->RegisterComponent();
 			GraphActor->VirtualAttachSplineComponent(NewComponent);
@@ -564,7 +598,7 @@ int32 AComponentTestPlayerController::ResampleBSpline(const TArray<FSpatialBSpli
 			if (Splines[i]->GetCtrlPointNum() > 0
 				//&& Splines[i] == static_cast<FSpatialBSpline3*>(SelectedSpline.Pin().Get())
 				) {
-				Canvas2D->DisplayPoints[0].Array.Add(ControlPointToHitPoint(TVecLib<4>::Projection(Splines[i]->FirstNode()->GetValue().Pos)));
+				Canvas2D->DisplayPoints[0].Array.Add(ControlPointToHitPoint(TVecLib<4>::Projection(Splines[i]->FirstNode()->GetValueRef().Pos)));
 			}
 			continue;
 		}
@@ -663,7 +697,7 @@ int32 AComponentTestPlayerController::ResampleBezierString(const TArray<FSpatial
 			//Canvas2D->DrawPoints(i);
 			if (Splines[i]->GetCtrlPointNum() > 0) {
 				//if (SelectedSpline.Pin().Get() == Splines[i]) {
-					Canvas2D->DisplayPoints[0].Array.Add(ControlPointToHitPoint(TVecLib<4>::Projection(Splines[i]->FirstNode()->GetValue().Pos)));
+					Canvas2D->DisplayPoints[0].Array.Add(ControlPointToHitPoint(TVecLib<4>::Projection(Splines[i]->FirstNode()->GetValueRef().Pos)));
 				//}
 			}
 			continue;
@@ -912,3 +946,5 @@ FVector AComponentTestPlayerController::HitPointToControlPoint(const FVector& P)
 	static constexpr double Weight = 1.;
 	return FVector(Canvas2D->FromCanvasPoint(P) * Weight, Weight);
 }
+
+#undef GetValueRef

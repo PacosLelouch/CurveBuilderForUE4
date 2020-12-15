@@ -3,6 +3,7 @@
 
 #include "RuntimeSplineGraph.h"
 #include "RuntimeCustomSplineBaseComponent.h"
+#include "RuntimeSplinePointBaseComponent.h"
 
 void USplineGraphRootComponent::OnUpdateTransform(EUpdateTransformFlags UpdateTransformFlags, ETeleportType Teleport)
 {
@@ -12,8 +13,15 @@ void USplineGraphRootComponent::OnUpdateTransform(EUpdateTransformFlags UpdateTr
 		for (auto& SpPair : Graph->SplineComponentMap)
 		{
 			URuntimeCustomSplineBaseComponent* Comp = SpPair.Get<1>();
-			Comp->UpdateCollision();
-			Comp->MarkRenderStateDirty();
+			if (IsValid(Comp))
+			{
+				Comp->OnUpdateTransform(UpdateTransformFlags, Teleport);
+				for (URuntimeSplinePointBaseComponent* PC : Comp->PointComponents)
+				{
+					//PC->MoveSplinePointInternal();
+					PC->OnUpdateTransform(UpdateTransformFlags, Teleport);
+				}
+			}
 		}
 	}
 }
@@ -21,8 +29,8 @@ void USplineGraphRootComponent::OnUpdateTransform(EUpdateTransformFlags UpdateTr
 ARuntimeSplineGraph::ARuntimeSplineGraph(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	USplineGraphRootComponent* NewRootComponent = CreateDefaultSubobject<USplineGraphRootComponent>(TEXT("RootComponent"));
-	RootComponent = NewRootComponent;
+	SplineGraphRootComponent = CreateDefaultSubobject<USplineGraphRootComponent>(TEXT("RootComponent"));
+	RootComponent = SplineGraphRootComponent;
 }
 
 void ARuntimeSplineGraph::Destroyed()
@@ -77,11 +85,43 @@ void USplineGraphRootComponent::PostEditChangeProperty(FPropertyChangedEvent& Pr
 	const FName PropertyName = PropertyChangedEvent.Property ? PropertyChangedEvent.Property->GetFName() : FName();
 	const FName MemberPropertyName = PropertyChangedEvent.MemberProperty ? PropertyChangedEvent.MemberProperty->GetFName() : FName();
 	
-	const bool bLocationChanged = (PropertyName == LocationName || MemberPropertyName == LocationName);
+	bool bLocationChanged = (PropertyName == LocationName || MemberPropertyName == LocationName);
+	bool bRotationChanged = (PropertyName == RotationName || MemberPropertyName == RotationName);
+	bool bScaleChanged = (PropertyName == ScaleName || MemberPropertyName == ScaleName);
 	
-	if (bLocationChanged || (PropertyName == RotationName || MemberPropertyName == RotationName) || (PropertyName == ScaleName || MemberPropertyName == ScaleName))
+	if (bLocationChanged || bRotationChanged || bScaleChanged)
 	{
 		OnUpdateTransform(EUpdateTransformFlags::None, ETeleportType::None);
 	}
+}
+
+void USplineGraphRootComponent::PostEditComponentMove(bool bFinished)
+{
+	//if (bFinished)
+	{
+		OnUpdateTransform(EUpdateTransformFlags::None, ETeleportType::None);
+	}
+
+	Super::PostEditComponentMove(bFinished);
+}
+
+void ARuntimeSplineGraph::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+{
+	//const static FName LocationName("RelativeLocation");
+	//const static FName RotationName("RelativeRotation");
+	//const static FName ScaleName("RelativeScale3D");
+
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+	//const FName PropertyName = PropertyChangedEvent.Property ? PropertyChangedEvent.Property->GetFName() : FName();
+	//const FName MemberPropertyName = PropertyChangedEvent.MemberProperty ? PropertyChangedEvent.MemberProperty->GetFName() : FName();
+
+	//bool bLocationChanged = (PropertyName == LocationName || MemberPropertyName == LocationName);
+	//bool bRotationChanged = (PropertyName == RotationName || MemberPropertyName == RotationName);
+	//bool bScaleChanged = (PropertyName == ScaleName || MemberPropertyName == ScaleName);
+
+	//if (bLocationChanged || bRotationChanged || bScaleChanged)
+	//{
+	//	//SplineGraphRootComponent->SetRelativeTransform(GetActorTransform());
+	//}
 }
 #endif
