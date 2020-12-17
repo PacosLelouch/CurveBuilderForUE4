@@ -15,6 +15,22 @@ using FSpatialControlPoint3 = typename TSplineBaseControlPoint<3, 3>;
 
 class URuntimeCustomSplineBaseComponent;
 
+UENUM(BlueprintType)
+enum class ECustomSplineCoordinateType : uint8
+{
+	SplineGraphLocal,
+	ComponentLocal,
+	World,
+};
+
+UENUM(BlueprintType)
+enum class ERuntimeSplineType : uint8
+{
+	Unknown,
+	ClampedBSpline,
+	BezierString,
+};
+
 UCLASS()
 class CURVEBUILDER_API USplineGraphRootComponent : public USceneComponent
 {
@@ -44,18 +60,93 @@ public:
 #endif
 
 public:
-	UFUNCTION(BlueprintCallable, Category = "RuntimeCustomSpline")
+	UFUNCTION(BlueprintCallable, Category = "RuntimeCustomSpline|Update")
 	void VirtualAttachSplineComponent(URuntimeCustomSplineBaseComponent* SplineComponent);
 
-	UFUNCTION(BlueprintCallable, Category = "RuntimeCustomSpline")
+	UFUNCTION(BlueprintCallable, Category = "RuntimeCustomSpline|Query")
 	void GetOwningSplines(TArray<URuntimeCustomSplineBaseComponent*>& Splines);
 
-public:
-	URuntimeCustomSplineBaseComponent* GetSplineComponentBySplineWeakPtr(TWeakPtr<FSpatialSplineGraph3::FSplineType> SplineWeakPtr);
+	UFUNCTION(BlueprintPure, Category = "RuntimeCustomSpline|Query")
+	bool CheckSplineHasConnection(URuntimeCustomSplineBaseComponent* SplineComponent, bool bAtLast = true);
+
+	UFUNCTION(BlueprintPure, Category = "RuntimeCustomSpline|Query")
+	void GetAdjacentSplines(TArray<URuntimeCustomSplineBaseComponent*>& OutAdjacentSplines, URuntimeCustomSplineBaseComponent* SourceSpline, bool bForward = true);
+
+	UFUNCTION(BlueprintPure, Category = "RuntimeCustomSpline|Query")
+	void GetClusterSplinesWithoutSource(TMap<URuntimeCustomSplineBaseComponent*, int32>& OutClusterSplinesWithDistance, URuntimeCustomSplineBaseComponent* SourceSpline, bool bForward = true);
+
+	UFUNCTION(BlueprintCallable, Category = "RuntimeCustomSpline|Update")
+	void ClearAllSplines();
+
+	UFUNCTION(BlueprintCallable, Category = "RuntimeCustomSpline|Update")
+	URuntimeCustomSplineBaseComponent* CreateNewActorWithEmptySpline(
+		ERuntimeSplineType SplineTypeToCreate = ERuntimeSplineType::ClampedBSpline);
+
+	UFUNCTION(BlueprintCallable, Category = "RuntimeCustomSpline|Update")
+	URuntimeSplinePointBaseComponent* AddEndPoint(
+		const FVector& Position, 
+		URuntimeCustomSplineBaseComponent* ToSpline = nullptr, 
+		bool bAtLast = true, 
+		ECustomSplineCoordinateType CoordinateType = ECustomSplineCoordinateType::SplineGraphLocal, 
+		ERuntimeSplineType SplineTypeToCreate = ERuntimeSplineType::ClampedBSpline);
+
+	UFUNCTION(BlueprintCallable, Category = "RuntimeCustomSpline|Update")
+	URuntimeSplinePointBaseComponent* InsertPoint(
+		const FVector& Position,
+		bool& bSucceedReturn,
+		URuntimeCustomSplineBaseComponent* ToSpline = nullptr,
+		ECustomSplineCoordinateType CoordinateType = ECustomSplineCoordinateType::SplineGraphLocal);
+
+	UFUNCTION(BlueprintCallable, Category = "RuntimeCustomSpline|Update")
+	URuntimeCustomSplineBaseComponent* ExtendNewSplineWithContinuity(
+		bool& bSucceedReturn,
+		URuntimeCustomSplineBaseComponent* SourceSpline = nullptr,
+		bool bAtLast = true,
+		ECustomSplineCoordinateType CoordinateType = ECustomSplineCoordinateType::SplineGraphLocal);
+
+	UFUNCTION(BlueprintCallable, Category = "RuntimeCustomSpline|Update")
+	URuntimeSplinePointBaseComponent* ExtendNewSplineAndNewPoint(
+		const FVector& Position,
+		bool& bSucceedReturn,
+		URuntimeCustomSplineBaseComponent* SourceSpline = nullptr,
+		bool bAtLast = true,
+		ECustomSplineCoordinateType CoordinateType = ECustomSplineCoordinateType::SplineGraphLocal);
+
+	UFUNCTION(BlueprintCallable, Category = "RuntimeCustomSpline|Update")
+	FVector MovePoint(
+		URuntimeCustomSplineBaseComponent* SourceSpline, 
+		URuntimeSplinePointBaseComponent* SourcePoint,
+		const FVector& TargetPosition,
+		ECustomSplineCoordinateType CoordinateType = ECustomSplineCoordinateType::SplineGraphLocal);
+
 
 public:
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RuntimeCustomSpline|Component")
+
+	URuntimeCustomSplineBaseComponent* GetSplineComponentBySplineWeakPtr(TWeakPtr<FSpatialSplineBase3> SplineWeakPtr);
+
+	URuntimeCustomSplineBaseComponent* CreateSplineActorInternal(TWeakPtr<FSpatialSplineBase3> SplineWeakPtr, URuntimeSplinePointBaseComponent** LatestNewPointPtr = nullptr);
+
+	void AddUnbindingPointsInternal(const TArray<TWeakPtr<FSpatialControlPoint3> >& CtrlPointStructsWP, URuntimeCustomSplineBaseComponent* NewSpline, URuntimeSplinePointBaseComponent** LatestNewPointPtr = nullptr);
+
+	static ESplineType GetInternalSplineType(ERuntimeSplineType SplineType)
+	{
+		return static_cast<ESplineType>(SplineType);
+	}
+
+	static ERuntimeSplineType GetExternalSplineType(ESplineType InternalSplineType)
+	{
+		return static_cast<ERuntimeSplineType>(InternalSplineType);
+	}
+
+public:
+	UPROPERTY(VisibleAnywhere, AdvancedDisplay, BlueprintReadOnly, Category = "RuntimeCustomSpline|Component")
 	USplineGraphRootComponent* SplineGraphRootComponent = nullptr;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RuntimeCustomSpline|Component")
+	TArray<URuntimeCustomSplineBaseComponent*> SelectedSplines;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "RuntimeCustomSpline|Settings")
+	TSubclassOf<AActor> ActorWithSpline;
 
 public:
 	FSpatialSplineGraph3 SplineGraphProxy;

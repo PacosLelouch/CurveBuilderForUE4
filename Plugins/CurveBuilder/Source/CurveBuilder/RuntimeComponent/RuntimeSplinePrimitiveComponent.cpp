@@ -36,7 +36,7 @@ FPrimitiveSceneProxy* URuntimeSplinePrimitiveComponent::CreateSceneProxy()
 
 FMatrix URuntimeSplinePrimitiveComponent::GetRenderMatrix() const
 {
-	return GetSplineLocalToWorldMatrix();
+	return GetSplineLocalToWorldTransform().ToMatrixWithScale();
 }
 
 void URuntimeSplinePrimitiveComponent::OnCreatePhysicsState()
@@ -104,7 +104,8 @@ void URuntimeSplinePrimitiveComponent::OnUpdateTransform(EUpdateTransformFlags U
 	Super::OnUpdateTransform(UpdateTransformFlags, Teleport);
 	UpdateBounds();
 	UpdateCollision();
-	MarkRenderTransformDirty();  // Need to send new bounds to render thread
+	MarkRenderStateDirty();
+	//MarkRenderTransformDirty();  // Need to send new bounds to render thread
 }
 
 FBoxSphereBounds URuntimeSplinePrimitiveComponent::CalcBounds(const FTransform& LocalToWorld) const
@@ -126,6 +127,13 @@ void URuntimeSplinePrimitiveComponent::PostEditChangeProperty(FPropertyChangedEv
 {
 	//UE_LOG(LogRuntimeSplinePrimitiveComponent, Warning, TEXT("PostEditChangeProperty not override."));
 	Super::PostEditChangeProperty(PropertyChangedEvent);
+	const FName PropertyName = PropertyChangedEvent.Property ? PropertyChangedEvent.Property->GetFName() : FName();
+	const FName MemberPropertyName = PropertyChangedEvent.MemberProperty ? PropertyChangedEvent.MemberProperty->GetFName() : FName();
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(URuntimeSplinePrimitiveComponent, bDrawInGame)
+		|| PropertyName == GET_MEMBER_NAME_CHECKED(URuntimeSplinePrimitiveComponent, bDrawDebugCollision))
+	{
+		MarkRenderStateDirty();
+	}
 }
 #endif
 
@@ -150,18 +158,6 @@ FTransform URuntimeSplinePrimitiveComponent::GetWorldToSplineLocalTransform() co
 	return GetSplineLocalToWorldTransform().Inverse();
 }
 
-FMatrix URuntimeSplinePrimitiveComponent::GetSplineLocalToWorldMatrix() const
-{
-	return GetSplineLocalToWorldTransform().ToMatrixWithScale();
-	//return FMatrix::Identity;
-}
-
-FMatrix URuntimeSplinePrimitiveComponent::GetWorldToSplineLocalMatrix() const
-{
-	return GetSplineLocalToWorldTransform().Inverse().ToMatrixWithScale();
-	//return FMatrix::Identity;
-}
-
 FTransform URuntimeSplinePrimitiveComponent::GetSplineLocalToComponentLocalTransform() const
 {
 	return GetSplineLocalToWorldTransform() * GetComponentTransform().Inverse();
@@ -172,18 +168,75 @@ FTransform URuntimeSplinePrimitiveComponent::GetComponentLocalToSplineLocalTrans
 	return GetComponentTransform() * GetSplineLocalToWorldTransform().Inverse();
 }
 
+FTransform URuntimeSplinePrimitiveComponent::GetWorldToParentComponentTransform() const
+{
+	return GetParentComponentToWorldTransform().Inverse();
+}
+
+FTransform URuntimeSplinePrimitiveComponent::GetParentComponentToWorldTransform() const
+{
+	USceneComponent* RealParent = GetAttachParent();
+	if (IsValid(RealParent))
+	{
+		return RealParent->GetComponentTransform();
+	}
+
+	return GetComponentTransform();
+}
+
 FTransform URuntimeSplinePrimitiveComponent::GetSplineLocalToParentComponentTransform() const
 {
-	if (GetAttachParent())
+	USceneComponent* RealParent = GetAttachParent();
+	if (IsValid(RealParent))
 	{
-		return GetSplineLocalToWorldTransform() * GetAttachParent()->GetComponentTransform();
+		return GetSplineLocalToWorldTransform() * RealParent->GetComponentTransform().Inverse();
 	}
 	return GetSplineLocalToWorldTransform();
 }
 
 FTransform URuntimeSplinePrimitiveComponent::GetParentComponentToSplineLocalTransform() const
 {
-	return GetSplineLocalToParentComponentTransform().Inverse();
+	USceneComponent* RealParent = GetAttachParent();
+	if (IsValid(RealParent))
+	{
+		return RealParent->GetComponentTransform() * GetWorldToSplineLocalTransform();
+	}
+	return GetWorldToSplineLocalTransform();
+}
+
+FVector URuntimeSplinePrimitiveComponent::ConvertPosition(const FVector& SourcePosition, ECustomSplineCoordinateType From, ECustomSplineCoordinateType To) const
+{
+	switch (From)
+	{
+	case ECustomSplineCoordinateType::ComponentLocal:
+		switch (To)
+		{
+		case ECustomSplineCoordinateType::SplineGraphLocal:
+			return GetParentComponentToSplineLocalTransform().TransformPosition(SourcePosition);
+		case ECustomSplineCoordinateType::World:
+			return GetParentComponentToWorldTransform().TransformPosition(SourcePosition);
+		}
+		break;
+	case ECustomSplineCoordinateType::SplineGraphLocal:
+		switch (To)
+		{
+		case ECustomSplineCoordinateType::ComponentLocal:
+			return GetSplineLocalToParentComponentTransform().TransformPosition(SourcePosition);
+		case ECustomSplineCoordinateType::World:
+			return GetSplineLocalToWorldTransform().TransformPosition(SourcePosition);
+		}
+		break;
+	case ECustomSplineCoordinateType::World:
+		switch (To)
+		{
+		case ECustomSplineCoordinateType::SplineGraphLocal:
+			return GetWorldToSplineLocalTransform().TransformPosition(SourcePosition);
+		case ECustomSplineCoordinateType::ComponentLocal:
+			return GetWorldToParentComponentTransform().TransformPosition(SourcePosition);
+		}
+		break;
+	}
+	return SourcePosition;
 }
 
 void URuntimeSplinePrimitiveComponent::CreateBodySetup()

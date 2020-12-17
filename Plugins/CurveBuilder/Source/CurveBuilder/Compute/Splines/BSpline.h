@@ -71,11 +71,17 @@ public:
 
 	virtual void GetCtrlPointStructs(TArray<TWeakPtr<TSplineBaseControlPoint<Dim, Degree>>>& OutControlPointStructs) const override;
 
+	virtual TWeakPtr<TSplineBaseControlPoint<Dim, Degree>> GetLastCtrlPointStruct() const override;
+
+	virtual TWeakPtr<TSplineBaseControlPoint<Dim, Degree>> GetFirstCtrlPointStruct() const override;
+
+	virtual void GetSegParams(TArray<double>& OutParameters) const override;
+
 	virtual TSharedRef<TSplineBase<Dim, Degree> > CreateSameType(int32 EndContinuity = -1) const override;
 
 	virtual TSharedRef<TSplineBase<Dim, Degree> > Copy() const override;
 
-	virtual void ProcessBeforeCreateSameType() override;
+	virtual void ProcessBeforeCreateSameType(TArray<TWeakPtr<TSplineBaseControlPoint<Dim, Degree>>>* NewControlPointStructsPtr = nullptr) override;
 
 	//FPointNode* FindNodeByParam(double Param, int32 NthNode = 0) const;
 
@@ -131,6 +137,8 @@ public:
 	virtual void RemovePointAt(int32 Index = 0) override;
 
 	virtual void RemovePoint(const TVectorX<Dim>& Point, int32 NthPointOfFrom = 0) override;
+
+	virtual void RemovePoint(const TSplineBaseControlPoint<Dim, Degree>& TargetPointStruct) override;
 
 	virtual bool AdjustCtrlPointPos(TSplineBaseControlPoint<Dim, Degree>& PointStructToAdjust, const TVectorX<Dim>& To, int32 TangentFlag = 0, int32 NthPointOfFrom = 0) override;
 

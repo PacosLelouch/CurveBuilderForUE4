@@ -44,6 +44,24 @@ inline void TClampedBSpline<Dim, Degree>::GetCtrlPointStructs(TArray<TWeakPtr<TS
 }
 
 template<int32 Dim, int32 Degree>
+inline TWeakPtr<TSplineBaseControlPoint<Dim, Degree>> TClampedBSpline<Dim, Degree>::GetLastCtrlPointStruct() const
+{
+	return TWeakPtr<TSplineBaseControlPoint<Dim, Degree>>(CtrlPointsList.GetTail()->GetValue());
+}
+
+template<int32 Dim, int32 Degree>
+inline TWeakPtr<TSplineBaseControlPoint<Dim, Degree>> TClampedBSpline<Dim, Degree>::GetFirstCtrlPointStruct() const
+{
+	return TWeakPtr<TSplineBaseControlPoint<Dim, Degree>>(CtrlPointsList.GetHead()->GetValue());
+}
+
+template<int32 Dim, int32 Degree>
+inline void TClampedBSpline<Dim, Degree>::GetSegParams(TArray<double>& OutParameters) const
+{
+	GetKnotIntervals(OutParameters);
+}
+
+template<int32 Dim, int32 Degree>
 inline TSharedRef<TSplineBase<Dim, Degree>> TClampedBSpline<Dim, Degree>::CreateSameType(int32 EndContinuity) const
 {
 	TSharedRef<TSplineBase<Dim, Degree> > NewSpline = MakeShared<TClampedBSpline<Dim, Degree> >();
@@ -78,7 +96,7 @@ inline TSharedRef<TSplineBase<Dim, Degree>> TClampedBSpline<Dim, Degree>::Copy()
 }
 
 template<int32 Dim, int32 Degree>
-inline void TClampedBSpline<Dim, Degree>::ProcessBeforeCreateSameType()
+inline void TClampedBSpline<Dim, Degree>::ProcessBeforeCreateSameType(TArray<TWeakPtr<TSplineBaseControlPoint<Dim, Degree>>>* NewControlPointStructsPtr)
 {
 	if (CtrlPointsList.Num() == 1) {
 		return;
@@ -102,9 +120,20 @@ inline void TClampedBSpline<Dim, Degree>::ProcessBeforeCreateSameType()
 		}
 	};
 
+	if (NewControlPointStructsPtr)
+	{
+		NewControlPointStructsPtr->Empty();
+	}
+
 	while (CtrlPointsList.Num() <= Degree) {
 		MoveStartAndEnd();
-		CtrlPointsList.InsertNode(MakeShared<FControlPointType>((Start->GetValueRef().Pos + End->GetValueRef().Pos) * 0.5), End);
+		if (CtrlPointsList.InsertNode(MakeShared<FControlPointType>((Start->GetValueRef().Pos + End->GetValueRef().Pos) * 0.5), End))
+		{
+			if (NewControlPointStructsPtr)
+			{
+				NewControlPointStructsPtr->Add(TWeakPtr<FControlPointType>(End->GetPrevNode()->GetValue()));
+			}
+		}
 	}
 }
 
@@ -609,16 +638,36 @@ inline void TClampedBSpline<Dim, Degree>::RemovePointAt(int32 Index)
 			Node = Node->GetNextNode();
 		}
 	}
-	CtrlPointsList.RemoveNode(Node);
-	RemoveKnotIntervalIfNecessary();
+	if (Node)
+	{
+		CtrlPointsList.RemoveNode(Node);
+		RemoveKnotIntervalIfNecessary();
+	}
 }
 
 template<int32 Dim, int32 Degree>
 inline void TClampedBSpline<Dim, Degree>::RemovePoint(const TVectorX<Dim>& Point, int32 NthPointOfFrom)
 {
 	FPointNode* Node = FindNodeByPosition(Point, NthPointOfFrom);
-	CtrlPointsList.RemoveNode(Node);
-	RemoveKnotIntervalIfNecessary();
+	if (Node)
+	{
+		CtrlPointsList.RemoveNode(Node);
+		RemoveKnotIntervalIfNecessary();
+	}
+}
+
+template<int32 Dim, int32 Degree>
+inline void TClampedBSpline<Dim, Degree>::RemovePoint(const TSplineBaseControlPoint<Dim, Degree>& TargetPointStruct)
+{
+	for (FPointNode* Node = CtrlPointsList.GetHead(); Node; Node = Node->GetNextNode())
+	{
+		if (&Node->GetValueRef() == &TargetPointStruct)
+		{
+			CtrlPointsList.RemoveNode(Node);
+			RemoveKnotIntervalIfNecessary();
+			return;
+		}
+	}
 }
 
 template<int32 Dim, int32 Degree>
@@ -786,8 +835,14 @@ inline bool TClampedBSpline<Dim, Degree>::FindParamByPosition(double& OutParam, 
 
 	TOptional<double> CurParam;
 	TOptional<double> CurDistSqr;
+
+	F_Box3 InPosBox = F_Box3({ F_Vec3(InPos) }).ExpandBy(sqrt(ToleranceSqr));
 	for (int32 i = 0; i < Beziers.Num(); ++i) {
 		const TBezierCurve<Dim, Degree>& NewBezier = Beziers[i];
+		if (!NewBezier.GetBox().Intersect(InPosBox))
+		{
+			continue;
+		}
 		double NewParamNormal = -1.;
 		if (NewBezier.FindParamByPosition(NewParamNormal, InPos, ToleranceSqr)) {
 			double NewParam = KnotIntervals[i] * (1. - NewParamNormal) + KnotIntervals[i + 1] * NewParamNormal;

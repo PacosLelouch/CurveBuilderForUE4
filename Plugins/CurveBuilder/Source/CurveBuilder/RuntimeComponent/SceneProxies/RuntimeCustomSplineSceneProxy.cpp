@@ -71,46 +71,61 @@ void FRuntimeCustomSplineSceneProxy::DrawRuntimeSpline(FPrimitiveDrawInterface* 
 	const FSpatialSplineBase3& SplineInternal = DrawInfo.SplineInternalRef.Get();
 #endif
 
-	TTuple<double, double> ParamRange = SplineInternal.GetParamRange();
-	if (bDrawLineByCurveLength)
+	//TTuple<double, double> ParamRange = SplineInternal.GetParamRange();
+
 	{
-		double Length = SplineInternal.GetLength(ParamRange.Get<1>());
-
-		double SegNumDbl = FMath::CeilToDouble(Length / static_cast<double>(DrawInfo.SegLength));//FMath::CeilToDouble(Length * static_cast<double>(DrawInfo.NumSteps));
-		int32 SegNum = FMath::RoundToInt(SegNumDbl);
-		double StepLength = Length / SegNumDbl;
-
-		double NextS = 0.;
-		double T = ParamRange.Get<0>();
+		TArray<double> Parameters;
+		int32 SegNum = URuntimeCustomSplineBaseComponent::SampleParameters(Parameters, SplineInternal, DrawInfo.SegLength, bDrawLineByCurveLength);
+		double T = Parameters[0];
 		FVector Start = LocalToWorld.TransformPosition(SplineInternal.GetPosition(T));
 		for (int32 i = 0; i < SegNum; ++i)
 		{
-			NextS += StepLength;
-			T = SplineInternal.GetParameterAtLength(NextS);
-
+			T = Parameters[i + 1];
 			FVector End = LocalToWorld.TransformPosition(SplineInternal.GetPosition(T));
 			PDI->DrawLine(Start, End, DrawInfo.CurveColor, DepthPriorityGroup, DrawInfo.Thickness, DrawInfo.DepthBias, false);
 			Start = End;
 		}
 	}
-	else
-	{
-		double DiffParam = ParamRange.Get<1>() - ParamRange.Get<0>();
-		double SegNumDbl = FMath::CeilToDouble(DiffParam / static_cast<double>(DrawInfo.SegLength));//FMath::CeilToDouble(Length * static_cast<double>(DrawInfo.NumSteps));
-		int32 SegNum = FMath::RoundToInt(SegNumDbl);
-		double StepParam = DiffParam / SegNumDbl;
 
-		double T = ParamRange.Get<0>();
-		FVector Start = LocalToWorld.TransformPosition(SplineInternal.GetPosition(T));
-		for (int32 i = 0; i < SegNum; ++i)
-		{
-			T += StepParam;
+	//if (bDrawLineByCurveLength)
+	//{
+	//	double Length = SplineInternal.GetLength(ParamRange.Get<1>());
 
-			FVector End = LocalToWorld.TransformPosition(SplineInternal.GetPosition(T));
-			PDI->DrawLine(Start, End, DrawInfo.CurveColor, DepthPriorityGroup, DrawInfo.Thickness, DrawInfo.DepthBias, false);
-			Start = End;
-		}
-	}
+	//	double SegNumDbl = FMath::CeilToDouble(Length / static_cast<double>(DrawInfo.SegLength));//FMath::CeilToDouble(Length * static_cast<double>(DrawInfo.NumSteps));
+	//	int32 SegNum = FMath::RoundToInt(SegNumDbl);
+	//	double StepLength = Length / SegNumDbl;
+
+	//	double NextS = 0.;
+	//	double T = ParamRange.Get<0>();
+	//	FVector Start = LocalToWorld.TransformPosition(SplineInternal.GetPosition(T));
+	//	for (int32 i = 0; i < SegNum; ++i)
+	//	{
+	//		NextS += StepLength;
+	//		T = SplineInternal.GetParameterAtLength(NextS);
+
+	//		FVector End = LocalToWorld.TransformPosition(SplineInternal.GetPosition(T));
+	//		PDI->DrawLine(Start, End, DrawInfo.CurveColor, DepthPriorityGroup, DrawInfo.Thickness, DrawInfo.DepthBias, false);
+	//		Start = End;
+	//	}
+	//}
+	//else
+	//{
+	//	double DiffParam = ParamRange.Get<1>() - ParamRange.Get<0>();
+	//	double SegNumDbl = FMath::CeilToDouble(DiffParam / static_cast<double>(DrawInfo.SegLength));//FMath::CeilToDouble(Length * static_cast<double>(DrawInfo.NumSteps));
+	//	int32 SegNum = FMath::RoundToInt(SegNumDbl);
+	//	double StepParam = DiffParam / SegNumDbl;
+
+	//	double T = ParamRange.Get<0>();
+	//	FVector Start = LocalToWorld.TransformPosition(SplineInternal.GetPosition(T));
+	//	for (int32 i = 0; i < SegNum; ++i)
+	//	{
+	//		T += StepParam;
+
+	//		FVector End = LocalToWorld.TransformPosition(SplineInternal.GetPosition(T));
+	//		PDI->DrawLine(Start, End, DrawInfo.CurveColor, DepthPriorityGroup, DrawInfo.Thickness, DrawInfo.DepthBias, false);
+	//		Start = End;
+	//	}
+	//}
 
 	if (DrawInfo.bSelected)
 	{
@@ -181,7 +196,7 @@ void FRuntimeCustomSplineSceneProxy::DrawDebugCollisions(FPrimitiveDrawInterface
 	{
 		return;
 	}
-	const TArray<FKSphylElem>& SphylElems = (*CollisionInfo.BodySetupPtr)->AggGeom.SphylElems;
+	const TArray<FKSphylElem> SphylElems = (*CollisionInfo.BodySetupPtr)->AggGeom.SphylElems;
 #else
 	const TArray<FKSphylElem>& SphylElems = CollisionInfo.SphylElems;
 #endif

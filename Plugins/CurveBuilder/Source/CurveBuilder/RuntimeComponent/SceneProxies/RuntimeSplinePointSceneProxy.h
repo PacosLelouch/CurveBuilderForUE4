@@ -19,7 +19,8 @@ private:
 			, PointSize(InComponent->DrawPointSize)
 			, DepthBias(InComponent->DepthBias)
 			, bSelected(InComponent->bSelected)
-			, SpType(InComponent->ParentSpline ? InComponent->ParentSpline->GetSplineProxy()->GetType() : ESplineType::Unknown)
+			, SpType((InComponent->ParentSpline && InComponent->ParentSpline->GetSplineProxy()) ? 
+				InComponent->ParentSpline->GetSplineProxy()->GetType() : ESplineType::Unknown)
 			, TangentFlag(InComponent->TangentFlag)
 #if !DISABLE_COPY_IN_SPLINE_SCENE_PROXY
 			, SplinePointInternalRef(InComponent->SplinePointProxy.IsValid() ? InComponent->SplinePointProxy.Pin().Get()->Copy() : TSharedRef<FSpatialControlPoint3>())

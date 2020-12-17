@@ -74,12 +74,38 @@ public:
 	FORCEINLINE static constexpr int32 CurveDegree() { return Degree; }
 	FORCEINLINE static constexpr int32 CurveOrder() { return Degree + 1; }
 
-	FORCEINLINE F_Box2 GetBox(const F_Mat& ProjectMatrix) const
+	FORCEINLINE F_Box2 GetBox2D(const F_Mat& ProjectMatrix) const
 	{
 		F_Box2 Box(EForceInit::ForceInit);
 		for (int32 i = 0; i <= Degree; ++i) {
-			F_Vec3 P = ProjectMatrix.TransformPosition(CtrlPoints[i]);
+			F_Vec3 P = ProjectMatrix.TransformPosition(TVecLib<Dim+1>::Projection(CtrlPoints[i]));
 			Box += (const F_Vec2&)P;
+		}
+		return Box;
+	}
+	FORCEINLINE F_Box2 GetBox2D() const
+	{
+		F_Box2 Box(EForceInit::ForceInit);
+		for (int32 i = 0; i <= Degree; ++i) {
+			Box += (const F_Vec2&)TVecLib<Dim+1>::Projection(CtrlPoints[i]);
+		}
+		return Box;
+	}
+	FORCEINLINE F_Box3 GetBox(const F_Mat& ProjectMatrix) const
+	{
+		F_Box3 Box(EForceInit::ForceInit);
+		for (int32 i = 0; i <= Degree; ++i) {
+			F_Vec3 P = ProjectMatrix.TransformPosition(TVecLib<Dim+1>::Projection(CtrlPoints[i]));
+			Box += P;
+		}
+		return Box;
+	}
+	FORCEINLINE F_Box3 GetBox() const
+	{
+		F_Box3 Box(EForceInit::ForceInit);
+		for (int32 i = 0; i <= Degree; ++i) {
+			F_Vec3 P = TVecLib<Dim+1>::Projection(CtrlPoints[i]);
+			Box += P;
 		}
 		return Box;
 	}

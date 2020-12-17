@@ -11,12 +11,12 @@
 #include "../Compute/Splines/SplineGraph.h"
 #include "RuntimeCustomSplineBaseComponent.generated.h"
 
-class URuntimeSplinePointBaseComponent;
-
 UCLASS(BlueprintType, ClassGroup = CustomSpline, ShowCategories = (Mobility), HideCategories = (Physics, Lighting, Mobile), meta = (BlueprintSpawnableComponent))
 class CURVEBUILDER_API URuntimeCustomSplineBaseComponent : public URuntimeSplinePrimitiveComponent//, public IInterface_CollisionDataProvider
 {
 	GENERATED_BODY()
+public:
+	DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnSplineUpdated, URuntimeCustomSplineBaseComponent*, SplineComponent);
 public:
 	URuntimeCustomSplineBaseComponent(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
@@ -49,11 +49,35 @@ public:
 #endif
 
 public:
+	virtual void OnSplineUpdatedEvent();
+
+public:
 	UFUNCTION(BlueprintCallable, Category = "RuntimeCustomSpline|DrawInfo")
 	void SetSelected(bool bValue);
 
-	UFUNCTION(BlueprintCallable, Category = "RuntimeCustomSpline|Operation")
+	UFUNCTION(BlueprintPure, Category = "RuntimeCustomSpline|Query")
+	ERuntimeSplineType GetSplineType() const;
+
+	UFUNCTION(BlueprintCallable, Category = "RuntimeCustomSpline|Update")
 	void Reverse();
+
+	UFUNCTION(BlueprintCallable, Category = "RuntimeCustomSpline|Update")
+	void ClearSpline();
+
+	UFUNCTION(BlueprintCallable, Category = "RuntimeCustomSpline|Update")
+	URuntimeSplinePointBaseComponent* AddEndPoint(
+		const FVector& Position,
+		bool bAtLast = true, 
+		ECustomSplineCoordinateType CoordinateType = ECustomSplineCoordinateType::SplineGraphLocal);
+
+	UFUNCTION(BlueprintCallable, Category = "RuntimeCustomSpline|Update")
+	URuntimeSplinePointBaseComponent* InsertPoint(
+		const FVector& Position,
+		bool& bSucceedReturn,
+		ECustomSplineCoordinateType CoordinateType = ECustomSplineCoordinateType::SplineGraphLocal);
+
+	UFUNCTION(BlueprintCallable, Category = "RuntimeCustomSpline|Update")
+	void UpdateControlPointsLocation();
 
 public:
 	TWeakPtr<FSpatialSplineGraph3::FSplineType> GetSplineProxyWeakPtr() const;
@@ -69,24 +93,32 @@ public:
 		return nullptr;
 	}
 
-	void AddPointInternal(const TSharedRef<FSpatialControlPoint3>& PointRef, int32 TangentFlag = 0);
+	URuntimeSplinePointBaseComponent* AddPointInternal(const TSharedRef<FSpatialControlPoint3>& PointRef, int32 TangentFlag = 0);
 
 	void UpdateTransformByCtrlPoint();
+
+	static int32 SampleParameters(TArray<double>& OutParameters, const FSpatialSplineBase3& SplineInternal, double SegLength, bool bByCurveLength = false, bool bAdjustKeyLength = true);
 
 public:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "RuntimeCustomSpline|Component")
 	TSet<URuntimeSplinePointBaseComponent*> PointComponents;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "RuntimeCustomSpline|Component")
+	UPROPERTY(AdvancedDisplay, BlueprintReadWrite, Category = "RuntimeCustomSpline|Component")
+	URuntimeSplinePointBaseComponent* SelectedPoint = nullptr;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "RuntimeCustomSpline|Component")
 	bool bSelected = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "RuntimeCustomSpline|Component")
+	bool bAutoSelectNewPoint = false;
 
 	// Is parameter length or curve length? Currently use parameter length.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "RuntimeCustomSpline|DrawInfo")
 	float DrawSegLength = 0.05f;//10.f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "RuntimeCustomSpline|DrawInfo")
-	float DrawThickness = 2.f;
+	float DrawThickness = 0.f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "RuntimeCustomSpline|DrawInfo")
 	FLinearColor CurveColor = FLinearColor(0.1f, 0.6f, 1.f);
@@ -95,12 +127,21 @@ public:
 	FLinearColor CtrlSegColor = FLinearColor(0.2f, 1.f, 0.7f);
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "RuntimeCustomSpline|CollisionInfo")
+	bool bCreateCollisionByCurveLength = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "RuntimeCustomSpline|CollisionInfo")
 	float CollisionSegLength = 0.2f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "RuntimeCustomSpline|CollisionInfo")
 	float CollisionSegWidth = 6.f;
 
+	UPROPERTY(BlueprintAssignable, Category = "RuntimeCustomSpline|Update")
+	FOnSplineUpdated OnSplineUpdateHandle;
+
 public:
 	TSharedPtr<FSpatialSplineGraph3::FSplineWrapper> SplineBaseWrapperProxy;
+
+private:
+	bool bLastCreateCollisionByCurveLength = false;
 
 };

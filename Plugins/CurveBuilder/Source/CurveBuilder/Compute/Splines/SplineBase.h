@@ -66,17 +66,18 @@ public:
 
 	double GetParameterAtLength(double S) const
 	{
+		static constexpr int32 Iteration = 8;
 		TTuple<double, double> ParamRange = GetParamRange();
 		// if (Degree < 5) 
 		TGaussLegendre<NumericalCalculationConst::GaussLegendreN> GaussLegendre([this](double InT) -> double {
 			return TVecLib<Dim>::Size(GetTangent(InT));
 		}, ParamRange.Get<0>(), ParamRange.Get<1>());
-		return GaussLegendre.SolveFromIntegration(S);
+		return GaussLegendre.SolveFromIntegration(S, Iteration);
 	}
 
 	FORCEINLINE void AddPointAtLast(const TVectorX<Dim+1>& Point, double Param)
 	{
-		//AddPointAtLast(TVectorX<Dim>(Point), TVecLib<Dim+1>::Last(Point));
+		//AddEndPoint(TVectorX<Dim>(Point), TVecLib<Dim+1>::Last(Point));
 		AddPointAtLast(TVecLib<Dim+1>::Projection(Point), Param, TVecLib<Dim+1>::Last(Point));
 	}
 
@@ -93,6 +94,12 @@ public:
 
 	virtual void GetCtrlPointStructs(TArray<TWeakPtr<TSplineBaseControlPoint<Dim, Degree>>>& OutControlPointStructs) const {}
 
+	virtual TWeakPtr<TSplineBaseControlPoint<Dim, Degree>> GetLastCtrlPointStruct() const { return nullptr; }
+
+	virtual TWeakPtr<TSplineBaseControlPoint<Dim, Degree>> GetFirstCtrlPointStruct() const { return nullptr; }
+
+	virtual void GetSegParams(TArray<double>& OutParameters) const {}
+
 	virtual TSharedRef<TSplineBase<Dim, Degree> > CreateSameType(int32 EndContinuity = -1) const 
 	{
 		return MakeShared<TSplineBase<Dim, Degree> >();
@@ -103,7 +110,7 @@ public:
 		return MakeShared<TSplineBase<Dim, Degree> >();
 	}
 
-	virtual void ProcessBeforeCreateSameType() {}
+	virtual void ProcessBeforeCreateSameType(TArray<TWeakPtr<TSplineBaseControlPoint<Dim, Degree>>>* NewControlPointStructsPtr = nullptr) {}
 
 	virtual void AddPointAtLast(const TVectorX<Dim>& Point, TOptional<double> Param = TOptional<double>(), double Weight = 1.) {}
 
@@ -115,6 +122,8 @@ public:
 
 	// NthPointOfFrom means if there are multiple points with the same positions, which point to adjust.
 	virtual void RemovePoint(const TVectorX<Dim>& Point, int32 NthPointOfFrom = 0) {}
+
+	virtual void RemovePoint(const TSplineBaseControlPoint<Dim, Degree>& TargetPointStruct) {}
 
 	virtual bool AdjustCtrlPointPos(TSplineBaseControlPoint<Dim, Degree>& PointStructToAdjust, const TVectorX<Dim>& To, int32 TangentFlag = 0, int32 NthPointOfFrom = 0) { return false; }
 

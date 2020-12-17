@@ -9,11 +9,25 @@ const int32 FRuntimeSplinePrimitiveSceneProxy::DrawCollisionSides = 16;
 FPrimitiveViewRelevance FRuntimeSplinePrimitiveSceneProxy::GetViewRelevance(const FSceneView* View) const
 {
 	FPrimitiveViewRelevance Result;
-	Result.bDrawRelevance = IsValid(ComponentForCheck) && IsShown(View)
-		&& (View->Family->EngineShowFlags.Lighting
-			|| View->Family->EngineShowFlags.Wireframe
-			|| View->Family->EngineShowFlags.Splines
-			|| View->Family->EngineShowFlags.Collision); //&& IsShown(View);//bDrawDebug && !IsSelected() && IsShown(View) && View->Family->EngineShowFlags.Splines;
+
+	Result.bDrawRelevance = IsComponentVaild() && IsShown(View); //bDrawDebug && !IsSelected() && IsShown(View) && View->Family->EngineShowFlags.Splines;
+
+	if (IsDrawnInGame())
+	{
+		Result.bDrawRelevance = Result.bDrawRelevance
+			&& (View->Family->EngineShowFlags.Lighting
+				|| View->Family->EngineShowFlags.Wireframe
+				|| View->Family->EngineShowFlags.Splines
+				|| View->Family->EngineShowFlags.Collision);
+	}
+	else
+	{
+		Result.bDrawRelevance = Result.bDrawRelevance
+			&& (View->Family->EngineShowFlags.Wireframe
+				|| View->Family->EngineShowFlags.Splines
+				|| View->Family->EngineShowFlags.Collision);
+	}
+	
 	Result.bDynamicRelevance = true;
 	Result.bShadowRelevance = IsShadowCast(View);
 	Result.bEditorPrimitiveRelevance = UseEditorCompositing(View);

@@ -206,6 +206,28 @@ inline void TBezierString3<Dim>::GetCtrlPointStructs(TArray<TWeakPtr<TSplineBase
 }
 
 template<int32 Dim>
+inline TWeakPtr<TSplineBaseControlPoint<Dim, 3>> TBezierString3<Dim>::GetLastCtrlPointStruct() const
+{
+	return TWeakPtr<TSplineBaseControlPoint<Dim, 3>>(CtrlPointsList.GetTail()->GetValue());
+}
+
+template<int32 Dim>
+inline TWeakPtr<TSplineBaseControlPoint<Dim, 3>> TBezierString3<Dim>::GetFirstCtrlPointStruct() const
+{
+	return TWeakPtr<TSplineBaseControlPoint<Dim, 3>>(CtrlPointsList.GetHead()->GetValue());
+}
+
+template<int32 Dim>
+inline void TBezierString3<Dim>::GetSegParams(TArray<double>& OutParameters) const
+{
+	OutParameters.Empty(CtrlPointsList.Num());
+	for (const FControlPointTypeRef& CPRef : CtrlPointsList)
+	{
+		OutParameters.Add(CPRef.Get().Param);
+	}
+}
+
+template<int32 Dim>
 inline TSharedRef<TSplineBase<Dim, 3>> TBezierString3<Dim>::CreateSameType(int32 EndContinuity) const
 {
 	TSharedRef<TSplineBase<Dim, 3> > NewSpline = MakeShared<TBezierString3<Dim> >();
@@ -250,8 +272,12 @@ inline TSharedRef<TSplineBase<Dim, 3>> TBezierString3<Dim>::Copy() const
 }
 
 template<int32 Dim>
-inline void TBezierString3<Dim>::ProcessBeforeCreateSameType()
+inline void TBezierString3<Dim>::ProcessBeforeCreateSameType(TArray<TWeakPtr<TSplineBaseControlPoint<Dim, 3>>>* NewControlPointStructsPtr)
 {
+	if (NewControlPointStructsPtr)
+	{
+		NewControlPointStructsPtr->Empty();
+	}
 }
 
 template<int32 Dim>
@@ -358,7 +384,7 @@ inline typename TBezierString3<Dim>::FPointNode* TBezierString3<Dim>::AddPointWi
 		if (Node->GetValueRef().Param <= T) {
 			const auto& Val = Node->GetValueRef();
 			//Val.Param = static_cast<double>(OutFirst.GetCtrlPointNum());
-			//OutFirst.AddPointAtLast(Val);
+			//OutFirst.AddEndPoint(Val);
 			FPointNode* NextNode = Node->GetNextNode();
 			if (NextNode && T < NextNode->GetValueRef().Param) {
 				NodeToInsertBefore = NextNode;
@@ -373,7 +399,7 @@ inline typename TBezierString3<Dim>::FPointNode* TBezierString3<Dim>::AddPointWi
 		//else {
 		//	auto Val = Node->GetValueRef();
 		//	Val.Param = static_cast<double>(OutSecond.GetCtrlPointNum() + 1);
-		//	OutSecond.AddPointAtLast(Node->GetValueRef());
+		//	OutSecond.AddEndPoint(Node->GetValueRef());
 		//}
 		Node = Node->GetNextNode();
 	}
@@ -659,6 +685,19 @@ inline void TBezierString3<Dim>::RemovePoint(const TVectorX<Dim>& Point, int32 N
 }
 
 template<int32 Dim>
+inline void TBezierString3<Dim>::RemovePoint(const TSplineBaseControlPoint<Dim, 3>& TargetPointStruct)
+{
+	for (FPointNode* Node = CtrlPointsList.GetHead(); Node; Node = Node->GetNextNode())
+	{
+		if (&Node->GetValueRef() == &TargetPointStruct)
+		{
+			CtrlPointsList.RemoveNode(Node);
+			return;
+		}
+	}
+}
+
+template<int32 Dim>
 inline bool TBezierString3<Dim>::AdjustCtrlPointPos(TSplineBaseControlPoint<Dim, 3>& PointStructToAdjust, const TVectorX<Dim>& To, int32 TangentFlag, int32 NthPointOfFrom)
 {
 	FPointNode* NodeToAdjust = nullptr;
@@ -843,10 +882,17 @@ inline bool TBezierString3<Dim>::FindParamByPosition(double& OutParam, const TVe
 	}
 	TOptional<double> CurParam;
 	TOptional<double> CurDistSqr;
+
+	F_Box3 InPosBox = F_Box3({ F_Vec3(InPos) }).ExpandBy(sqrt(ToleranceSqr));
 	while (Node && Node->GetNextNode()) {
 		FPointNode* Next = Node->GetNextNode();
 
 		TBezierCurve<Dim, 3> NewBezier = MakeBezierCurve(Node, Next);
+		if (!NewBezier.GetBox().Intersect(InPosBox))
+		{
+			Node = Next;
+			continue;
+		}
 		double NewParamNormal = -1.;
 		if (NewBezier.FindParamByPosition(NewParamNormal, InPos, ToleranceSqr)) {
 			double NewParam = Node->GetValueRef().Param * (1. - NewParamNormal) + Next->GetValueRef().Param * NewParamNormal;

@@ -5,28 +5,24 @@
 #include "RuntimeSplinePointBaseComponent.h"
 #include "SceneProxies/RuntimeCustomSplineSceneProxy.h"
 #include "PhysicsEngine/BodySetup.h"
-#include "Engine/StaticMesh.h"
+
+static const auto LengthFactor = 100.f, InvLengthFactor = 1.f / 100.f;
 
 URuntimeCustomSplineBaseComponent::URuntimeCustomSplineBaseComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
+	bLastCreateCollisionByCurveLength = bCreateCollisionByCurveLength;
+	CollisionSegLength *= bCreateCollisionByCurveLength ? LengthFactor : 1.f;
 }
 
 void URuntimeCustomSplineBaseComponent::BeginPlay()
 {
-	Super::BeginPlay(); 
+	Super::BeginPlay();
 }
 
 void URuntimeCustomSplineBaseComponent::OnComponentDestroyed(bool bDestroyingHierarchy)
 {
-	for (URuntimeSplinePointBaseComponent* PointComp : PointComponents)
-	{
-		if (IsValid(PointComp) && !PointComp->IsBeingDestroyed())
-		{
-			PointComp->DestroyComponent();
-		}
-	}
-	PointComponents.Empty();
+	ClearSpline();
 	Super::OnComponentDestroyed(bDestroyingHierarchy);
 }
 
@@ -193,23 +189,19 @@ void URuntimeCustomSplineBaseComponent::UpdateCollision()
 
 	CreateBodySetup();
 
-	TTuple<double, double> ParamRange = Spline->GetParamRange();
-
-	double ParamDiff = ParamRange.Get<1>() - ParamRange.Get<0>();
-	double SegNumDbl = FMath::CeilToDouble(ParamDiff / CollisionSegLength);
-	int32 SegNum = FMath::FloorToInt(SegNumDbl);
-	double StepLength = ParamDiff / SegNumDbl;
+	TArray<double> Parameters;
+	int32 SegNum = SampleParameters(Parameters, *Spline, CollisionSegLength, bCreateCollisionByCurveLength);
 
 	//FMatrix LocalToWorld = GetSplineLocalToWorldMatrix();
 	FMatrix SplineLocalToComponentLocal = GetSplineLocalToComponentLocalTransform().ToMatrixWithScale();
-	double T = ParamRange.Get<0>();
+	double T = Parameters[0];
 	FVector Start = SplineLocalToComponentLocal.TransformPosition(Spline->GetPosition(T));
 
 	// Fill in simple collision sphyl elements
-	BodySetup->AggGeom.SphylElems.Empty(SegNum);
+	BodySetup->AggGeom.SphylElems.Empty(Parameters.Num() - 1);
 	for (int32 i = 0; i < SegNum; ++i)
 	{
-		T += StepLength;
+		T = Parameters[i + 1];
 		FVector End = SplineLocalToComponentLocal.TransformPosition(Spline->GetPosition(T));
 		FVector SphylUpTangent = End - Start;
 		FVector SphylUpDirection = SphylUpTangent.GetSafeNormal();
@@ -279,14 +271,25 @@ void URuntimeCustomSplineBaseComponent::PostEditChangeProperty(FPropertyChangedE
 		MarkRenderStateDirty();
 	}
 	else if (PropertyName == GET_MEMBER_NAME_CHECKED(URuntimeCustomSplineBaseComponent, CollisionSegLength)
-		|| PropertyName == GET_MEMBER_NAME_CHECKED(URuntimeCustomSplineBaseComponent, CollisionSegWidth))
+		|| PropertyName == GET_MEMBER_NAME_CHECKED(URuntimeCustomSplineBaseComponent, CollisionSegWidth)
+		|| PropertyName == GET_MEMBER_NAME_CHECKED(URuntimeCustomSplineBaseComponent, bCreateCollisionByCurveLength))
 	{
+		if (bLastCreateCollisionByCurveLength != bCreateCollisionByCurveLength)
+		{
+			CollisionSegLength *= bCreateCollisionByCurveLength ? LengthFactor : InvLengthFactor;
+			bLastCreateCollisionByCurveLength = bCreateCollisionByCurveLength;
+		}
 		UpdateBounds();
 		UpdateCollision();
 		if (bDrawDebugCollision)
 		{
 			MarkRenderStateDirty();
 		}
+	}
+	else if (PropertyName == GET_MEMBER_NAME_CHECKED(URuntimeCustomSplineBaseComponent, bSelected))
+	{
+		bSelected = !bSelected;
+		SetSelected(!bSelected);
 	}
 }
 
@@ -300,11 +303,31 @@ void URuntimeCustomSplineBaseComponent::PostEditComponentMove(bool bFinished)
 }
 #endif
 
+void URuntimeCustomSplineBaseComponent::OnSplineUpdatedEvent()
+{
+	OnSplineUpdateHandle.Broadcast(this);
+}
+
 void URuntimeCustomSplineBaseComponent::SetSelected(bool bValue)
 {
 	if (bSelected != bValue)
 	{
 		bSelected = bValue;
+		if (IsValid(ParentGraph) && !ParentGraph->IsActorBeingDestroyed())
+		{
+			if (bValue)
+			{
+				if (!ParentGraph->SelectedSplines.Contains(this))
+				{
+					ParentGraph->SelectedSplines.Add(this);
+				}
+			}
+			else
+			{
+				ParentGraph->SelectedSplines.RemoveSingle(this);
+			}
+		}
+		
 		for (URuntimeSplinePointBaseComponent* PointComp : PointComponents)
 		{
 			PointComp->SetVisibility(bValue);
@@ -314,9 +337,23 @@ void URuntimeCustomSplineBaseComponent::SetSelected(bool bValue)
 				PointComp->UpdateBounds();
 				PointComp->UpdateCollision();
 			}
+			else
+			{
+				PointComp->SetSelected(false);
+			}
 		}
 		MarkRenderStateDirty();
 	}
+}
+
+ERuntimeSplineType URuntimeCustomSplineBaseComponent::GetSplineType() const
+{
+	const auto* Spline = GetSplineProxy();
+	if (Spline)
+	{
+		return ARuntimeSplineGraph::GetExternalSplineType(Spline->GetType());
+	}
+	return ERuntimeSplineType::Unknown;
 }
 
 void URuntimeCustomSplineBaseComponent::Reverse()
@@ -361,6 +398,134 @@ void URuntimeCustomSplineBaseComponent::Reverse()
 	MarkRenderStateDirty();
 }
 
+void URuntimeCustomSplineBaseComponent::ClearSpline()
+{
+	if (PointComponents.Num() > 0)
+	{
+		int32 Num = PointComponents.Num();
+		for (auto It = PointComponents.CreateIterator(); It; ++It)
+		{
+			URuntimeSplinePointBaseComponent* PointComp = *It;
+			if (IsValid(PointComp) && !PointComp->IsBeingDestroyed())
+			{
+				PointComp->DestroyComponent();
+			}
+		}
+	}
+	PointComponents.Empty();
+	SelectedPoint = nullptr;
+	
+	if (SplineBaseWrapperProxy.IsValid())
+	{
+		SplineBaseWrapperProxy.Get()->Spline.Reset();
+	}
+}
+
+URuntimeSplinePointBaseComponent* URuntimeCustomSplineBaseComponent::AddEndPoint(
+	const FVector& Position,
+	bool bAtLast, 
+	ECustomSplineCoordinateType CoordinateType)
+{
+	auto* Spline = GetSplineProxy();
+	if (Spline)
+	{
+		FVector SplineLocalPosition = ConvertPosition(Position, CoordinateType, ECustomSplineCoordinateType::SplineGraphLocal);
+		TWeakPtr<FSpatialControlPoint3> ControlPointWeakPtr;
+		if (bAtLast)
+		{
+			Spline->AddPointAtLast(SplineLocalPosition);
+			ControlPointWeakPtr = Spline->GetLastCtrlPointStruct();
+		}
+		else
+		{
+			Spline->AddPointAtFirst(SplineLocalPosition);
+			ControlPointWeakPtr = Spline->GetLastCtrlPointStruct();
+		}
+		if (ControlPointWeakPtr.IsValid())
+		{
+			TSharedRef<FSpatialControlPoint3> ControlPointRef = ControlPointWeakPtr.Pin().ToSharedRef();
+			URuntimeSplinePointBaseComponent* CurrentPoint = AddPointInternal(ControlPointRef, 0);
+			if (Spline->GetType() == ESplineType::BezierString)
+			{
+				// Need to make connection among three points?
+				AddPointInternal(ControlPointRef, -1);
+				AddPointInternal(ControlPointRef, 1);
+			}
+			
+			return CurrentPoint;
+		}
+	}
+	return nullptr;
+}
+
+URuntimeSplinePointBaseComponent* URuntimeCustomSplineBaseComponent::InsertPoint(const FVector& Position, bool& bSucceedReturn, ECustomSplineCoordinateType CoordinateType)
+{
+	auto* Spline = GetSplineProxy();
+	if (Spline)
+	{
+		double Param = -1.; 
+		FVector SplineLocalPosition = Position;
+		switch (CoordinateType)
+		{
+		case ECustomSplineCoordinateType::ComponentLocal:
+			SplineLocalPosition = GetParentComponentToSplineLocalTransform().TransformPosition(Position);
+			break;
+		case ECustomSplineCoordinateType::World:
+			SplineLocalPosition = GetWorldToSplineLocalTransform().TransformPosition(Position);
+			break;
+		}
+		
+		if (Spline->FindParamByPosition(Param, SplineLocalPosition, FMath::Square(CollisionSegWidth)))
+		{
+			URuntimeSplinePointBaseComponent* NewPointComponent = nullptr;
+			switch (Spline->GetType()) {
+			case ESplineType::BezierString:
+			{
+				auto* NewNode = static_cast<TSplineTraitByType<ESplineType::BezierString>::FSplineType*>(Spline)->AddPointWithParamWithoutChangingShape(Param);
+				if (NewNode) {
+					NewNode->GetValue().Get().Continuity = EEndPointContinuity::G1;
+					NewPointComponent = AddPointInternal(NewNode->GetValue(), 0);
+					AddPointInternal(NewNode->GetValue(), -1);
+					AddPointInternal(NewNode->GetValue(), 1);
+				}
+			}
+				break;
+			case ESplineType::ClampedBSpline:
+			{
+				auto* NewNode = static_cast<TSplineTraitByType<ESplineType::ClampedBSpline>::FSplineType*>(Spline)->AddPointWithParamWithoutChangingShape(Param);
+				if (NewNode) {
+					NewPointComponent = AddPointInternal(NewNode->GetValue(), 0);
+				}
+			}
+				break;
+			}
+			if (Spline->GetType() != ESplineType::Unknown)
+			{
+				bSucceedReturn = (NewPointComponent != nullptr);
+				if (bSucceedReturn)
+				{
+					UpdateControlPointsLocation();
+				}
+				return NewPointComponent;
+			}
+		}
+	}
+
+	bSucceedReturn = false;
+	return nullptr;
+}
+
+void URuntimeCustomSplineBaseComponent::UpdateControlPointsLocation()
+{
+	for (URuntimeSplinePointBaseComponent* CPComp : PointComponents)
+	{
+		if (IsValid(CPComp) && !CPComp->IsBeingDestroyed())
+		{
+			CPComp->UpdateComponentLocationBySpline();
+		}
+	}
+}
+
 TWeakPtr<FSpatialSplineGraph3::FSplineType> URuntimeCustomSplineBaseComponent::GetSplineProxyWeakPtr() const
 {
 	if (SplineBaseWrapperProxy.Get() && SplineBaseWrapperProxy.Get()->Spline.IsValid())
@@ -391,29 +556,44 @@ FSpatialSplineGraph3::FSplineType* URuntimeCustomSplineBaseComponent::GetSplineP
 	//return GetSplineProxyInternal<TSplineTraitByType<ESplineType::Unknown>::FSplineType>();
 }
 
-void URuntimeCustomSplineBaseComponent::AddPointInternal(const TSharedRef<FSpatialControlPoint3>& PointRef, int32 TangentFlag)
+URuntimeSplinePointBaseComponent* URuntimeCustomSplineBaseComponent::AddPointInternal(const TSharedRef<FSpatialControlPoint3>& PointRef, int32 TangentFlag)
 {
 	auto* Spline = GetSplineProxy();
-	if (Spline && IsValid(ParentGraph))
+	if (Spline)
 	{
 		//URuntimeSplinePointBaseComponent* NewPoint = PointComponents.Add_GetRef(NewObject<URuntimeSplinePointBaseComponent>());
 		//NewPoint->PointIndex = PointComponents.Num() - 1;
 		USceneComponent* RealParent = GetAttachParent();
-		FTransform SplineLocalToParentComponentLocal = GetSplineLocalToParentComponentTransform();
+		if (IsValid(RealParent) && !RealParent->IsBeingDestroyed())
+		{
+			FTransform SplineLocalToParentComponentLocal = GetSplineLocalToParentComponentTransform();
 
-		URuntimeSplinePointBaseComponent* NewPoint = NewObject<URuntimeSplinePointBaseComponent>(RealParent);
-		PointComponents.Add(NewPoint);
-		NewPoint->SplinePointProxy = TWeakPtr<FSpatialControlPoint3>(PointRef);
-		NewPoint->TangentFlag = TangentFlag;
-		NewPoint->ParentSpline = this;
-		NewPoint->ParentGraph = ParentGraph;
-		NewPoint->AttachToComponent(RealParent, FAttachmentTransformRules::KeepRelativeTransform);
-		this->GetOwner()->AddInstanceComponent(NewPoint);
-		NewPoint->SetRelativeLocation(SplineLocalToParentComponentLocal.TransformPosition(PointRef.Get().Pos));
-		NewPoint->RegisterComponent();
+			URuntimeSplinePointBaseComponent* NewPoint = nullptr;
 
-		UpdateTransformByCtrlPoint();
+			//FName ObjectName = FName(*(TEXT("URuntimeSplinePointBaseComponent_") + FString::FromInt(PointComponents.Num())));
+			
+			NewPoint = NewObject<URuntimeSplinePointBaseComponent>(RealParent);
+			
+			PointComponents.Add(NewPoint);
+			NewPoint->SplinePointProxy = TWeakPtr<FSpatialControlPoint3>(PointRef);
+			NewPoint->TangentFlag = TangentFlag;
+			NewPoint->ParentSpline = this;
+			NewPoint->ParentGraph = ParentGraph; // ParentGraph can be non-exist, which means that this spline is independent.
+			NewPoint->AttachToComponent(RealParent, FAttachmentTransformRules::KeepRelativeTransform);
+			AActor* Owner = GetOwner();
+			if (IsValid(Owner))
+			{
+				Owner->AddInstanceComponent(NewPoint);
+				NewPoint->RegisterComponent();
+			}
+			//NewPoint->SetRelativeLocation(SplineLocalToParentComponentLocal.TransformPosition(PointRef.Get().Pos)); // Move to Point OnComponentCreated
+			NewPoint->SetVisibility(bSelected);
+
+			//UpdateTransformByCtrlPoint(); // Move to Point OnComponentCreated
+			return NewPoint;
+		}
 	}
+	return nullptr;
 }
 
 void URuntimeCustomSplineBaseComponent::UpdateTransformByCtrlPoint()
@@ -432,8 +612,85 @@ void URuntimeCustomSplineBaseComponent::UpdateTransformByCtrlPoint()
 		{
 			SetRelativeTransform(FTransform(FRotator::ZeroRotator, ComponentLocalPosition));
 		}
+
+		//if (Spline->GetType() == ESplineType::BezierString)
+		//{
+		//	UpdateControlPointsLocation();
+		//}
 	}
 	//UpdateBounds();
 	//UpdateCollision();
 	//MarkRenderTransformDirty();
+}
+
+int32 URuntimeCustomSplineBaseComponent::SampleParameters(TArray<double>& OutParameters, const FSpatialSplineBase3& SplineInternal, double SegLength, bool bByCurveLength, bool bAdjustKeyLength)
+{
+	TTuple<double, double> ParamRange = SplineInternal.GetParamRange();
+
+	if (bByCurveLength)
+	{
+		double Length = SplineInternal.GetLength(ParamRange.Get<1>());
+
+		double SegNumDbl = FMath::CeilToDouble(Length / SegLength);
+		int32 SegNum = FMath::RoundToInt(SegNumDbl);
+		double StepLength = Length / SegNumDbl;
+
+		double T = ParamRange.Get<0>();
+		double S = 0.;
+		OutParameters.Empty(SegNum);
+		OutParameters.Add(T);
+		for (int32 i = 0; i < SegNum; ++i)
+		{
+			S += StepLength;
+			T = SplineInternal.GetParameterAtLength(S);
+			OutParameters.Add(T);
+		}
+	}
+	else
+	{
+		double ParamDiff = ParamRange.Get<1>() - ParamRange.Get<0>();
+		TArray<double> SegParams;
+		if (bAdjustKeyLength)
+		{
+			SplineInternal.GetSegParams(SegParams);
+		}
+		if (SegParams.Num() == 1 || !bAdjustKeyLength)
+		{
+			SegParams = { ParamRange.Get<0>(), ParamRange.Get<1>() };
+		}
+
+		double SegNumDbl = 0., StepLength = 0.;
+		double T = SegParams[0];
+		for (int32 Seg = 0; Seg + 1 < SegParams.Num(); ++Seg)
+		{
+			if (bAdjustKeyLength)
+			{
+				if (Seg == 0)
+				{
+					SegNumDbl = FMath::CeilToDouble(1. / SegLength);
+					OutParameters.Empty((SegParams.Num() - 1) * SegNumDbl);
+					OutParameters.Add(T);
+				}
+				double SegParamDiff = SegParams[Seg + 1] - SegParams[Seg];
+				StepLength = SegParamDiff / SegNumDbl;
+			}
+			else
+			{
+				SegNumDbl = FMath::CeilToDouble(ParamDiff / SegLength);
+				StepLength = ParamDiff / SegNumDbl;
+				OutParameters.Empty((SegParams.Num() - 1) * SegNumDbl);
+				OutParameters.Add(T);
+			}
+			int32 SegNum = FMath::RoundToInt(SegNumDbl);
+
+			T = SegParams[Seg]; // To avoid error when the spline is very long.
+			for (int32 i = 0; i < SegNum; ++i)
+			{
+				T += StepLength;
+				OutParameters.Add(T);
+			}
+		}
+	}
+
+	return OutParameters.Num() - 1;
 }

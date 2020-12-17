@@ -31,8 +31,6 @@ public:
 		TSharedPtr<FSplineType> Spline;
 	};
 
-protected:
-
 	struct FGraphNode
 	{
 		TWeakPtr<FSplineWrapper> SplineWrapper;
@@ -90,7 +88,7 @@ public:
 
 	virtual TWeakPtr<FSplineType> AddSplineToGraph(TSharedPtr<FSplineType> Spline, TWeakPtr<FSplineType> Prev = nullptr, TWeakPtr<FSplineType> Next = nullptr);
 
-	virtual TWeakPtr<FSplineType> CreateSplineBesidesExisted(TWeakPtr<FSplineType> Prev, EContactType Direction = EContactType::End, int32 EndContinuity = 1);
+	virtual TWeakPtr<FSplineType> CreateSplineBesidesExisted(TWeakPtr<FSplineType> Prev, EContactType Direction = EContactType::End, int32 EndContinuity = 1, TArray<TWeakPtr<FControlPointType>>* NewControlPointStructsPtr = nullptr);
 
 	virtual void Connect(TWeakPtr<FSplineType> Previous, TWeakPtr<FSplineType> Next, EContactType NextContactType = EContactType::Start);
 
@@ -113,7 +111,9 @@ public:
 
 	virtual void ReverseSpline(TWeakPtr<FSplineType> SplinePtrToReverse);
 
-	virtual bool HasConnection(TWeakPtr<FSplineType> SplinePtr, EContactType Direction = EContactType::End) const;
+	virtual bool HasConnection(
+		TWeakPtr<FSplineType> SplinePtr, EContactType Direction = EContactType::End, 
+		TArray<TWeakPtr<FSplineWrapper>>* ConnectedSplineWrappers = nullptr) const;
 
 	virtual void ChangeSplineType(TWeakPtr<FSplineType>& SplinePtr, ESplineType NewType);
 

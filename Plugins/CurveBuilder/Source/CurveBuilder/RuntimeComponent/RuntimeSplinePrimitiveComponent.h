@@ -39,12 +39,14 @@ public:
 public:
 	FTransform GetSplineLocalToWorldTransform() const;
 	FTransform GetWorldToSplineLocalTransform() const;
-	FMatrix GetSplineLocalToWorldMatrix() const;
-	FMatrix GetWorldToSplineLocalMatrix() const;
 	FTransform GetSplineLocalToComponentLocalTransform() const;
 	FTransform GetComponentLocalToSplineLocalTransform() const;
+	FTransform GetWorldToParentComponentTransform() const;
+	FTransform GetParentComponentToWorldTransform() const;
 	FTransform GetSplineLocalToParentComponentTransform() const;
 	FTransform GetParentComponentToSplineLocalTransform() const;
+
+	FVector ConvertPosition(const FVector& SourcePosition, ECustomSplineCoordinateType From, ECustomSplineCoordinateType To) const;
 
 	virtual void CreateBodySetup();
 
@@ -57,6 +59,9 @@ public:
 	UPROPERTY(Instanced)
 	UBodySetup* BodySetup = nullptr;
 
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "RuntimeCustomSpline|DrawInfo")
+	bool bDrawInGame = true;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "RuntimeCustomSpline|DrawInfo")
 	float DepthBias = 0.f;

@@ -108,12 +108,12 @@ inline TWeakPtr<typename TSplineGraph<Dim, 3>::FSplineType> TSplineGraph<Dim, 3>
 }
 
 template<int32 Dim>
-inline TWeakPtr<typename TSplineGraph<Dim, 3>::FSplineType> TSplineGraph<Dim, 3>::CreateSplineBesidesExisted(TWeakPtr<FSplineType> Prev, EContactType Direction, int32 EndContinuity)
+inline TWeakPtr<typename TSplineGraph<Dim, 3>::FSplineType> TSplineGraph<Dim, 3>::CreateSplineBesidesExisted(TWeakPtr<FSplineType> Prev, EContactType Direction, int32 EndContinuity, TArray<TWeakPtr<FControlPointType>>* NewControlPointStructsPtr)
 {
 	EContactType InvDirection = (Direction == EContactType::Start) ? EContactType::End : EContactType::Start;
 	if (Prev.IsValid()) {
 		TSharedPtr<FSplineType> PrevSharedPtr = Prev.Pin();
-		PrevSharedPtr->ProcessBeforeCreateSameType();
+		PrevSharedPtr->ProcessBeforeCreateSameType(NewControlPointStructsPtr);
 		TWeakPtr<FSplineWrapper>* PrevWrapperPtr = SplineToWrapper.Find(PrevSharedPtr);
 		if (PrevWrapperPtr) {
 			TSharedRef<FSplineType> TempSpline = PrevSharedPtr.Get()->Copy();
@@ -469,7 +469,9 @@ inline void TSplineGraph<Dim, 3>::ReverseSpline(TWeakPtr<FSplineType> SplinePtrT
 }
 
 template<int32 Dim>
-inline bool TSplineGraph<Dim, 3>::HasConnection(TWeakPtr<FSplineType> SplinePtr, EContactType Direction) const
+inline bool TSplineGraph<Dim, 3>::HasConnection(
+	TWeakPtr<FSplineType> SplinePtr, EContactType Direction,
+	TArray<TWeakPtr<FSplineWrapper>>* ConnectedSplineWrappers) const
 {
 	if (SplinePtr.IsValid()) 
 	{
@@ -484,6 +486,14 @@ inline bool TSplineGraph<Dim, 3>::HasConnection(TWeakPtr<FSplineType> SplinePtr,
 				auto* ConnectionSetPtr = InternalGraphBackward.Find(WrapperSharedPtr);
 				if (ConnectionSetPtr)
 				{
+					if (ConnectedSplineWrappers)
+					{
+						ConnectedSplineWrappers->Empty(ConnectionSetPtr->Num());
+						for (const FGraphNode& Node : *ConnectionSetPtr)
+						{
+							ConnectedSplineWrappers->Add(Node.SplineWrapper);
+						}
+					}
 					return ConnectionSetPtr->Num() > 0;
 				}
 			}
@@ -493,12 +503,24 @@ inline bool TSplineGraph<Dim, 3>::HasConnection(TWeakPtr<FSplineType> SplinePtr,
 				auto* ConnectionSetPtr = InternalGraphForward.Find(WrapperSharedPtr);
 				if (ConnectionSetPtr)
 				{
+					if (ConnectedSplineWrappers)
+					{
+						ConnectedSplineWrappers->Empty(ConnectionSetPtr->Num());
+						for (const FGraphNode& Node : *ConnectionSetPtr)
+						{
+							ConnectedSplineWrappers->Add(Node.SplineWrapper);
+						}
+					}
 					return ConnectionSetPtr->Num() > 0;
 				}
 			}
 			break;
 			}
 		}
+	}
+	if (ConnectedSplineWrappers)
+	{
+		ConnectedSplineWrappers->Empty();
 	}
 	return false;
 }

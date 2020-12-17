@@ -3,6 +3,7 @@
 
 #include "ComponentTestPlayerController.h"
 #include "CGDemoCanvas2D.h"
+#include "ProceduralMeshComponent.h"
 #include "UObject/ConstructorHelpers.h"
 #include "Logging/LogMacros.h"
 #include "Engine.h"
@@ -31,6 +32,9 @@ void AComponentTestPlayerController::BeginPlay()
 	{
 		return;
 	}
+	Canvas2D->DrawLinesPMC->SetVisibility(false);
+	Canvas2D->DrawPointsPMC->SetVisibility(false);
+	Canvas2D->DrawPolygonsPMC->SetVisibility(false);
 	GraphActor = World->SpawnActor<ARuntimeSplineGraph>();
 
 	//USceneComponent* NewRootComponent = NewObject<USceneComponent>(GraphActor);

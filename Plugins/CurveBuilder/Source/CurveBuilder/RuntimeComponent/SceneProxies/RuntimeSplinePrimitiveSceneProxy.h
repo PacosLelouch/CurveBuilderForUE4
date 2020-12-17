@@ -22,7 +22,10 @@ public:
 	FRuntimeSplinePrimitiveSceneProxy(const URuntimeSplinePrimitiveComponent* InComponent)
 		: FPrimitiveSceneProxy(InComponent)
 		, ComponentForCheck(InComponent)
+		, bDrawInGameOverride(InComponent->bDrawInGame)
 	{}
+
+	bool IsComponentVaild() const { return IsValid(ComponentForCheck) && !ComponentForCheck->IsBeingDestroyed(); }
 
 	virtual FPrimitiveViewRelevance GetViewRelevance(const FSceneView* View) const override;
 
@@ -33,6 +36,8 @@ public:
 	}
 
 	virtual bool CanBeOccluded() const override { return false; }
+
+	virtual bool IsDrawnInGame() const override { return bDrawInGameOverride; }
 
 #if CUSTOM_SPLINE_USES_CUSTOM_OCCLUSION_DISTANCE
 	virtual FBoxSphereBounds GetCustomOcclusionBounds() const override
@@ -93,8 +98,12 @@ public:
 		RenderBounds(PDI, ViewFamily.EngineShowFlags, BoundsForRender, IsSelected());
 	}
 
-protected:
+private:
 	const UPrimitiveComponent* ComponentForCheck;
+
+	bool bDrawInGameOverride;
+
+protected:
 
 	static const FVector CollisionScale3D;
 	static const int32 DrawCollisionSides;

@@ -14,7 +14,7 @@
 
 class URuntimeCustomSplineBaseComponent;
 
-UCLASS(BlueprintType, ClassGroup = CustomSpline, ShowCategories = (Mobility), HideCategories = (Physics, Lighting, Mobile))
+UCLASS(BlueprintType, ClassGroup = CustomSpline, ShowCategories = (Mobility), HideCategories = (Physics, Lighting, Mobile), meta = (BlueprintSpawnableComponent))
 class CURVEBUILDER_API URuntimeSplinePointBaseComponent : public URuntimeSplinePrimitiveComponent
 {
 	GENERATED_BODY()
@@ -23,6 +23,10 @@ public:
 
 	virtual void BeginPlay() override;
 
+	virtual void OnVisibilityChanged() override;
+
+	virtual void OnComponentCreated() override;
+
 	virtual void OnComponentDestroyed(bool bDestroyingHierarchy) override;
 
 	virtual FPrimitiveSceneProxy* CreateSceneProxy() override;
@@ -30,6 +34,8 @@ public:
 	virtual FBoxSphereBounds CalcBounds(const FTransform& LocalToWorld) const override;
 
 	virtual void UpdateCollision() override;
+
+	virtual void OnUpdateTransform(EUpdateTransformFlags UpdateTransformFlags = EUpdateTransformFlags::None, ETeleportType Teleport = ETeleportType::None) override;
 
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
@@ -41,6 +47,12 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "RuntimeCustomSpline|DrawInfo")
 	void SetSelected(bool bValue);
 
+	UFUNCTION(BlueprintCallable, Category = "RuntimeCustomSpline|Update")
+	void MoveTo(const FVector& Position, ECustomSplineCoordinateType CoordinateType = ECustomSplineCoordinateType::SplineGraphLocal);
+
+	UFUNCTION(BlueprintCallable, Category = "RuntimeCustomSpline|Update")
+	void UpdateComponentLocationBySpline();
+
 public:
 	void MoveSplinePointInternal();
 
@@ -51,11 +63,17 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "RuntimeCustomSpline|Component")
 	int32 TangentFlag = 0;
 
+	//UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "RuntimeCustomSpline|Component")
+	//URuntimeSplinePointBaseComponent* PrevPointForTangent = nullptr;
+
+	//UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "RuntimeCustomSpline|Component")
+	//URuntimeSplinePointBaseComponent* NextPointForTangent = nullptr;
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "RuntimeCustomSpline|Component")
 	bool bSelected = false;
 
 	//UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "RuntimeCustomSpline|Component")
-	UPROPERTY(SimpleDisplay, BlueprintReadWrite, Category = "RuntimeCustomSpline|Component")
+	UPROPERTY(AdvancedDisplay, BlueprintReadWrite, Category = "RuntimeCustomSpline|Component")
 	URuntimeCustomSplineBaseComponent* ParentSpline = nullptr;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "RuntimeCustomSpline|CollisionInfo")
@@ -72,4 +90,7 @@ public:
 
 public:
 	TWeakPtr<FSpatialControlPoint3> SplinePointProxy;
+
+private:
+	bool bIsDuplicated = false;
 };

@@ -15,12 +15,14 @@ void USplineGraphRootComponent::OnUpdateTransform(EUpdateTransformFlags UpdateTr
 			URuntimeCustomSplineBaseComponent* Comp = SpPair.Get<1>();
 			if (IsValid(Comp))
 			{
-				Comp->OnUpdateTransform(UpdateTransformFlags, Teleport);
+				//Comp->OnUpdateTransform(UpdateTransformFlags, Teleport);
 				for (URuntimeSplinePointBaseComponent* PC : Comp->PointComponents)
 				{
+					PC->UpdateComponentLocationBySpline();
 					//PC->MoveSplinePointInternal();
-					PC->OnUpdateTransform(UpdateTransformFlags, Teleport);
+					//PC->OnUpdateTransform(UpdateTransformFlags, Teleport);
 				}
+				Comp->UpdateTransformByCtrlPoint();
 			}
 		}
 	}
@@ -29,20 +31,20 @@ void USplineGraphRootComponent::OnUpdateTransform(EUpdateTransformFlags UpdateTr
 ARuntimeSplineGraph::ARuntimeSplineGraph(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
+	ActorWithSpline = AActor::StaticClass();
 	SplineGraphRootComponent = CreateDefaultSubobject<USplineGraphRootComponent>(TEXT("RootComponent"));
 	RootComponent = SplineGraphRootComponent;
 }
 
 void ARuntimeSplineGraph::Destroyed()
 {
-	SplineGraphProxy.Empty();
-	SplineComponentMap.Empty();
+	ClearAllSplines();
 	Super::Destroyed();
 }
 
 void ARuntimeSplineGraph::VirtualAttachSplineComponent(URuntimeCustomSplineBaseComponent* SplineComponent)
 {
-	if (IsValid(SplineComponent))
+	if (IsValid(SplineComponent) && !SplineComponent->IsBeingDestroyed())
 	{
 		SplineComponent->ParentGraph = this;
 		SplineComponentMap.Add(SplineComponent->SplineBaseWrapperProxy, SplineComponent);
@@ -59,6 +61,255 @@ void ARuntimeSplineGraph::GetOwningSplines(TArray<URuntimeCustomSplineBaseCompon
 	}
 }
 
+bool ARuntimeSplineGraph::CheckSplineHasConnection(URuntimeCustomSplineBaseComponent* SplineComponent, bool bAtLast)
+{
+	if (IsValid(SplineComponent) && !SplineComponent->IsBeingDestroyed())
+	{
+		TWeakPtr<FSpatialSplineBase3> SplineWeakPtr = SplineComponent->GetSplineProxyWeakPtr();
+		return SplineGraphProxy.HasConnection(SplineWeakPtr, bAtLast ? EContactType::End : EContactType::Start);
+	}
+	return false;
+}
+
+void ARuntimeSplineGraph::GetAdjacentSplines(TArray<URuntimeCustomSplineBaseComponent*>& OutAdjacentSplines, URuntimeCustomSplineBaseComponent* SourceSpline, bool bForward)
+{
+	if (IsValid(SourceSpline) && !SourceSpline->IsBeingDestroyed())
+	{
+		TArray<TWeakPtr<FSpatialSplineGraph3::FSplineWrapper> > ConnectedSplineWrappers;
+		SplineGraphProxy.HasConnection(SourceSpline->GetSplineProxyWeakPtr(), bForward ? EContactType::End : EContactType::Start, &ConnectedSplineWrappers);
+		OutAdjacentSplines.Empty(ConnectedSplineWrappers.Num());
+		for (const auto& Wrapper : ConnectedSplineWrappers)
+		{
+			URuntimeCustomSplineBaseComponent** CompPtr = SplineComponentMap.Find(Wrapper.Pin());
+			if (CompPtr)
+			{
+				OutAdjacentSplines.Add(*CompPtr);
+			}
+		}
+	}
+}
+
+void ARuntimeSplineGraph::GetClusterSplinesWithoutSource(TMap<URuntimeCustomSplineBaseComponent*, int32>& OutClusterSplinesWithDistance, URuntimeCustomSplineBaseComponent* SourceSpline, bool bForward)
+{
+	if (IsValid(SourceSpline) && !SourceSpline->IsBeingDestroyed())
+	{
+		TSharedPtr<FSpatialSplineBase3> SplineSharedPtr = SourceSpline->GetSplineProxyWeakPtr().Pin();
+		TSet<TTuple<FSpatialSplineGraph3::FGraphNode, int> > ConnectedSplineWrappers;
+		SplineGraphProxy.GetClusterWithoutSelf(ConnectedSplineWrappers, SplineSharedPtr, bForward ? EContactType::End : EContactType::Start);
+		OutClusterSplinesWithDistance.Empty(ConnectedSplineWrappers.Num());
+		for (const auto& Tuple : ConnectedSplineWrappers)
+		{
+			URuntimeCustomSplineBaseComponent** CompPtr = SplineComponentMap.Find(Tuple.Get<0>().SplineWrapper.Pin());
+			if (CompPtr)
+			{
+				OutClusterSplinesWithDistance.Add(*CompPtr, Tuple.Get<1>());
+			}
+		}
+	}
+}
+
+void ARuntimeSplineGraph::ClearAllSplines()
+{
+	for (auto& SpPair : SplineComponentMap)
+	{
+		SpPair.Get<1>()->DestroyComponent();
+	}
+	SplineGraphProxy.Empty();
+	SplineComponentMap.Empty();
+}
+
+URuntimeCustomSplineBaseComponent* ARuntimeSplineGraph::CreateNewActorWithEmptySpline(ERuntimeSplineType SplineTypeToCreate)
+{
+	TWeakPtr<FSpatialSplineBase3> SplineWeakPtr = SplineGraphProxy.AddDefaulted(GetInternalSplineType(SplineTypeToCreate));
+
+	URuntimeCustomSplineBaseComponent* NewSpline = CreateSplineActorInternal(SplineWeakPtr);
+	//UWorld* World = GetWorld();
+	//if (!IsValid(World))
+	//{
+	//	return nullptr;
+	//}
+
+	//AActor* NewActor = World->SpawnActor<AActor>(ActorWithSpline, GetActorTransform());
+	//if (!IsValid(NewActor))
+	//{
+	//	return nullptr;
+	//}
+	////if (ActorWithSpline.Get() == AActor::StaticClass()))
+	//if (!IsValid(NewActor->GetRootComponent()))
+	//{
+	//	USceneComponent* NewRootComponent = NewObject<USceneComponent>(NewActor);
+	//	NewActor->SetRootComponent(NewRootComponent);
+	//	NewActor->AddInstanceComponent(NewRootComponent);
+	//	NewRootComponent->RegisterComponent();
+	//}
+
+	//URuntimeCustomSplineBaseComponent* NewSpline = NewObject<URuntimeCustomSplineBaseComponent>(NewActor);
+	//NewSpline->AttachToComponent(NewActor->GetRootComponent(), FAttachmentTransformRules::KeepRelativeTransform);
+	//NewActor->AddInstanceComponent(NewSpline);
+	//NewSpline->RegisterComponent();
+	//NewSpline->SplineBaseWrapperProxy = SplineGraphProxy.GetSplineWrapper(SplineWeakPtr).Pin();
+
+	//VirtualAttachSplineComponent(NewSpline);
+
+	return NewSpline;
+}
+
+URuntimeSplinePointBaseComponent* ARuntimeSplineGraph::AddEndPoint(
+	const FVector& Position,
+	URuntimeCustomSplineBaseComponent* ToSpline,
+	bool bAtLast, 
+	ECustomSplineCoordinateType CoordinateType,
+	ERuntimeSplineType SplineTypeToCreate)
+{
+	if (!IsValid(ToSpline))
+	{
+		ToSpline = CreateNewActorWithEmptySpline(SplineTypeToCreate);
+	}
+
+	if (!SplineComponentMap.Contains(ToSpline->SplineBaseWrapperProxy))
+	{
+		SplineComponentMap.Add(ToSpline->SplineBaseWrapperProxy, ToSpline);
+	}
+	
+	return ToSpline->AddEndPoint(Position, bAtLast, CoordinateType);
+}
+
+URuntimeSplinePointBaseComponent* ARuntimeSplineGraph::InsertPoint(
+	const FVector& Position,
+	bool& bSucceedReturn,
+	URuntimeCustomSplineBaseComponent* ToSpline, 
+	ECustomSplineCoordinateType CoordinateType)
+{
+	if (IsValid(ToSpline) && !ToSpline->IsBeingDestroyed())
+	{
+		URuntimeSplinePointBaseComponent* ReturnComponent = ToSpline->InsertPoint(Position, bSucceedReturn, CoordinateType);
+		if (!ReturnComponent)
+		{
+			ReturnComponent = AddEndPoint(Position, ToSpline, true, CoordinateType, ToSpline->GetSplineType());
+		}
+
+		bSucceedReturn = (ReturnComponent != nullptr);
+		return ReturnComponent;
+	}
+
+	bSucceedReturn = false;
+	return nullptr;
+}
+
+URuntimeCustomSplineBaseComponent* ARuntimeSplineGraph::ExtendNewSplineWithContinuity(bool& bSucceedReturn, URuntimeCustomSplineBaseComponent* SourceSpline, bool bAtLast, ECustomSplineCoordinateType CoordinateType)
+{
+	if (IsValid(SourceSpline) && !SourceSpline->IsBeingDestroyed())
+	{
+		TWeakPtr<FSpatialSplineBase3> SplineWeakPtr = SourceSpline->GetSplineProxyWeakPtr();
+		TArray<TWeakPtr<FSpatialControlPoint3> > ControlPointStructsAddedInSourceSpline;
+		TWeakPtr<FSpatialSplineBase3> NewSplineWeakPtr = SplineGraphProxy.CreateSplineBesidesExisted(SplineWeakPtr, bAtLast ? EContactType::End : EContactType::Start, 1, &ControlPointStructsAddedInSourceSpline);
+		AddUnbindingPointsInternal(ControlPointStructsAddedInSourceSpline, SourceSpline, nullptr);
+
+		if (!NewSplineWeakPtr.IsValid())
+		{
+			bSucceedReturn = false;
+			return nullptr;
+		}
+
+		URuntimeCustomSplineBaseComponent* NewSplineComp = CreateSplineActorInternal(NewSplineWeakPtr, nullptr);
+
+		bSucceedReturn = (NewSplineComp != nullptr);
+
+		if (bSucceedReturn)
+		{
+			SourceSpline->SetSelected(false);
+		}
+		return NewSplineComp;
+	}
+
+	bSucceedReturn = false;
+	return nullptr;
+}
+
+URuntimeSplinePointBaseComponent* ARuntimeSplineGraph::ExtendNewSplineAndNewPoint(
+	const FVector& Position,
+	bool& bSucceedReturn,
+	URuntimeCustomSplineBaseComponent* SourceSpline,
+	bool bAtLast,
+	ECustomSplineCoordinateType CoordinateType)
+{
+	if (IsValid(SourceSpline) && !SourceSpline->IsBeingDestroyed())
+	{
+		TWeakPtr<FSpatialSplineBase3> SplineWeakPtr = SourceSpline->GetSplineProxyWeakPtr();
+		TArray<TWeakPtr<FSpatialControlPoint3> > ControlPointStructsAddedInSourceSpline;
+		TWeakPtr<FSpatialSplineBase3> NewSplineWeakPtr = SplineGraphProxy.CreateSplineBesidesExisted(SplineWeakPtr, bAtLast ? EContactType::End : EContactType::Start, 1, &ControlPointStructsAddedInSourceSpline);
+		AddUnbindingPointsInternal(ControlPointStructsAddedInSourceSpline, SourceSpline, nullptr);
+
+		if (!NewSplineWeakPtr.IsValid())
+		{
+			bSucceedReturn = false;
+			return nullptr;
+		}
+
+		URuntimeSplinePointBaseComponent* LatestNewPoint = nullptr;
+		URuntimeCustomSplineBaseComponent* NewSplineComp = CreateSplineActorInternal(NewSplineWeakPtr, &LatestNewPoint);
+		FSpatialSplineBase3& SplineRef = *NewSplineWeakPtr.Pin().Get();
+
+		switch (SplineRef.GetType())
+		{
+		case ESplineType::BezierString:
+		{
+			FVector ComponentPosition = NewSplineComp->ConvertPosition(Position, CoordinateType, ECustomSplineCoordinateType::ComponentLocal);
+			LatestNewPoint->SetRelativeLocation(ComponentPosition);
+		}
+			break;
+		case ESplineType::ClampedBSpline:
+		{
+			LatestNewPoint = NewSplineComp->AddEndPoint(Position, true, CoordinateType);
+		}
+			break;
+		}
+
+		bSucceedReturn = (LatestNewPoint != nullptr);
+
+		if (bSucceedReturn)
+		{
+			SourceSpline->SetSelected(false);
+		}
+		return LatestNewPoint;
+	}
+
+	bSucceedReturn = false;
+	return nullptr;
+}
+
+FVector ARuntimeSplineGraph::MovePoint(
+	URuntimeCustomSplineBaseComponent* SourceSpline,
+	URuntimeSplinePointBaseComponent* SourcePoint,
+	const FVector& TargetPosition,
+	ECustomSplineCoordinateType CoordinateType)
+{
+	FVector TargetSplineLocalPosition = FVector::ZeroVector;
+	if (IsValid(SourceSpline) && !SourceSpline->IsBeingDestroyed() && IsValid(SourcePoint) && !SourcePoint->IsBeingDestroyed() && SourcePoint->SplinePointProxy.IsValid())
+	{
+		FSpatialControlPoint3& CPRef = *SourcePoint->SplinePointProxy.Pin().Get();
+		TargetSplineLocalPosition = SourceSpline->ConvertPosition(TargetPosition, CoordinateType, ECustomSplineCoordinateType::SplineGraphLocal);
+		SplineGraphProxy.AdjustCtrlPointPos(
+			CPRef, TargetSplineLocalPosition, SourceSpline->GetSplineProxyWeakPtr(),
+			1, SourcePoint->TangentFlag, 0);
+		TMap<URuntimeCustomSplineBaseComponent*, int32> ClusterSplines;
+		GetClusterSplinesWithoutSource(ClusterSplines, SourceSpline, true);
+		for (TPair<URuntimeCustomSplineBaseComponent*, int32>& TargetSplinePair : ClusterSplines)
+		{
+			TargetSplinePair.Get<0>()->UpdateTransformByCtrlPoint();
+			TargetSplinePair.Get<0>()->UpdateControlPointsLocation();
+		}
+		GetClusterSplinesWithoutSource(ClusterSplines, SourceSpline, false);
+		for (TPair<URuntimeCustomSplineBaseComponent*, int32>& TargetSplinePair : ClusterSplines)
+		{
+			TargetSplinePair.Get<0>()->UpdateTransformByCtrlPoint();
+			TargetSplinePair.Get<0>()->UpdateControlPointsLocation();
+		}
+	}
+
+	return TargetSplineLocalPosition;
+}
+
 URuntimeCustomSplineBaseComponent* ARuntimeSplineGraph::GetSplineComponentBySplineWeakPtr(TWeakPtr<FSpatialSplineGraph3::FSplineType> SplineWeakPtr)
 {
 	TWeakPtr<FSpatialSplineGraph3::FSplineWrapper> WrapperWeakPtr = SplineGraphProxy.GetSplineWrapper(SplineWeakPtr);
@@ -72,6 +323,92 @@ URuntimeCustomSplineBaseComponent* ARuntimeSplineGraph::GetSplineComponentBySpli
 		return nullptr;
 	}
 	return *SpCompPtr;
+}
+
+URuntimeCustomSplineBaseComponent* ARuntimeSplineGraph::CreateSplineActorInternal(TWeakPtr<FSpatialSplineBase3> SplineWeakPtr, URuntimeSplinePointBaseComponent** LatestNewPointPtr)
+{
+	UWorld* World = GetWorld();
+	if (!IsValid(World))
+	{
+		return nullptr;
+	}
+
+	AActor* NewActor = World->SpawnActor<AActor>(ActorWithSpline, GetActorTransform());
+	if (!IsValid(NewActor))
+	{
+		return nullptr;
+	}
+	//if (ActorWithSpline.Get() == AActor::StaticClass()))
+	if (!IsValid(NewActor->GetRootComponent()))
+	{
+		USceneComponent* NewRootComponent = NewObject<USceneComponent>(NewActor);
+		NewActor->SetRootComponent(NewRootComponent);
+		NewActor->AddInstanceComponent(NewRootComponent);
+		NewRootComponent->RegisterComponent();
+	}
+
+	URuntimeCustomSplineBaseComponent* NewSpline = NewObject<URuntimeCustomSplineBaseComponent>(NewActor);
+	NewSpline->AttachToComponent(NewActor->GetRootComponent(), FAttachmentTransformRules::KeepRelativeTransform);
+	NewActor->AddInstanceComponent(NewSpline);
+	NewSpline->RegisterComponent();
+	NewSpline->SplineBaseWrapperProxy = SplineGraphProxy.GetSplineWrapper(SplineWeakPtr).Pin();
+	VirtualAttachSplineComponent(NewSpline);
+
+	if (SplineWeakPtr.IsValid())
+	{
+		FSpatialSplineBase3& SplineRef = *SplineWeakPtr.Pin().Get();
+		if (SplineRef.GetCtrlPointNum() > 0)
+		{
+			TArray<TWeakPtr<FSpatialControlPoint3> > CtrlPointStructsWP;
+			SplineRef.GetCtrlPointStructs(CtrlPointStructsWP);
+			AddUnbindingPointsInternal(CtrlPointStructsWP, NewSpline, LatestNewPointPtr);
+		}
+	}
+
+	NewSpline->SetSelected(true);
+
+	return NewSpline;
+}
+
+void ARuntimeSplineGraph::AddUnbindingPointsInternal(const TArray<TWeakPtr<FSpatialControlPoint3> >& CtrlPointStructsWP, URuntimeCustomSplineBaseComponent* NewSpline, URuntimeSplinePointBaseComponent** LatestNewPointPtr)
+{
+	if (!IsValid(NewSpline) || NewSpline->IsBeingDestroyed() || !NewSpline->SplineBaseWrapperProxy.IsValid() || !NewSpline->SplineBaseWrapperProxy.Get()->Spline.IsValid())
+	{
+		return;
+	}
+	FSpatialSplineBase3& SplineRef = *NewSpline->SplineBaseWrapperProxy.Get()->Spline.Get();
+	for (const TWeakPtr<FSpatialControlPoint3>& WP : CtrlPointStructsWP)
+	{
+		if (WP.IsValid())
+		{
+			switch (SplineRef.GetType())
+			{
+			case ESplineType::BezierString:
+			{
+				//const auto& BeziersCP = MakeShared<TSplineTraitByType<ESplineType::BezierString>::FControlPointType&>(*WP.Pin().Get());
+				TSharedRef<FSpatialControlPoint3> CPRef = WP.Pin().ToSharedRef();
+				URuntimeSplinePointBaseComponent* LatestPoint = NewSpline->AddPointInternal(CPRef, 0);
+				NewSpline->AddPointInternal(CPRef, -1);
+				NewSpline->AddPointInternal(CPRef, 1);
+				if (LatestNewPointPtr)
+				{
+					*LatestNewPointPtr = LatestPoint;
+				}
+			}
+			break;
+			case ESplineType::ClampedBSpline:
+			{
+				TSharedRef<FSpatialControlPoint3> CPRef = WP.Pin().ToSharedRef();
+				URuntimeSplinePointBaseComponent* LatestPoint = NewSpline->AddPointInternal(CPRef, 0);
+				if (LatestNewPointPtr)
+				{
+					*LatestNewPointPtr = LatestPoint;
+				}
+			}
+			break;
+			}
+		}
+	}
 }
 
 #if WITH_EDITOR

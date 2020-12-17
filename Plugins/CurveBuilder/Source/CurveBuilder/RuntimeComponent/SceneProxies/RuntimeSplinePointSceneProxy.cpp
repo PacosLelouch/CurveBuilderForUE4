@@ -105,7 +105,7 @@ void FRuntimeSplinePointSceneProxy::DrawDebugCollisions(FPrimitiveDrawInterface*
 	{
 		return;
 	}
-	const TArray<FKSphereElem>& SphereElems = (*CollisionInfo.BodySetupPtr)->AggGeom.SphereElems;
+	const TArray<FKSphereElem> SphereElems = (*CollisionInfo.BodySetupPtr)->AggGeom.SphereElems;
 #else
 	const TArray<FKSphereElem>& SphereElems = CollisionInfo.SphereElems;
 #endif
