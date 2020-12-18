@@ -176,23 +176,31 @@ inline void TBezierString3<Dim>::GetCtrlParams(TArray<double>& CtrlParams) const
 }
 
 template<int32 Dim>
-inline void TBezierString3<Dim>::GetBezierCurves(TArray<TBezierCurve<Dim, 3> >& BezierCurves, TArray<TTuple<double, double> >& ParamRanges) const
+inline bool TBezierString3<Dim>::ToBezierCurves(TArray<TBezierCurve<Dim, 3> >& BezierCurves, TArray<TTuple<double, double> >* ParamRangesPtr) const
 {
 	FPointNode* Node = CtrlPointsList.GetHead();
 	if (!Node) {
-		return;
+		return false;
 	}
 	BezierCurves.Empty(CtrlPointsList.Num() - 1);
-	ParamRanges.Empty(CtrlPointsList.Num() - 1);
+	if (ParamRangesPtr)
+	{
+		ParamRangesPtr->Empty(CtrlPointsList.Num() - 1);
+	}
 	FPointNode* NextNode = Node->GetNextNode();
 	while (Node && NextNode) {
 		const auto& NodeVal = Node->GetValueRef();
 		const auto& NextNodeVal = NextNode->GetValueRef();
-		BezierCurves.Emplace({ NodeVal.Pos, NodeVal.NextCtrlPointPos, NextNodeVal.PrevCtrlPointPos, NextNodeVal.Pos });
-		ParamRanges.Emplace(MakeTuple(NodeVal.Param, NextNodeVal.Param));
+		TArray<TVectorX<Dim+1> > CtrlPoints{ NodeVal.Pos, NodeVal.NextCtrlPointPos, NextNodeVal.PrevCtrlPointPos, NextNodeVal.Pos };
+		BezierCurves.Emplace(CtrlPoints);
+		if (ParamRangesPtr)
+		{
+			ParamRangesPtr->Emplace(MakeTuple(NodeVal.Param, NextNodeVal.Param));
+		}
 		Node = Node->GetNextNode();
 		NextNode = Node->GetNextNode();
 	}
+	return true;
 }
 
 template<int32 Dim>

@@ -247,11 +247,11 @@ inline void TClampedBSpline<Dim, Degree>::GetCtrlPoints(TArray<TVectorX<Dim+1>>&
 }
 
 template<int32 Dim, int32 Degree>
-inline void TClampedBSpline<Dim, Degree>::ToBezierCurves(TArray<TBezierCurve<Dim, Degree>>& Beziers) const
+inline bool TClampedBSpline<Dim, Degree>::ToBezierCurves(TArray<TBezierCurve<Dim, Degree> >& BezierCurves, TArray<TTuple<double, double> >* ParamRangesPtr) const
 {
-	Beziers.Empty();
+	BezierCurves.Empty(KnotIntervals.Num() - 1);
 
-	auto AddBezier = [this, &Beziers](const TClampedBSpline<Dim, Degree>& Spline) {
+	auto AddBezier = [this, &BezierCurves, ParamRangesPtr](const TClampedBSpline<Dim, Degree>& Spline) {
 		TArray<TVectorX<Dim+1> > CtrlPoints;
 		Spline.GetCtrlPoints(CtrlPoints);
 		if (Spline.GetCtrlPointNum() < 2 || Spline.GetCtrlPointNum() > Degree + 1) { // Invalid
@@ -267,24 +267,37 @@ inline void TClampedBSpline<Dim, Degree>::ToBezierCurves(TArray<TBezierCurve<Dim
 		//	return;
 		//}
 		else if (Spline.GetCtrlPointNum() <= Degree) { // Incomplete Bezier
-			TBezierCurve<Dim, Degree>& NewBezier = Beziers.AddDefaulted_GetRef();
+			TBezierCurve<Dim, Degree>& NewBezier = BezierCurves.AddDefaulted_GetRef();
 			for (int32 i = 0; i <= Degree; ++i) {
 				NewBezier.SetPointHomogeneous(i, CtrlPoints[FMath::Min(i, CtrlPoints.Num() - 1)]);
 			}
 		}
 		else { // Complete Bezier
-			TBezierCurve<Dim, Degree>& NewBezier = Beziers.AddDefaulted_GetRef();
+			TBezierCurve<Dim, Degree>& NewBezier = BezierCurves.AddDefaulted_GetRef();
 			NewBezier.Reset(CtrlPoints.GetData());
 		}
 	};
 
 	TClampedBSpline<Dim, Degree> SplitFirst, SplitSecond, ToSplit(*this);
+	if (ParamRangesPtr)
+	{
+		ParamRangesPtr->Empty(KnotIntervals.Num() - 1);
+	}
 	for (int32 i = 1; i + 1 < KnotIntervals.Num(); ++i) {
 		ToSplit.Split(SplitFirst, SplitSecond, KnotIntervals[i]);
 		AddBezier(SplitFirst);
 		ToSplit = SplitSecond;
+		if (ParamRangesPtr)
+		{
+			ParamRangesPtr->Emplace(MakeTuple(KnotIntervals[i - 1], KnotIntervals[i]));
+		}
 	}
 	AddBezier(ToSplit);
+	if (ParamRangesPtr)
+	{
+		ParamRangesPtr->Emplace(MakeTuple(KnotIntervals.Last(1), KnotIntervals.Last(0)));
+	}
+	return true;
 }
 
 template<int32 Dim, int32 Degree>

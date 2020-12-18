@@ -32,6 +32,8 @@ ARuntimeSplineGraph::ARuntimeSplineGraph(const FObjectInitializer& ObjectInitial
 	: Super(ObjectInitializer)
 {
 	ActorWithSpline = AActor::StaticClass();
+	CustomSplineClass = URuntimeCustomSplineBaseComponent::StaticClass();
+	CustomSplinePointClass = URuntimeSplinePointBaseComponent::StaticClass();
 	SplineGraphRootComponent = CreateDefaultSubobject<USplineGraphRootComponent>(TEXT("RootComponent"));
 	RootComponent = SplineGraphRootComponent;
 }
@@ -47,6 +49,7 @@ void ARuntimeSplineGraph::VirtualAttachSplineComponent(URuntimeCustomSplineBaseC
 	if (IsValid(SplineComponent) && !SplineComponent->IsBeingDestroyed())
 	{
 		SplineComponent->ParentGraph = this;
+		SplineComponent->CustomSplinePointClass = CustomSplinePointClass;
 		SplineComponentMap.Add(SplineComponent->SplineBaseWrapperProxy, SplineComponent);
 		SplineComponent->UpdateTransformByCtrlPoint();
 	}
@@ -143,7 +146,7 @@ URuntimeCustomSplineBaseComponent* ARuntimeSplineGraph::CreateNewActorWithEmptyS
 	//	NewRootComponent->RegisterComponent();
 	//}
 
-	//URuntimeCustomSplineBaseComponent* NewSpline = NewObject<URuntimeCustomSplineBaseComponent>(NewActor);
+	//URuntimeCustomSplineBaseComponent* NewSpline = NewObject<URuntimeCustomSplineBaseComponent>(NewActor, CustomSplineClass);
 	//NewSpline->AttachToComponent(NewActor->GetRootComponent(), FAttachmentTransformRules::KeepRelativeTransform);
 	//NewActor->AddInstanceComponent(NewSpline);
 	//NewSpline->RegisterComponent();
@@ -296,15 +299,16 @@ FVector ARuntimeSplineGraph::MovePoint(
 		GetClusterSplinesWithoutSource(ClusterSplines, SourceSpline, true);
 		for (TPair<URuntimeCustomSplineBaseComponent*, int32>& TargetSplinePair : ClusterSplines)
 		{
-			TargetSplinePair.Get<0>()->UpdateTransformByCtrlPoint();
 			TargetSplinePair.Get<0>()->UpdateControlPointsLocation();
+			TargetSplinePair.Get<0>()->UpdateTransformByCtrlPoint();
 		}
 		GetClusterSplinesWithoutSource(ClusterSplines, SourceSpline, false);
 		for (TPair<URuntimeCustomSplineBaseComponent*, int32>& TargetSplinePair : ClusterSplines)
 		{
-			TargetSplinePair.Get<0>()->UpdateTransformByCtrlPoint();
 			TargetSplinePair.Get<0>()->UpdateControlPointsLocation();
+			TargetSplinePair.Get<0>()->UpdateTransformByCtrlPoint();
 		}
+		//SourcePoint->UpdateComponentLocationBySpline(); // Stack Overflow
 	}
 
 	return TargetSplineLocalPosition;
@@ -346,8 +350,12 @@ URuntimeCustomSplineBaseComponent* ARuntimeSplineGraph::CreateSplineActorInterna
 		NewActor->AddInstanceComponent(NewRootComponent);
 		NewRootComponent->RegisterComponent();
 	}
+	else
+	{
+		NewActor->AddInstanceComponent(NewActor->GetRootComponent());
+	}
 
-	URuntimeCustomSplineBaseComponent* NewSpline = NewObject<URuntimeCustomSplineBaseComponent>(NewActor);
+	URuntimeCustomSplineBaseComponent* NewSpline = NewObject<URuntimeCustomSplineBaseComponent>(NewActor, CustomSplineClass);
 	NewSpline->AttachToComponent(NewActor->GetRootComponent(), FAttachmentTransformRules::KeepRelativeTransform);
 	NewActor->AddInstanceComponent(NewSpline);
 	NewSpline->RegisterComponent();

@@ -58,6 +58,15 @@ void URuntimeSplinePointBaseComponent::OnComponentCreated()
 						Spline->AddPointAtLast(SplineLocalPos);
 						SplinePointProxy = Spline->GetLastCtrlPointStruct();
 						ParentSpline->PointComponents.Add(this);
+
+						if (Spline->GetType() == ESplineType::BezierString)
+						{
+							const TSharedRef<FSpatialControlPoint3>& CPRef = SplinePointProxy.Pin().ToSharedRef();
+							URuntimeSplinePointBaseComponent* PrevPoint = SpComp->AddPointInternal(CPRef, -1);
+							PrevPoint->UpdateComponentLocationBySpline();
+							URuntimeSplinePointBaseComponent* NextPoint = SpComp->AddPointInternal(CPRef, 1);
+							NextPoint->UpdateComponentLocationBySpline();
+						}
 					}
 					break;
 				}
@@ -217,10 +226,27 @@ void URuntimeSplinePointBaseComponent::UpdateCollision()
 void URuntimeSplinePointBaseComponent::OnUpdateTransform(EUpdateTransformFlags UpdateTransformFlags, ETeleportType Teleport)
 {
 	Super::OnUpdateTransform(UpdateTransformFlags, Teleport);
+	//UpdateComponentLocationBySpline();
+	//MoveSplinePointInternal(); // Stack Overflow
 	if (IsValid(ParentSpline) && !ParentSpline->IsBeingDestroyed())
 	{
+		ParentSpline->OnUpdateTransform(UpdateTransformFlags, Teleport);
 		ParentSpline->OnSplineUpdatedEvent();
 	}
+}
+
+bool URuntimeSplinePointBaseComponent::MoveComponentImpl(const FVector& Delta, const FQuat& NewRotation, bool bSweep, FHitResult* Hit, EMoveComponentFlags MoveFlags, ETeleportType Teleport)
+{
+	//FVector PrevRelativeLocation = GetRelativeLocation();
+	bool bReturn = Super::MoveComponentImpl(Delta, NewRotation, bSweep, Hit, MoveFlags, Teleport);
+	if (bReturn && !Delta.IsNearlyZero())
+	{
+		MoveSplinePointInternal();
+	}
+	//SplineLocalPosition = ConvertPosition(GetRelativeLocation(), ECustomSplineCoordinateType::ComponentLocal, ECustomSplineCoordinateType::SplineGraphLocal);
+	//UpdateComponentLocationBySpline();
+	//MoveTo_Deprecated(PrevRelativeLocation + Delta, ECustomSplineCoordinateType::ComponentLocal);
+	return bReturn;
 }
 
 #if WITH_EDITOR
@@ -301,12 +327,22 @@ void URuntimeSplinePointBaseComponent::SetSelected(bool bValue)
 	}
 }
 
-void URuntimeSplinePointBaseComponent::MoveTo(const FVector& Position, ECustomSplineCoordinateType CoordinateType)
+void URuntimeSplinePointBaseComponent::MoveTo_Deprecated(const FVector& Position, ECustomSplineCoordinateType CoordinateType)
 {
-	FVector ComponentLocalPosition = ConvertPosition(Position, CoordinateType, ECustomSplineCoordinateType::ComponentLocal);
-	SetRelativeLocation(ComponentLocalPosition);
-	MoveSplinePointInternal();
-	ParentSpline->UpdateTransformByCtrlPoint();
+	if (IsValid(ParentSpline) && !ParentSpline->IsBeingDestroyed())
+	{
+		if (IsValid(ParentGraph) && !ParentGraph->IsActorBeingDestroyed())
+		{
+			ParentGraph->MovePoint(ParentSpline, this, Position, CoordinateType);
+		}
+		else
+		{
+			FVector ComponentLocalPosition = ConvertPosition(Position, CoordinateType, ECustomSplineCoordinateType::ComponentLocal);
+			SetRelativeLocation(ComponentLocalPosition);
+			MoveSplinePointInternal();
+			//ParentSpline->UpdateTransformByCtrlPoint();
+		}
+	}
 }
 
 void URuntimeSplinePointBaseComponent::UpdateComponentLocationBySpline()
@@ -321,10 +357,11 @@ void URuntimeSplinePointBaseComponent::UpdateComponentLocationBySpline()
 			{
 				if (Spline->GetType() == ESplineType::BezierString)
 				{
-					const auto& BezierPointStruct = static_cast<const TSplineTraitByType<ESplineType::BezierString>::FControlPointType&>(PointStruct);
+					const auto& BezierPointStruct = static_cast<const TSplineTraitByType<ESplineType::BezierString, 3, 3>::FControlPointType&>(PointStruct);
 					FVector4 SplineLocalPosition4 = (TangentFlag == 0 ? BezierPointStruct.Pos :
 						(TangentFlag > 0 ? BezierPointStruct.NextCtrlPointPos : BezierPointStruct.PrevCtrlPointPos));
 					SetRelativeLocation(GetSplineLocalToParentComponentTransform().TransformPosition(SplineLocalPosition4));
+					return;
 				}
 			}
 		}
@@ -357,6 +394,7 @@ void URuntimeSplinePointBaseComponent::MoveSplinePointInternal()
 		{
 			ParentSpline->GetSplineProxy()->AdjustCtrlPointPos(*SplinePointProxy.Pin().Get(), GetParentComponentToSplineLocalTransform().TransformPosition(GetRelativeLocation()), TangentFlag, 0);
 		}
+		ParentSpline->UpdateTransformByCtrlPoint();
 		ParentSpline->OnUpdateTransform(EUpdateTransformFlags::None, ETeleportType::None);
 	}
 }

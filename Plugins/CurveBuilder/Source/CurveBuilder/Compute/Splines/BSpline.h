@@ -93,7 +93,7 @@ public:
 
 	void GetCtrlPoints(TArray<TVectorX<Dim+1> >& CtrlPoints) const;
 
-	void ToBezierCurves(TArray<TBezierCurve<Dim, Degree> >& Beziers) const;
+	virtual bool ToBezierCurves(TArray<TBezierCurve<Dim, Degree> >& BezierCurves, TArray<TTuple<double, double> >* ParamRangesPtr = nullptr) const override;
 
 	void GetClampedKnotIntervals(TArray<double>& OutClampedKnotIntervals) const;
 

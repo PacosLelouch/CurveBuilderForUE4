@@ -91,7 +91,7 @@ public:
 
 	void GetCtrlParams(TArray<double>& CtrlParams) const;
 
-	void GetBezierCurves(TArray<TBezierCurve<Dim, 3> >& BezierCurves, TArray<TTuple<double, double> >& ParamRanges) const;
+	virtual bool ToBezierCurves(TArray<TBezierCurve<Dim, 3> >& BezierCurves, TArray<TTuple<double, double> >* ParamRangesPtr = nullptr) const override;
 
 public:
 	virtual int32 GetCtrlPointNum() const override

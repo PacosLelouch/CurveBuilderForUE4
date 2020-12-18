@@ -148,6 +148,12 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "RuntimeCustomSpline|Settings")
 	TSubclassOf<AActor> ActorWithSpline;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "RuntimeCustomSpline|Settings")
+	TSubclassOf<URuntimeCustomSplineBaseComponent> CustomSplineClass;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "RuntimeCustomSpline|Settings")
+	TSubclassOf<URuntimeSplinePointBaseComponent> CustomSplinePointClass;
+
 public:
 	FSpatialSplineGraph3 SplineGraphProxy;
 	TMap<TSharedPtr<FSpatialSplineGraph3::FSplineWrapper>, URuntimeCustomSplineBaseComponent*> SplineComponentMap;

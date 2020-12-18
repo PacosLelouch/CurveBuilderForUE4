@@ -11,18 +11,21 @@
 #include "../Compute/Splines/SplineGraph.h"
 #include "RuntimeCustomSplineBaseComponent.generated.h"
 
-UCLASS(BlueprintType, ClassGroup = CustomSpline, ShowCategories = (Mobility), HideCategories = (Physics, Lighting, Mobile), meta = (BlueprintSpawnableComponent))
+UCLASS(BlueprintType, Blueprintable, ClassGroup = CustomSpline, ShowCategories = (Mobility), HideCategories = (Physics, Lighting, Mobile), meta = (BlueprintSpawnableComponent))
 class CURVEBUILDER_API URuntimeCustomSplineBaseComponent : public URuntimeSplinePrimitiveComponent//, public IInterface_CollisionDataProvider
 {
 	GENERATED_BODY()
 public:
 	DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnSplineUpdated, URuntimeCustomSplineBaseComponent*, SplineComponent);
+	DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnActorAttached, AActor*, AttachedActor);
 public:
 	URuntimeCustomSplineBaseComponent(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
 	virtual void BeginPlay() override;
 
 	virtual void OnComponentDestroyed(bool bDestroyingHierarchy) override;
+
+	virtual void OnAttachmentChanged() override;
 
 	virtual FPrimitiveSceneProxy* CreateSceneProxy() override;
 
@@ -48,8 +51,14 @@ public:
 	virtual void PostEditComponentMove(bool bFinished) override;
 #endif
 
+	virtual void Serialize(FArchive& Ar) override;
+
 public:
-	virtual void OnSplineUpdatedEvent();
+	UFUNCTION(BlueprintNativeEvent, Category = "RuntimeCustomSpline|Update")
+	void OnSplineUpdatedEvent();
+
+	UFUNCTION(BlueprintNativeEvent, Category = "RuntimeCustomSpline|Update")
+	void OnActorAttachedEvent(AActor* AttachedActor);
 
 public:
 	UFUNCTION(BlueprintCallable, Category = "RuntimeCustomSpline|DrawInfo")
@@ -57,6 +66,21 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "RuntimeCustomSpline|Query")
 	ERuntimeSplineType GetSplineType() const;
+
+	UFUNCTION(BlueprintCallable, Category = "RuntimeCustomSpline|Query")
+	void GetParametricCubicPolynomialForms(
+		TArray<FVector>& OutParamPoly3Forms,
+		ECustomSplineCoordinateType TargetCoordinateType = ECustomSplineCoordinateType::SplineGraphLocal);
+
+	UFUNCTION(BlueprintCallable, Category = "RuntimeCustomSpline|Query")
+	void GetCubicBezierForms(
+		TArray<FVector>& OutBezierForms,
+		ECustomSplineCoordinateType TargetCoordinateType = ECustomSplineCoordinateType::SplineGraphLocal);
+
+	UFUNCTION(BlueprintCallable, Category = "RuntimeCustomSpline|Query")
+	void GetHermiteForms(
+		TArray<FVector>& OutPositions, TArray<FVector>& OutArriveTangents, TArray<FVector>& OutLeaveTangents,
+		ECustomSplineCoordinateType TargetCoordinateType = ECustomSplineCoordinateType::SplineGraphLocal);
 
 	UFUNCTION(BlueprintCallable, Category = "RuntimeCustomSpline|Update")
 	void Reverse();
@@ -101,6 +125,9 @@ public:
 
 public:
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "RuntimeCustomSpline|Settings")
+	TSubclassOf<URuntimeSplinePointBaseComponent> CustomSplinePointClass;
+
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "RuntimeCustomSpline|Component")
 	TSet<URuntimeSplinePointBaseComponent*> PointComponents;
 
@@ -138,10 +165,15 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "RuntimeCustomSpline|Update")
 	FOnSplineUpdated OnSplineUpdateHandle;
 
+	UPROPERTY(BlueprintAssignable, Category = "RuntimeCustomSpline|Update")
+	FOnActorAttached OnActorAttachedHandle;
+
 public:
 	TSharedPtr<FSpatialSplineGraph3::FSplineWrapper> SplineBaseWrapperProxy;
 
 private:
 	bool bLastCreateCollisionByCurveLength = false;
+
+	AActor* PreviousAttachedActor = nullptr;
 
 };

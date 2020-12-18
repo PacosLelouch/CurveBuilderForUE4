@@ -11,6 +11,7 @@ static const auto LengthFactor = 100.f, InvLengthFactor = 1.f / 100.f;
 URuntimeCustomSplineBaseComponent::URuntimeCustomSplineBaseComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
+	CustomSplinePointClass = URuntimeSplinePointBaseComponent::StaticClass();
 	bLastCreateCollisionByCurveLength = bCreateCollisionByCurveLength;
 	CollisionSegLength *= bCreateCollisionByCurveLength ? LengthFactor : 1.f;
 }
@@ -24,6 +25,17 @@ void URuntimeCustomSplineBaseComponent::OnComponentDestroyed(bool bDestroyingHie
 {
 	ClearSpline();
 	Super::OnComponentDestroyed(bDestroyingHierarchy);
+}
+
+void URuntimeCustomSplineBaseComponent::OnAttachmentChanged()
+{
+	Super::OnAttachmentChanged();
+	AActor* CurrentAttachedActor = GetAttachmentRootActor();
+	if (PreviousAttachedActor != CurrentAttachedActor)
+	{
+		PreviousAttachedActor = CurrentAttachedActor;
+		OnActorAttachedEvent(CurrentAttachedActor);
+	}
 }
 
 FPrimitiveSceneProxy* URuntimeCustomSplineBaseComponent::CreateSceneProxy()
@@ -118,7 +130,7 @@ FBoxSphereBounds URuntimeCustomSplineBaseComponent::CalcBounds(const FTransform&
 		case ESplineType::ClampedBSpline:
 		{
 			TArray<FVector4> CPs;
-			auto* BSpline = static_cast<TSplineTraitByType<ESplineType::ClampedBSpline>::FSplineType*>(Spline);
+			auto* BSpline = static_cast<TSplineTraitByType<ESplineType::ClampedBSpline, 3, 3>::FSplineType*>(Spline);
 			BSpline->GetCtrlPoints(CPs);
 			for (const FVector4& V : CPs)
 			{
@@ -130,7 +142,7 @@ FBoxSphereBounds URuntimeCustomSplineBaseComponent::CalcBounds(const FTransform&
 		case ESplineType::BezierString:
 		{
 			TArray<FVector4> CPs, NextCPs, PrevCPs;
-			auto* Beziers = static_cast<TSplineTraitByType<ESplineType::BezierString>::FSplineType*>(Spline);
+			auto* Beziers = static_cast<TSplineTraitByType<ESplineType::BezierString, 3, 3>::FSplineType*>(Spline);
 			Beziers->GetCtrlPoints(CPs);
 			Beziers->GetCtrlPointsNext(NextCPs);
 			Beziers->GetCtrlPointsPrev(PrevCPs);
@@ -303,9 +315,22 @@ void URuntimeCustomSplineBaseComponent::PostEditComponentMove(bool bFinished)
 }
 #endif
 
-void URuntimeCustomSplineBaseComponent::OnSplineUpdatedEvent()
+void URuntimeCustomSplineBaseComponent::Serialize(FArchive& Ar)
+{
+	Super::Serialize(Ar);
+}
+
+void URuntimeCustomSplineBaseComponent::OnSplineUpdatedEvent_Implementation()
 {
 	OnSplineUpdateHandle.Broadcast(this);
+}
+
+void URuntimeCustomSplineBaseComponent::OnActorAttachedEvent_Implementation(AActor* AttachedActor)
+{
+	if (IsValid(AttachedActor) && !AttachedActor->IsActorBeingDestroyed())
+	{
+		OnActorAttachedHandle.Broadcast(AttachedActor);
+	}
 }
 
 void URuntimeCustomSplineBaseComponent::SetSelected(bool bValue)
@@ -354,6 +379,97 @@ ERuntimeSplineType URuntimeCustomSplineBaseComponent::GetSplineType() const
 		return ARuntimeSplineGraph::GetExternalSplineType(Spline->GetType());
 	}
 	return ERuntimeSplineType::Unknown;
+}
+
+void URuntimeCustomSplineBaseComponent::GetParametricCubicPolynomialForms(
+	TArray<FVector>& OutParamPoly3Forms,
+	ECustomSplineCoordinateType TargetCoordinateType)
+{
+	auto* Spline = GetSplineProxy();
+	if (Spline)
+	{
+		TArray<TArray<FVector4> > GroupedParamPoly3Forms;
+		Spline->ToPolynomialForm(GroupedParamPoly3Forms);
+		int32 GroupNum = GroupedParamPoly3Forms.Num();
+		OutParamPoly3Forms.Empty((GroupNum > 0) ? GroupNum * GroupedParamPoly3Forms[0].Num() : 0);
+		for (const TArray<FVector4>& ParamPoly3 : GroupedParamPoly3Forms)
+		{
+			for (int32 i = 0; i < ParamPoly3.Num(); ++i)
+			{
+				FVector SplineLocalPos = TVecLib<4>::Projection(ParamPoly3[i]);
+				OutParamPoly3Forms.Add(ConvertPosition(SplineLocalPos, ECustomSplineCoordinateType::SplineGraphLocal, TargetCoordinateType));
+			}
+		}
+	}
+}
+
+void URuntimeCustomSplineBaseComponent::GetCubicBezierForms(
+	TArray<FVector>& OutBezierForms,
+	ECustomSplineCoordinateType TargetCoordinateType)
+{
+	auto* Spline = GetSplineProxy();
+	if (Spline)
+	{
+		TArray<TBezierCurve<3, 3> > BezierCurves;
+		Spline->ToBezierCurves(BezierCurves);
+		int32 CurveNum = BezierCurves.Num();
+		OutBezierForms.Empty(CurveNum > 0 ? CurveNum * BezierCurves[0].CurveOrder() : 0);
+		for (const TBezierCurve<3, 3>& Curve : BezierCurves)
+		{
+			for (int32 i = 0; i < Curve.CurveOrder(); ++i)
+			{
+				FVector SplineLocalPos = Curve.GetPoint(i);
+				OutBezierForms.Add(ConvertPosition(SplineLocalPos, ECustomSplineCoordinateType::SplineGraphLocal, TargetCoordinateType));
+			}
+		}
+	}
+}
+
+void URuntimeCustomSplineBaseComponent::GetHermiteForms(
+	TArray<FVector>& OutPositions, TArray<FVector>& OutArriveTangents, TArray<FVector>& OutLeaveTangents,
+	ECustomSplineCoordinateType TargetCoordinateType)
+{
+	auto* Spline = GetSplineProxy();
+	if (Spline)
+	{
+		TArray<TBezierCurve<3, 3> > BezierCurves;
+		Spline->ToBezierCurves(BezierCurves);
+		int32 CurveNum = BezierCurves.Num();
+		OutPositions.Empty(CurveNum + 1);
+		OutArriveTangents.Empty(CurveNum + 1);
+		OutLeaveTangents.Empty(CurveNum + 1);
+		if (CurveNum > 0)
+		{
+			const TBezierCurve<3, 3>& FirstCurve = BezierCurves[0];
+			double Mult = static_cast<double>(FirstCurve.CurveDegree());
+			OutArriveTangents.Add((
+				ConvertPosition(FirstCurve.GetPoint(1), ECustomSplineCoordinateType::SplineGraphLocal, TargetCoordinateType) -
+				ConvertPosition(FirstCurve.GetPoint(0), ECustomSplineCoordinateType::SplineGraphLocal, TargetCoordinateType))
+				* Mult);
+			for (int32 i = 0; i < CurveNum; ++i)
+			{
+				const TBezierCurve<3, 3>& Curve = BezierCurves[i];
+				TArray<FVector> Positions;
+				Positions.Reserve(Curve.CurveOrder());
+				for (int32 j = 0; j < Curve.CurveOrder(); ++j)
+				{
+					Positions.Add(ConvertPosition(Curve.GetPoint(j), ECustomSplineCoordinateType::SplineGraphLocal, TargetCoordinateType));
+				}
+				OutPositions.Add(Positions[0]);
+				OutArriveTangents.Add((Positions[Curve.CurveDegree()] - Positions[Curve.CurveDegree() - 1]) * Mult);
+				OutLeaveTangents.Add((Positions[1] - Positions[0]) * Mult);
+			}
+			const TBezierCurve<3, 3>& LastCurve = BezierCurves.Last();
+			FVector Last0 = ConvertPosition(
+				LastCurve.GetPoint(LastCurve.CurveDegree()),
+				ECustomSplineCoordinateType::SplineGraphLocal, TargetCoordinateType);
+			FVector Last1 = ConvertPosition(
+				LastCurve.GetPoint(LastCurve.CurveDegree() - 1),
+				ECustomSplineCoordinateType::SplineGraphLocal, TargetCoordinateType);
+			OutPositions.Add(Last0);
+			OutLeaveTangents.Add((Last0 - Last1) * Mult);
+		}
+	}
 }
 
 void URuntimeCustomSplineBaseComponent::Reverse()
@@ -448,8 +564,8 @@ URuntimeSplinePointBaseComponent* URuntimeCustomSplineBaseComponent::AddEndPoint
 			if (Spline->GetType() == ESplineType::BezierString)
 			{
 				// Need to make connection among three points?
-				AddPointInternal(ControlPointRef, -1);
-				AddPointInternal(ControlPointRef, 1);
+				AddPointInternal(ControlPointRef, -1)->UpdateComponentLocationBySpline();
+				AddPointInternal(ControlPointRef, 1)->UpdateComponentLocationBySpline();
 			}
 			
 			return CurrentPoint;
@@ -481,7 +597,7 @@ URuntimeSplinePointBaseComponent* URuntimeCustomSplineBaseComponent::InsertPoint
 			switch (Spline->GetType()) {
 			case ESplineType::BezierString:
 			{
-				auto* NewNode = static_cast<TSplineTraitByType<ESplineType::BezierString>::FSplineType*>(Spline)->AddPointWithParamWithoutChangingShape(Param);
+				auto* NewNode = static_cast<TSplineTraitByType<ESplineType::BezierString, 3, 3>::FSplineType*>(Spline)->AddPointWithParamWithoutChangingShape(Param);
 				if (NewNode) {
 					NewNode->GetValue().Get().Continuity = EEndPointContinuity::G1;
 					NewPointComponent = AddPointInternal(NewNode->GetValue(), 0);
@@ -492,7 +608,7 @@ URuntimeSplinePointBaseComponent* URuntimeCustomSplineBaseComponent::InsertPoint
 				break;
 			case ESplineType::ClampedBSpline:
 			{
-				auto* NewNode = static_cast<TSplineTraitByType<ESplineType::ClampedBSpline>::FSplineType*>(Spline)->AddPointWithParamWithoutChangingShape(Param);
+				auto* NewNode = static_cast<TSplineTraitByType<ESplineType::ClampedBSpline, 3, 3>::FSplineType*>(Spline)->AddPointWithParamWithoutChangingShape(Param);
 				if (NewNode) {
 					NewPointComponent = AddPointInternal(NewNode->GetValue(), 0);
 				}
@@ -548,12 +664,12 @@ FSpatialSplineGraph3::FSplineType* URuntimeCustomSplineBaseComponent::GetSplineP
 	//	switch (SplineBaseWrapperProxy->Spline->GetType())
 	//	{
 	//	case ESplineType::ClampedBSpline:
-	//		return GetSplineProxyInternal<TSplineTraitByType<ESplineType::ClampedBSpline>::FSplineType>();
+	//		return GetSplineProxyInternal<TSplineTraitByType<ESplineType::ClampedBSpline, 3, 3>::FSplineType>();
 	//	case ESplineType::BezierString:
-	//		return GetSplineProxyInternal<TSplineTraitByType<ESplineType::BezierString>::FSplineType>();
+	//		return GetSplineProxyInternal<TSplineTraitByType<ESplineType::BezierString, 3, 3>::FSplineType>();
 	//	}
 	//}
-	//return GetSplineProxyInternal<TSplineTraitByType<ESplineType::Unknown>::FSplineType>();
+	//return GetSplineProxyInternal<TSplineTraitByType<ESplineType::Unknown, 3, 3>::FSplineType>();
 }
 
 URuntimeSplinePointBaseComponent* URuntimeCustomSplineBaseComponent::AddPointInternal(const TSharedRef<FSpatialControlPoint3>& PointRef, int32 TangentFlag)
@@ -561,9 +677,9 @@ URuntimeSplinePointBaseComponent* URuntimeCustomSplineBaseComponent::AddPointInt
 	auto* Spline = GetSplineProxy();
 	if (Spline)
 	{
-		//URuntimeSplinePointBaseComponent* NewPoint = PointComponents.Add_GetRef(NewObject<URuntimeSplinePointBaseComponent>());
-		//NewPoint->PointIndex = PointComponents.Num() - 1;
 		USceneComponent* RealParent = GetAttachParent();
+		//URuntimeSplinePointBaseComponent* NewPoint = PointComponents.Add_GetRef(NewObject<URuntimeSplinePointBaseComponent>(RealParent, CustomSplinePointClass));
+		//NewPoint->PointIndex = PointComponents.Num() - 1;
 		if (IsValid(RealParent) && !RealParent->IsBeingDestroyed())
 		{
 			FTransform SplineLocalToParentComponentLocal = GetSplineLocalToParentComponentTransform();
@@ -572,7 +688,7 @@ URuntimeSplinePointBaseComponent* URuntimeCustomSplineBaseComponent::AddPointInt
 
 			//FName ObjectName = FName(*(TEXT("URuntimeSplinePointBaseComponent_") + FString::FromInt(PointComponents.Num())));
 			
-			NewPoint = NewObject<URuntimeSplinePointBaseComponent>(RealParent);
+			NewPoint = NewObject<URuntimeSplinePointBaseComponent>(RealParent, CustomSplinePointClass);
 			
 			PointComponents.Add(NewPoint);
 			NewPoint->SplinePointProxy = TWeakPtr<FSpatialControlPoint3>(PointRef);

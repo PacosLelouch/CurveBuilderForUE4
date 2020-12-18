@@ -84,8 +84,11 @@ public:
 	UPROPERTY(BlueprintReadWrite)
 		bool bDisplaySmallCurvature = false;
 
+	//UPROPERTY(BlueprintReadWrite)
+	//	TArray<AActor*> SplineActors;
+
 	UPROPERTY(BlueprintReadWrite)
-		TArray<AActor*> SplineActors;
+		TSubclassOf<ARuntimeSplineGraph> GraphClass;
 
 	//UPROPERTY(BlueprintReadWrite)
 	//FCurveBuilderTestParamsInput ParamsInput;

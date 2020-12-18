@@ -5,6 +5,7 @@
 
 #include "CoreMinimal.h"
 #include "Utils/LinearAlgebraUtils.h"
+#include "../Curves/BezierCurve.h"
 
 enum class EContactType : uint8
 {
@@ -99,6 +100,8 @@ public:
 	virtual TWeakPtr<TSplineBaseControlPoint<Dim, Degree>> GetFirstCtrlPointStruct() const { return nullptr; }
 
 	virtual void GetSegParams(TArray<double>& OutParameters) const {}
+
+	virtual bool ToBezierCurves(TArray<TBezierCurve<Dim, Degree> >& BezierCurves, TArray<TTuple<double, double> >* ParamRangesPtr = nullptr) const { return false; }
 
 	virtual TSharedRef<TSplineBase<Dim, Degree> > CreateSameType(int32 EndContinuity = -1) const 
 	{

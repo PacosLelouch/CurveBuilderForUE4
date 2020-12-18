@@ -23,6 +23,7 @@ ACompletedCompTestPlayerController::ACompletedCompTestPlayerController(const FOb
 	: Super(ObjectInitializer)
 {
 	PlayerCameraManagerClass = APlayerCameraManager::StaticClass();
+	GraphClass = ARuntimeSplineGraph::StaticClass();
 }
 
 void ACompletedCompTestPlayerController::BeginPlay()
@@ -37,7 +38,7 @@ void ACompletedCompTestPlayerController::BeginPlay()
 	Canvas2D->DrawPointsPMC->SetVisibility(false);
 	Canvas2D->DrawPolygonsPMC->SetVisibility(false);
 	Canvas2D->BackgroundPMC->SetVisibility(false);
-	GraphActor = World->SpawnActor<ARuntimeSplineGraph>();
+	GraphActor = World->SpawnActor<ARuntimeSplineGraph>(GraphClass);
 
 	//USceneComponent* NewRootComponent = NewObject<USceneComponent>(GraphActor);
 	//GraphActor->SetRootComponent(NewRootComponent);
@@ -100,7 +101,8 @@ void ACompletedCompTestPlayerController::Tick(float Delta)
 					if (HitSpPC && HitSpPC->bSelected)
 					{
 						bDragging = true;
-						HitSpPC->MoveTo(EndPoint, ECustomSplineCoordinateType::SplineGraphLocal);
+						HitSpPC->SetRelativeLocation(HitSpPC->ConvertPosition(EndPoint, ECustomSplineCoordinateType::SplineGraphLocal, ECustomSplineCoordinateType::ComponentLocal));
+						//HitSpPC->MoveTo_Deprecated(EndPoint, ECustomSplineCoordinateType::SplineGraphLocal);
 						break;
 					}
 				}
@@ -112,7 +114,9 @@ void ACompletedCompTestPlayerController::Tick(float Delta)
 			{
 				if (IsValid(Comp->SelectedPoint))
 				{
-					Comp->SelectedPoint->MoveTo(EndPoint, ECustomSplineCoordinateType::SplineGraphLocal);
+					URuntimeSplinePointBaseComponent* HitSpPC = Comp->SelectedPoint;
+					HitSpPC->SetRelativeLocation(HitSpPC->ConvertPosition(EndPoint, ECustomSplineCoordinateType::SplineGraphLocal, ECustomSplineCoordinateType::ComponentLocal));
+					break;
 				}
 			}
 		}
@@ -635,26 +639,26 @@ void ACompletedCompTestPlayerController::ResampleCurve()
 
 void ACompletedCompTestPlayerController::CreateSplineActor(TWeakPtr<FSpatialSplineGraph3::FSplineType> SplineWeakPtr)
 {
-	UWorld* World = GetWorld();
-	if (IsValid(World))
-	{
-		AActor* NewActor = World->SpawnActor<AActor>();
-		if (IsValid(NewActor))
-		{
-			USceneComponent* NewRootComponent = NewObject<USceneComponent>(NewActor);
-			NewActor->SetRootComponent(NewRootComponent);
-			NewActor->AddInstanceComponent(NewRootComponent);
-			NewRootComponent->RegisterComponent();
-			//NewActor->SetActorRotation(FRotator(0.f, 90.f, -90.f));
-			SplineActors.Add(NewActor);
-			URuntimeCustomSplineBaseComponent* NewComponent = NewObject<URuntimeCustomSplineBaseComponent>(NewActor);
-			NewComponent->SplineBaseWrapperProxy = GetSplineGraph().GetSplineWrapper(SplineWeakPtr).Pin();
-			NewComponent->AttachToComponent(NewActor->GetRootComponent(), FAttachmentTransformRules::KeepRelativeTransform);
-			NewActor->AddInstanceComponent(NewComponent);
-			NewComponent->RegisterComponent();
-			GraphActor->VirtualAttachSplineComponent(NewComponent);
-		}
-	}
+	//UWorld* World = GetWorld();
+	//if (IsValid(World))
+	//{
+	//	AActor* NewActor = World->SpawnActor<AActor>();
+	//	if (IsValid(NewActor))
+	//	{
+	//		USceneComponent* NewRootComponent = NewObject<USceneComponent>(NewActor);
+	//		NewActor->SetRootComponent(NewRootComponent);
+	//		NewActor->AddInstanceComponent(NewRootComponent);
+	//		NewRootComponent->RegisterComponent();
+	//		//NewActor->SetActorRotation(FRotator(0.f, 90.f, -90.f));
+	//		SplineActors.Add(NewActor);
+	//		URuntimeCustomSplineBaseComponent* NewComponent = NewObject<URuntimeCustomSplineBaseComponent>(NewActor);
+	//		NewComponent->SplineBaseWrapperProxy = GetSplineGraph().GetSplineWrapper(SplineWeakPtr).Pin();
+	//		NewComponent->AttachToComponent(NewActor->GetRootComponent(), FAttachmentTransformRules::KeepRelativeTransform);
+	//		NewActor->AddInstanceComponent(NewComponent);
+	//		NewComponent->RegisterComponent();
+	//		GraphActor->VirtualAttachSplineComponent(NewComponent);
+	//	}
+	//}
 }
 
 FSpatialSplineGraph3& ACompletedCompTestPlayerController::GetSplineGraph()

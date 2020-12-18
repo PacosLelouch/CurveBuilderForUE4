@@ -14,7 +14,7 @@
 
 class URuntimeCustomSplineBaseComponent;
 
-UCLASS(BlueprintType, ClassGroup = CustomSpline, ShowCategories = (Mobility), HideCategories = (Physics, Lighting, Mobile), meta = (BlueprintSpawnableComponent))
+UCLASS(BlueprintType, Blueprintable, ClassGroup = CustomSpline, ShowCategories = (Mobility), HideCategories = (Physics, Lighting, Mobile), meta = (BlueprintSpawnableComponent))
 class CURVEBUILDER_API URuntimeSplinePointBaseComponent : public URuntimeSplinePrimitiveComponent
 {
 	GENERATED_BODY()
@@ -37,6 +37,8 @@ public:
 
 	virtual void OnUpdateTransform(EUpdateTransformFlags UpdateTransformFlags = EUpdateTransformFlags::None, ETeleportType Teleport = ETeleportType::None) override;
 
+	virtual bool MoveComponentImpl(const FVector& Delta, const FQuat& NewRotation, bool bSweep, FHitResult* Hit = NULL, EMoveComponentFlags MoveFlags = MOVECOMP_NoFlags, ETeleportType Teleport = ETeleportType::None) override;
+
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 
@@ -47,8 +49,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "RuntimeCustomSpline|DrawInfo")
 	void SetSelected(bool bValue);
 
+	// Deprecated function. Please use SetRelativeLocation to move point!
 	UFUNCTION(BlueprintCallable, Category = "RuntimeCustomSpline|Update")
-	void MoveTo(const FVector& Position, ECustomSplineCoordinateType CoordinateType = ECustomSplineCoordinateType::SplineGraphLocal);
+	void MoveTo_Deprecated(const FVector& Position, ECustomSplineCoordinateType CoordinateType = ECustomSplineCoordinateType::SplineGraphLocal);
 
 	UFUNCTION(BlueprintCallable, Category = "RuntimeCustomSpline|Update")
 	void UpdateComponentLocationBySpline();
