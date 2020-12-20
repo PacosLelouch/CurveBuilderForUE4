@@ -122,6 +122,15 @@ void URuntimeSplinePrimitiveComponent::SetDrawDebugCollision(bool bValue)
 	}
 }
 
+void URuntimeSplinePrimitiveComponent::SetDrawInGame(bool bValue)
+{
+	if (bDrawInGame != bValue)
+	{
+		bDrawInGame = bValue;
+		MarkRenderStateDirty();
+	}
+}
+
 #if WITH_EDITOR
 void URuntimeSplinePrimitiveComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {

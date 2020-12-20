@@ -5,6 +5,7 @@
 #include "RuntimeSplinePointBaseComponent.h"
 #include "SceneProxies/RuntimeCustomSplineSceneProxy.h"
 #include "PhysicsEngine/BodySetup.h"
+#include "SerializeUtils/SplineSerialize.h"
 
 static const auto LengthFactor = 100.f, InvLengthFactor = 1.f / 100.f;
 
@@ -317,7 +318,48 @@ void URuntimeCustomSplineBaseComponent::PostEditComponentMove(bool bFinished)
 
 void URuntimeCustomSplineBaseComponent::Serialize(FArchive& Ar)
 {
-	Super::Serialize(Ar);
+	//TMap<URuntimeSplinePointBaseComponent*, int32> PointIds;
+	if (Ar.IsSaving() || Ar.IsObjectReferenceCollector() || Ar.IsCountingMemory())
+	{
+		Super::Serialize(Ar);
+		if (ParentGraph == nullptr)
+		{
+			//PointIds.Reserve(PointComponents.Num());
+			//for (URuntimeSplinePointBaseComponent* Point : PointComponents)
+			//{
+			//	PointIds.Add(Point, PointIds.Num());
+			//}
+			uint8 bValidSerialize;
+			if (SplineBaseWrapperProxy.IsValid())
+			{
+				bValidSerialize = true;
+				SplineSerializeUtils::SerializeSplineWrapper(Ar, SplineBaseWrapperProxy.Get(), bValidSerialize);
+			}
+			else
+			{
+				bValidSerialize = false;
+				SplineSerializeUtils::SerializeSplineWrapper(Ar, nullptr, bValidSerialize);
+			}
+		}
+	}
+	else //if (Ar.IsLoading())
+	{
+		Super::Serialize(Ar);
+		if (ParentGraph == nullptr)
+		{
+			uint8 bValidSerialize;
+			SplineBaseWrapperProxy = MakeShareable(new FSpatialSplineGraph3::FSplineWrapper());
+			SplineSerializeUtils::SerializeSplineWrapper(Ar, SplineBaseWrapperProxy.Get(), bValidSerialize);
+			if (bValidSerialize && SplineBaseWrapperProxy.IsValid())
+			{
+				auto* Wrapper = SplineBaseWrapperProxy.Get();
+				if (Wrapper->Spline.IsValid())
+				{
+					SplineSerializeUtils::DistributeSplinePoints(PointComponents, Wrapper->Spline.Get());
+				}
+			}
+		}
+	}
 }
 
 void URuntimeCustomSplineBaseComponent::OnSplineUpdatedEvent_Implementation()
@@ -689,6 +731,7 @@ URuntimeSplinePointBaseComponent* URuntimeCustomSplineBaseComponent::AddPointInt
 			//FName ObjectName = FName(*(TEXT("URuntimeSplinePointBaseComponent_") + FString::FromInt(PointComponents.Num())));
 			
 			NewPoint = NewObject<URuntimeSplinePointBaseComponent>(RealParent, CustomSplinePointClass);
+			NewPoint->Mobility = RealParent->Mobility;
 			
 			PointComponents.Add(NewPoint);
 			NewPoint->SplinePointProxy = TWeakPtr<FSpatialControlPoint3>(PointRef);

@@ -26,6 +26,7 @@ inline TBezierString3<Dim>::TBezierString3(const TArray<TBezierCurve<Dim, 3>>& I
 template<int32 Dim>
 inline TBezierString3<Dim>& TBezierString3<Dim>::operator=(const TBezierString3<Dim>& InSpline)
 {
+	Type = ESplineType::BezierString;
 	CtrlPointsList.Empty();
 	for (const FControlPointTypeRef& Pos : InSpline.CtrlPointsList) {
 		CtrlPointsList.AddTail(MakeShared<FControlPointType>(Pos.Get()));
@@ -36,6 +37,7 @@ inline TBezierString3<Dim>& TBezierString3<Dim>::operator=(const TBezierString3<
 template<int32 Dim>
 inline void TBezierString3<Dim>::FromCurveArray(const TArray<TBezierCurve<Dim, 3>>& InCurves)
 {
+	Type = ESplineType::BezierString;
 	CtrlPointsList.Empty();
 	for (int32 i = 0; i < InCurves.Num(); ++i) {
 		TVectorX<Dim+1> PrevCtrlPointPos = TVecLib<Dim>::Homogeneous(InCurves[i].GetPoint(0) * 2. - InCurves[i].GetPoint(1), 1.);
@@ -59,6 +61,22 @@ inline void TBezierString3<Dim>::FromCurveArray(const TArray<TBezierCurve<Dim, 3
 			InCurves[InCurves.Num() - 1].GetPointHomogeneous(2),
 			NextCtrlPointPos,
 			static_cast<double>(InCurves.Num())));
+	}
+}
+
+template<int32 Dim>
+inline void TBezierString3<Dim>::Reset(
+	const TArray<TVectorX<Dim+1>>& InPos, 
+	const TArray<TVectorX<Dim+1>>& InPrev, 
+	const TArray<TVectorX<Dim+1>>& InNext, 
+	const TArray<double>& InParams,
+	const TArray<EEndPointContinuity>& InContinuities)
+{
+	Type = ESplineType::BezierString;
+	CtrlPointsList.Empty();
+	for (int32 i = 0; i < InPos.Num(); ++i)
+	{
+		CtrlPointsList.AddTail(MakeShared<FControlPointType>(InPos[i], InPrev[i], InNext[i], InParams[i], InContinuities[i]));
 	}
 }
 

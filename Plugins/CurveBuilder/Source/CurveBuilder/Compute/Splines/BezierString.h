@@ -21,7 +21,8 @@ struct TBezierString3ControlPoint : public TSplineBaseControlPoint<Dim, 3>
 
 	TBezierString3ControlPoint() : Super(TVecLib<Dim+1>::Zero()), PrevCtrlPointPos(TVecLib<Dim+1>::Zero()), NextCtrlPointPos(TVecLib<Dim+1>::Zero()), Param(0.) {}
 	TBezierString3ControlPoint(const TVectorX<Dim+1>& InPos, double InParam = 0.) : Super(InPos), PrevCtrlPointPos(TVecLib<Dim+1>::Zero()), NextCtrlPointPos(TVecLib<Dim+1>::Zero()), Param(InParam) {}
-	TBezierString3ControlPoint(const TVectorX<Dim+1>& InPos, const TVectorX<Dim+1>& PrevPos, const TVectorX<Dim+1>& NextPos, double InParam = 0.) : Super(InPos), PrevCtrlPointPos(PrevPos), NextCtrlPointPos(NextPos), Param(InParam) {}
+	//TBezierString3ControlPoint(const TVectorX<Dim+1>& InPos, const TVectorX<Dim+1>& PrevPos, const TVectorX<Dim+1>& NextPos, double InParam = 0.) : Super(InPos), PrevCtrlPointPos(PrevPos), NextCtrlPointPos(NextPos), Param(InParam) {}
+	TBezierString3ControlPoint(const TVectorX<Dim+1>& InPos, const TVectorX<Dim+1>& PrevPos, const TVectorX<Dim+1>& NextPos, double InParam = 0., EEndPointContinuity InCont = EEndPointContinuity::G1) : Super(InPos), PrevCtrlPointPos(PrevPos), NextCtrlPointPos(NextPos), Param(InParam), Continuity(InCont) {}
 	TBezierString3ControlPoint(const TBezierString3ControlPoint<Dim>& InP) : Super(InP.Pos), PrevCtrlPointPos(InP.PrevCtrlPointPos), NextCtrlPointPos(InP.NextCtrlPointPos), Param(InP.Param) {}
 	TBezierString3ControlPoint<Dim>& operator=(const TBezierString3ControlPoint<Dim>& InP) { Pos = InP.Pos; PrevCtrlPointPos = InP.PrevCtrlPointPos; NextCtrlPointPos = InP.NextCtrlPointPos; Param = InP.Param; return *this; }
 	
@@ -58,7 +59,14 @@ public:
 
 	FORCEINLINE void FromCurveArray(const TArray<TBezierCurve<Dim, 3> >& InCurves);
 
-	FORCEINLINE void Reset() { CtrlPointsList.Empty(); }
+	FORCEINLINE void Reset() { Type = ESplineType::BezierString; CtrlPointsList.Empty(); }
+
+	FORCEINLINE void Reset(
+		const TArray<TVectorX<Dim+1>>& InPos, 
+		const TArray<TVectorX<Dim+1>>& InPrev, 
+		const TArray<TVectorX<Dim+1>>& InNext, 
+		const TArray<double>& InParams, 
+		const TArray<EEndPointContinuity>& InContinuities);
 
 	FORCEINLINE void RemakeC2() { UpdateBezierString(nullptr); }
 

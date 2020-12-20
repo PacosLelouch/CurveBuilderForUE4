@@ -192,6 +192,20 @@ void UIndividualCustomSplineBaseComponent::PostEditChangeProperty(FPropertyChang
 			}
 		}
 	}
+	else if (PropertyName == GET_MEMBER_NAME_CHECKED(UIndividualCustomSplineBaseComponent, bDrawSplineInGame))
+	{
+		if (IsValid(SplineComponent) && !SplineComponent->IsBeingDestroyed())
+		{
+			SplineComponent->SetDrawInGame(bDrawSplineInGame);
+			for (URuntimeSplinePointBaseComponent* PointComp : SplineComponent->PointComponents)
+			{
+				if (IsValid(PointComp) && !PointComp->IsBeingDestroyed())
+				{
+					PointComp->SetDrawInGame(bDrawSplineInGame);
+				}
+			}
+		}
+	}
 }
 #endif
 
@@ -237,6 +251,7 @@ void UIndividualCustomSplineBaseComponent::InitIndividualSpline()
 			SplineComponent->SplineBaseWrapperProxy.Get()->Spline = MakeShareable(new TSplineTraitByType<ESplineType::BezierString>::FSplineType());
 			break;
 		}
+		SplineComponent->bDrawInGame = bDrawSplineInGame;
 		SplineComponent->AttachToComponent(this, FAttachmentTransformRules::KeepRelativeTransform);
 		Owner->AddInstanceComponent(SplineComponent);
 		SplineComponent->SetSelected(true);
@@ -277,6 +292,7 @@ void UIndividualCustomSplineBaseComponent::GenerateSplineMeshes()
 		for (int32 i = 0; i + 1 < Positions.Num(); ++i)
 		{
 			USplineMeshComponent* SplineMesh = NewObject<USplineMeshComponent>(this);
+			SplineMesh->Mobility = Mobility;
 			SplineMesh->AttachToComponent(this, FAttachmentTransformRules::KeepRelativeTransform);
 			SplineMesh->SetStaticMesh(StaticMeshForSpline);
 			SplineMesh->SetWorldLocation(Positions[i]);

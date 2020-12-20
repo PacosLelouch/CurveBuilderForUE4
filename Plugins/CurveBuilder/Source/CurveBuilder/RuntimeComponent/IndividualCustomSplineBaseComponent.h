@@ -75,7 +75,10 @@ public:
 	UStaticMesh* StaticMeshForSpline = nullptr;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "RuntimeCustomSpline|Individual")
-	bool bAutoGenerateMesh = false;
+	bool bAutoGenerateMesh = true;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "RuntimeCustomSpline|Individual")
+	bool bDrawSplineInGame = false;
 
 
 	UPROPERTY(BlueprintReadWrite, Category = "RuntimeCustomSpline")

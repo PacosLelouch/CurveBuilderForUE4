@@ -32,6 +32,8 @@ public:
 
 	virtual void SetDrawDebugCollision(bool bValue);
 
+	virtual void SetDrawInGame(bool bValue);
+
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif

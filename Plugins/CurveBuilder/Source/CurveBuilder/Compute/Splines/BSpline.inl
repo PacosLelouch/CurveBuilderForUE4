@@ -22,15 +22,30 @@ inline TClampedBSpline<Dim, Degree>::TClampedBSpline(const TClampedBSpline<Dim, 
 template<int32 Dim, int32 Degree>
 inline TClampedBSpline<Dim, Degree>& TClampedBSpline<Dim, Degree>::operator=(const TClampedBSpline<Dim, Degree>& InSpline)
 {
+	Type = ESplineType::ClampedBSpline;
 	CtrlPointsList.Empty();
 	KnotIntervals.Empty(InSpline.KnotIntervals.Num());
-	for (const auto& Pos : InSpline.CtrlPointsList) {
-		CtrlPointsList.AddTail(Pos);
+	for (const FControlPointTypeRef& Pos : InSpline.CtrlPointsList) {
+		CtrlPointsList.AddTail(MakeShared<FControlPointType>(Pos.Get()));
 	}
 	for (const auto& P : InSpline.KnotIntervals) {
 		KnotIntervals.Add(P);
 	}
 	return *this;
+}
+
+template<int32 Dim, int32 Degree>
+inline void TClampedBSpline<Dim, Degree>::Reset(const TArray<TVectorX<Dim+1>>& InCtrlPoints, const TArray<double>& InKnotIntervals)
+{
+	Type = ESplineType::ClampedBSpline;
+	CtrlPointsList.Empty();
+	KnotIntervals.Empty(InKnotIntervals.Num());
+	for (const TVectorX<Dim>& Pos : InCtrlPoints) {
+		CtrlPointsList.AddTail(MakeShared<FControlPointType>(Pos));
+	}
+	for (const auto& P : InKnotIntervals) {
+		KnotIntervals.Add(P);
+	}
 }
 
 template<int32 Dim, int32 Degree>

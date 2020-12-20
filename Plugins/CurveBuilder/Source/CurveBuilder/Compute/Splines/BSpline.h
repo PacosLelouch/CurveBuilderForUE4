@@ -44,7 +44,9 @@ public:
 
 	FORCEINLINE TClampedBSpline<Dim, Degree>& operator=(const TClampedBSpline<Dim, Degree>& InSpline);
 
-	FORCEINLINE void Reset() { CtrlPointsList.Empty(); KnotIntervals.Empty(KnotIntervals.Num()); }
+	FORCEINLINE void Reset() { Type = ESplineType::ClampedBSpline; CtrlPointsList.Empty(); KnotIntervals.Empty(KnotIntervals.Num()); }
+
+	FORCEINLINE void Reset(const TArray<TVectorX<Dim+1> >& InCtrlPoints, const TArray<double>& InKnotIntervals);
 
 	virtual ~TClampedBSpline() { CtrlPointsList.Empty(); KnotIntervals.Empty(KnotIntervals.Num()); }
 

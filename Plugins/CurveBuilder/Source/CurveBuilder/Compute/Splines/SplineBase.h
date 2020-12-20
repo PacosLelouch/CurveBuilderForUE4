@@ -7,6 +7,12 @@
 #include "Utils/LinearAlgebraUtils.h"
 #include "../Curves/BezierCurve.h"
 
+namespace SplineDataVersion
+{
+	static constexpr uint32 Major = 1;
+	static constexpr uint32 Minor = 0;
+}
+
 enum class EContactType : uint8
 {
 	Start, End,
