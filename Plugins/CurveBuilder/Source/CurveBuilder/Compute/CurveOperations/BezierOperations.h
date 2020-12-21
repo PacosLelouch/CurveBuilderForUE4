@@ -5,8 +5,6 @@
 
 #include "CoreMinimal.h"
 #include "Curves/BezierCurve.h"
-#include "Eigen/LU"
-//#include "Eigen/Dense"
 
 // Bezier Operations on Degree 3
 template<int32 Dim>

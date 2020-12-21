@@ -18,7 +18,7 @@ private:
 			, SelectedCtrlPointColor(InComponent->SelectedCtrlPointColor)
 			, PointSize(InComponent->DrawPointSize)
 			, DepthBias(InComponent->DepthBias)
-			, bSelected(InComponent->bSelected)
+			, bSelected(InComponent->bCustomSelected)
 			, SpType((InComponent->ParentSpline && InComponent->ParentSpline->GetSplineProxy()) ? 
 				InComponent->ParentSpline->GetSplineProxy()->GetType() : ESplineType::Unknown)
 			, TangentFlag(InComponent->TangentFlag)

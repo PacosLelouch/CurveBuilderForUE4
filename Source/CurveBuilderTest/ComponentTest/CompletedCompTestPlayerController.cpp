@@ -98,7 +98,7 @@ void ACompletedCompTestPlayerController::Tick(float Delta)
 				if (Comp->IsA<URuntimeSplinePointBaseComponent>())
 				{
 					URuntimeSplinePointBaseComponent* HitSpPC = Cast<URuntimeSplinePointBaseComponent>(Comp);
-					if (HitSpPC && HitSpPC->bSelected)
+					if (HitSpPC && HitSpPC->bCustomSelected)
 					{
 						bDragging = true;
 						HitSpPC->SetRelativeLocation(HitSpPC->ConvertPosition(EndPoint, ECustomSplineCoordinateType::SplineGraphLocal, ECustomSplineCoordinateType::ComponentLocal));
@@ -927,7 +927,7 @@ void ACompletedCompTestPlayerController::ReleaseLeftMouseButton(FKey Key, FVecto
 		if (Result.Component->IsA<URuntimeCustomSplineBaseComponent>())
 		{
 			URuntimeCustomSplineBaseComponent* HitSplineComp = Cast<URuntimeCustomSplineBaseComponent>(Result.Component);
-			HitSplineComp->SetSelected(true);
+			HitSplineComp->SetCustomSelected(true);
 			CurrentSelectedSpline.Add(HitSplineComp);
 			
 			//static TMap<URuntimeCustomSplineBaseComponent*, FTimerHandle> Handles;
@@ -949,7 +949,7 @@ void ACompletedCompTestPlayerController::ReleaseLeftMouseButton(FKey Key, FVecto
 			{
 				CurrentSelectedSplinePoints.Add(HitSplinePointComp->ParentSpline, HitSplinePointComp);
 			}
-			HitSplinePointComp->SetSelected(true);
+			HitSplinePointComp->SetCustomSelected(true);
 			if (IsValid(HitSplinePointComp->ParentSpline))
 			{
 				CurrentSelectedSpline.Add(HitSplinePointComp->ParentSpline);
@@ -962,7 +962,7 @@ void ACompletedCompTestPlayerController::ReleaseLeftMouseButton(FKey Key, FVecto
 		{
 			if (!CurrentSelectedSpline.Contains(GraphActor->SelectedSplines[i]))
 			{
-				GraphActor->SelectedSplines[i]->SetSelected(false);
+				GraphActor->SelectedSplines[i]->SetCustomSelected(false);
 			}
 		}
 	}
@@ -972,7 +972,7 @@ void ACompletedCompTestPlayerController::ReleaseLeftMouseButton(FKey Key, FVecto
 		{
 			if (IsValid(Comp->SelectedPoint) && !CurrentSelectedSplinePoints.Contains(Comp))
 			{
-				Comp->SelectedPoint->SetSelected(false);
+				Comp->SelectedPoint->SetCustomSelected(false);
 			}
 		}
 	}

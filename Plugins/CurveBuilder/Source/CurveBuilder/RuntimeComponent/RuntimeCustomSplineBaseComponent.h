@@ -62,7 +62,7 @@ public:
 
 public:
 	UFUNCTION(BlueprintCallable, Category = "RuntimeCustomSpline|DrawInfo")
-	void SetSelected(bool bValue);
+	void SetCustomSelected(bool bValue);
 
 	UFUNCTION(BlueprintPure, Category = "RuntimeCustomSpline|Query")
 	ERuntimeSplineType GetSplineType() const;
@@ -134,8 +134,8 @@ public:
 	UPROPERTY(AdvancedDisplay, BlueprintReadWrite, Category = "RuntimeCustomSpline|Component")
 	URuntimeSplinePointBaseComponent* SelectedPoint = nullptr;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "RuntimeCustomSpline|Component")
-	bool bSelected = false;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, BlueprintSetter = "SetCustomSelected", Category = "RuntimeCustomSpline|Component")
+	bool bCustomSelected = false;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "RuntimeCustomSpline|Component")
 	bool bAutoSelectNewPoint = false;

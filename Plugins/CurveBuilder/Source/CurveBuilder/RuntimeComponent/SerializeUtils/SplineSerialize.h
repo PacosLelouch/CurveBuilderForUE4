@@ -15,6 +15,10 @@ class ARuntimeSplineGraph;
 
 namespace SplineSerializeUtils
 {
+	bool ShouldLoadArchive(FArchive& Ar);
+
+	bool ShouldSaveArchive(FArchive& Ar);
+
 	void SerializeSplineWrapper(FArchive& Ar, FSpatialSplineGraph3::FSplineWrapper* SplineWrapper, uint8& bValidSerialize);
 
 	void SerializeSpline(FArchive& Ar, FSpatialSplineGraph3::FSplineType* Spline, ESplineType SpType);

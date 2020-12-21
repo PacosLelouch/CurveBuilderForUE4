@@ -22,7 +22,7 @@ private:
 			, SegLength(InComponent->DrawSegLength)
 			, Thickness(InComponent->DrawThickness)
 			, DepthBias(InComponent->DepthBias)
-			, bSelected(InComponent->bSelected)
+			, bSelected(InComponent->bCustomSelected)
 #if !DISABLE_COPY_IN_SPLINE_SCENE_PROXY
 			, SplineInternalRef(InComponent->GetSplineProxy() ? InComponent->GetSplineProxy()->Copy() : TSharedRef<FSpatialSplineBase3>())
 #else

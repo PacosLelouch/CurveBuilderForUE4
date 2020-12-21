@@ -254,7 +254,7 @@ void UIndividualCustomSplineBaseComponent::InitIndividualSpline()
 		SplineComponent->bDrawInGame = bDrawSplineInGame;
 		SplineComponent->AttachToComponent(this, FAttachmentTransformRules::KeepRelativeTransform);
 		Owner->AddInstanceComponent(SplineComponent);
-		SplineComponent->SetSelected(true);
+		SplineComponent->SetCustomSelected(true);
 		SplineComponent->RegisterComponent();
 		for (const FVector& Pos : InitSplinePointPos)
 		{
@@ -318,7 +318,7 @@ void UIndividualCustomSplineBaseComponent::ConstructIndividualSpline(
 	ECustomSplineCoordinateType CoordinateType,
 	ERuntimeSplineType SplineType)
 {
-	SplineComponent->bSelected = true;
+	SplineComponent->bCustomSelected = true;
 	SplineComponent->SplineBaseWrapperProxy.Reset();
 	SplineComponent->SplineBaseWrapperProxy = MakeShareable(new FSpatialSplineGraph3::FSplineWrapper());
 	switch (ARuntimeSplineGraph::GetInternalSplineType(SplineType))
@@ -398,7 +398,7 @@ void UIndividualCustomSplineBaseComponent::ConstructPointInternal(
 			//	NewPoint->RegisterComponent();
 			//}
 			//NewPoint->SetRelativeLocation(SplineLocalToParentComponentLocal.TransformPosition(PointRef.Get().Pos)); // Move to Point OnComponentCreated
-			PointComponent->SetVisibility(SplineComponent->bSelected);
+			PointComponent->SetVisibility(SplineComponent->bCustomSelected);
 
 			//UpdateTransformByCtrlPoint(); // Move to Point OnComponentCreated
 		}

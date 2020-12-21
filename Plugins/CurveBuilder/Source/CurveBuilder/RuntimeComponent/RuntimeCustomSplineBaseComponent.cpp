@@ -299,10 +299,10 @@ void URuntimeCustomSplineBaseComponent::PostEditChangeProperty(FPropertyChangedE
 			MarkRenderStateDirty();
 		}
 	}
-	else if (PropertyName == GET_MEMBER_NAME_CHECKED(URuntimeCustomSplineBaseComponent, bSelected))
+	else if (PropertyName == GET_MEMBER_NAME_CHECKED(URuntimeCustomSplineBaseComponent, bCustomSelected))
 	{
-		bSelected = !bSelected;
-		SetSelected(!bSelected);
+		bCustomSelected = !bCustomSelected;
+		SetCustomSelected(!bCustomSelected);
 	}
 }
 
@@ -319,7 +319,7 @@ void URuntimeCustomSplineBaseComponent::PostEditComponentMove(bool bFinished)
 void URuntimeCustomSplineBaseComponent::Serialize(FArchive& Ar)
 {
 	//TMap<URuntimeSplinePointBaseComponent*, int32> PointIds;
-	if (Ar.IsSaving() || Ar.IsObjectReferenceCollector() || Ar.IsCountingMemory())
+	if (SplineSerializeUtils::ShouldSaveArchive(Ar))
 	{
 		Super::Serialize(Ar);
 		if (ParentGraph == nullptr)
@@ -342,7 +342,7 @@ void URuntimeCustomSplineBaseComponent::Serialize(FArchive& Ar)
 			}
 		}
 	}
-	else //if (Ar.IsLoading())
+	else //if (SplineSerializeUtils::ShouldLoadArchive(Ar))
 	{
 		Super::Serialize(Ar);
 		if (ParentGraph == nullptr)
@@ -375,11 +375,11 @@ void URuntimeCustomSplineBaseComponent::OnActorAttachedEvent_Implementation(AAct
 	}
 }
 
-void URuntimeCustomSplineBaseComponent::SetSelected(bool bValue)
+void URuntimeCustomSplineBaseComponent::SetCustomSelected(bool bValue)
 {
-	if (bSelected != bValue)
+	if (bCustomSelected != bValue)
 	{
-		bSelected = bValue;
+		bCustomSelected = bValue;
 		if (IsValid(ParentGraph) && !ParentGraph->IsActorBeingDestroyed())
 		{
 			if (bValue)
@@ -406,7 +406,7 @@ void URuntimeCustomSplineBaseComponent::SetSelected(bool bValue)
 			}
 			else
 			{
-				PointComp->SetSelected(false);
+				PointComp->SetCustomSelected(false);
 			}
 		}
 		MarkRenderStateDirty();
@@ -746,7 +746,7 @@ URuntimeSplinePointBaseComponent* URuntimeCustomSplineBaseComponent::AddPointInt
 				NewPoint->RegisterComponent();
 			}
 			//NewPoint->SetRelativeLocation(SplineLocalToParentComponentLocal.TransformPosition(PointRef.Get().Pos)); // Move to Point OnComponentCreated
-			NewPoint->SetVisibility(bSelected);
+			NewPoint->SetVisibility(bCustomSelected);
 
 			//UpdateTransformByCtrlPoint(); // Move to Point OnComponentCreated
 			return NewPoint;

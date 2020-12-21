@@ -798,16 +798,16 @@ void AComponentTestPlayerController::ReleaseLeftMouseButton(FKey Key, FVector2D 
 	}
 
 	if (SelectedSpline.IsValid() && !SelectedNodeRaw) {
-		GraphActor->GetSplineComponentBySplineWeakPtr(SelectedSpline)->SetSelected(false);
+		GraphActor->GetSplineComponentBySplineWeakPtr(SelectedSpline)->SetCustomSelected(false);
 		SelectedSpline = nullptr;
 	}
 	if (NearestSpline.IsValid()) {
 		if (SelectedSpline.IsValid() && SelectedSpline != NearestSpline)
 		{
-			GraphActor->GetSplineComponentBySplineWeakPtr(SelectedSpline)->SetSelected(false);
+			GraphActor->GetSplineComponentBySplineWeakPtr(SelectedSpline)->SetCustomSelected(false);
 		}
 		SelectedSpline = NearestSpline;
-		GraphActor->GetSplineComponentBySplineWeakPtr(SelectedSpline)->SetSelected(true);
+		GraphActor->GetSplineComponentBySplineWeakPtr(SelectedSpline)->SetCustomSelected(true);
 	}
 	ResampleCurve();
 

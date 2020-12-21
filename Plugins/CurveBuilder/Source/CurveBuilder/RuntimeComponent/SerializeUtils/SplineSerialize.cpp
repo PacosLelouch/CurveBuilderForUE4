@@ -7,11 +7,33 @@
 #include "../RuntimeCustomSplineBaseComponent.h"
 #include "../RuntimeSplinePointBaseComponent.h"
 
+bool SplineSerializeUtils::ShouldLoadArchive(FArchive& Ar)
+{
+	return 
+		//Ar.IsByteSwapping() ||
+		//Ar.IsCooking() ||
+		//Ar.IsCountingMemory() ||
+		//Ar.IsObjectReferenceCollector() ||
+		//Ar.IsTransacting() ||
+		Ar.IsLoading();
+}
+
+bool SplineSerializeUtils::ShouldSaveArchive(FArchive& Ar)
+{
+	return
+		//Ar.IsByteSwapping() ||
+		//Ar.IsCooking() ||
+		Ar.IsCountingMemory() ||
+		Ar.IsObjectReferenceCollector() ||
+		//Ar.IsTransacting() ||
+		Ar.IsSaving();
+}
+
 void SplineSerializeUtils::SerializeSplineWrapper(FArchive& Ar, FSpatialSplineGraph3::FSplineWrapper* SplineWrapper, uint8& bValidSerialize)
 {
 	ESplineType SplineType = ESplineType::Unknown;
 	uint32 Major = SplineDataVersion::Major, Minor = SplineDataVersion::Minor;
-	if (Ar.IsSaving() || Ar.IsObjectReferenceCollector() || Ar.IsCountingMemory())
+	if (SplineSerializeUtils::ShouldSaveArchive(Ar))
 	{
 		if (!SplineWrapper || !SplineWrapper->Spline.IsValid())
 		{
@@ -27,12 +49,8 @@ void SplineSerializeUtils::SerializeSplineWrapper(FArchive& Ar, FSpatialSplineGr
 		auto* Spline = SplineWrapper->Spline.Get();
 		SplineType = Spline->GetType();
 		Ar << SplineType;
-		if (SplineType== ESplineType::Unknown)
-		{
-			return;
-		}
 	}
-	else //if (Ar.IsLoading())
+	else //if (SplineSerializeUtils::ShouldLoadArchive(Ar))
 	{
 		Ar << bValidSerialize;
 		if (!bValidSerialize)
@@ -77,7 +95,7 @@ void SplineSerializeUtils::SerializeSpline(FArchive& Ar, FSpatialSplineGraph3::F
 			Ar << ControlPointPos;
 			Ar << KnotIntervals;
 		}
-		else //if (Ar.IsLoading())
+		else //if (SplineSerializeUtils::ShouldLoadArchive(Ar))
 		{
 			Ar << ControlPointPos;
 			Ar << KnotIntervals;

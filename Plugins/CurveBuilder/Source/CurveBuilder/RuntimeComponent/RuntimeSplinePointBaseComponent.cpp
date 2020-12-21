@@ -25,9 +25,9 @@ void URuntimeSplinePointBaseComponent::BeginPlay()
 void URuntimeSplinePointBaseComponent::OnVisibilityChanged()
 {
 	Super::OnVisibilityChanged();
-	//if (bVisible && (bVisible != ParentSpline->bSelected))
+	//if (bVisible && (bVisible != ParentSpline->bCustomSelected))
 	//{
-	//	ParentSpline->SetSelected(bVisible);
+	//	ParentSpline->SetCustomSelected(bVisible);
 	//}
 }
 
@@ -87,11 +87,11 @@ void URuntimeSplinePointBaseComponent::OnComponentCreated()
 
 		if (IsValid(ParentSpline->SelectedPoint) && !ParentSpline->SelectedPoint->IsBeingDestroyed())
 		{
-			ParentSpline->SelectedPoint->SetSelected(false);
+			ParentSpline->SelectedPoint->SetCustomSelected(false);
 		}
 		if (ParentSpline->bAutoSelectNewPoint)
 		{
-			SetSelected(true);
+			SetCustomSelected(true);
 		}
 	}
 	UpdateCollision();
@@ -239,7 +239,7 @@ bool URuntimeSplinePointBaseComponent::MoveComponentImpl(const FVector& Delta, c
 {
 	//FVector PrevRelativeLocation = GetRelativeLocation();
 	bool bReturn = Super::MoveComponentImpl(Delta, NewRotation, bSweep, Hit, MoveFlags, Teleport);
-	if (bReturn && !Delta.IsNearlyZero())
+	if (bReturn && !Delta.IsNearlyZero(1e-3f))
 	{
 		MoveSplinePointInternal();
 	}
@@ -286,10 +286,10 @@ void URuntimeSplinePointBaseComponent::PostEditChangeProperty(FPropertyChangedEv
 			MarkRenderStateDirty();
 		}
 	}
-	else if (PropertyName == GET_MEMBER_NAME_CHECKED(URuntimeSplinePointBaseComponent, bSelected))
+	else if (PropertyName == GET_MEMBER_NAME_CHECKED(URuntimeSplinePointBaseComponent, bCustomSelected))
 	{
-		bSelected = !bSelected;
-		SetSelected(!bSelected);
+		bCustomSelected = !bCustomSelected;
+		SetCustomSelected(!bCustomSelected);
 	}
 }
 void URuntimeSplinePointBaseComponent::PostEditComponentMove(bool bFinished)
@@ -303,18 +303,18 @@ void URuntimeSplinePointBaseComponent::PostEditComponentMove(bool bFinished)
 }
 #endif
 
-void URuntimeSplinePointBaseComponent::SetSelected(bool bValue)
+void URuntimeSplinePointBaseComponent::SetCustomSelected(bool bValue)
 {
-	if (bSelected != bValue)
+	if (bCustomSelected != bValue)
 	{
-		bSelected = bValue;
+		bCustomSelected = bValue;
 		if (IsValid(ParentSpline) && !ParentSpline->IsBeingDestroyed())
 		{
 			if (bValue)
 			{
 				if (IsValid(ParentSpline->SelectedPoint) && !ParentSpline->SelectedPoint->IsBeingDestroyed())
 				{
-					ParentSpline->SelectedPoint->SetSelected(false);
+					ParentSpline->SelectedPoint->SetCustomSelected(false);
 				}
 				ParentSpline->SelectedPoint = this;
 			}

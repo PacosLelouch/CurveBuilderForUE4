@@ -47,7 +47,7 @@ public:
 
 public:
 	UFUNCTION(BlueprintCallable, Category = "RuntimeCustomSpline|DrawInfo")
-	void SetSelected(bool bValue);
+	void SetCustomSelected(bool bValue);
 
 	// Deprecated function. Please use SetRelativeLocation to move point!
 	UFUNCTION(BlueprintCallable, Category = "RuntimeCustomSpline|Update")
@@ -72,8 +72,8 @@ public:
 	//UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "RuntimeCustomSpline|Component")
 	//URuntimeSplinePointBaseComponent* NextPointForTangent = nullptr;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "RuntimeCustomSpline|Component")
-	bool bSelected = false;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, BlueprintSetter = "SetCustomSelected", Category = "RuntimeCustomSpline|Component")
+	bool bCustomSelected = false;
 
 	//UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "RuntimeCustomSpline|Component")
 	UPROPERTY(AdvancedDisplay, BlueprintReadWrite, Category = "RuntimeCustomSpline|Component")

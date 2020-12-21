@@ -220,7 +220,7 @@ URuntimeCustomSplineBaseComponent* ARuntimeSplineGraph::ExtendNewSplineWithConti
 
 		if (bSucceedReturn)
 		{
-			SourceSpline->SetSelected(false);
+			SourceSpline->SetCustomSelected(false);
 		}
 		return NewSplineComp;
 	}
@@ -272,7 +272,7 @@ URuntimeSplinePointBaseComponent* ARuntimeSplineGraph::ExtendNewSplineAndNewPoin
 
 		if (bSucceedReturn)
 		{
-			SourceSpline->SetSelected(false);
+			SourceSpline->SetCustomSelected(false);
 		}
 		return LatestNewPoint;
 	}
@@ -373,7 +373,7 @@ URuntimeCustomSplineBaseComponent* ARuntimeSplineGraph::CreateSplineActorInterna
 		}
 	}
 
-	NewSpline->SetSelected(true);
+	NewSpline->SetCustomSelected(true);
 
 	return NewSpline;
 }
