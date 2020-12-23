@@ -362,7 +362,7 @@ void URuntimeCustomSplineBaseComponent::Serialize(FArchive& Ar)
 	}
 }
 
-void URuntimeCustomSplineBaseComponent::OnSplineUpdatedEvent_Implementation()
+void URuntimeCustomSplineBaseComponent::OnSplineUpdatedEvent()
 {
 	OnSplineUpdateHandle.Broadcast(this);
 }

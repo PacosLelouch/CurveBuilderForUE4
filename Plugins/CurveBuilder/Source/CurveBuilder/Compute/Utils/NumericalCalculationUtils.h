@@ -140,7 +140,8 @@ public:
 protected:
 	double A, B;
 	TFunction<double(double)> GetValue, GetIntegration;
-	static double Weights[NumericalCalculationConst::GaussLegendreN], Abscissa[NumericalCalculationConst::GaussLegendreN];
+	CURVEBUILDER_API static double Weights[NumericalCalculationConst::GaussLegendreN];
+	CURVEBUILDER_API static double Abscissa[NumericalCalculationConst::GaussLegendreN];
 };
 
 using FGaussLegendre5 = typename TGaussLegendre<5>;

@@ -288,7 +288,7 @@ void UIndividualCustomSplineBaseComponent::GenerateSplineMeshes()
 		TArray<FVector> Positions, ArriveTangents, LeaveTangents;
 		SplineComponent->GetHermiteForms(Positions, ArriveTangents, LeaveTangents, ECustomSplineCoordinateType::World);
 
-		SplineMeshes.Empty(Positions.Num() - 1);
+		SplineMeshes.Empty(FMath::Max(0, Positions.Num() - 1));
 		for (int32 i = 0; i + 1 < Positions.Num(); ++i)
 		{
 			USplineMeshComponent* SplineMesh = NewObject<USplineMeshComponent>(this);

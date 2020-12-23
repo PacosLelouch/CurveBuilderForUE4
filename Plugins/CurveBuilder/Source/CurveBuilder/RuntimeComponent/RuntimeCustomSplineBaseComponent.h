@@ -54,7 +54,7 @@ public:
 	virtual void Serialize(FArchive& Ar) override;
 
 public:
-	UFUNCTION(BlueprintNativeEvent, Category = "RuntimeCustomSpline|Update")
+	UFUNCTION(BlueprintCallable, Category = "RuntimeCustomSpline|Update")
 	void OnSplineUpdatedEvent();
 
 	UFUNCTION(BlueprintNativeEvent, Category = "RuntimeCustomSpline|Update")

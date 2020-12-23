@@ -111,6 +111,7 @@ void URuntimeSplinePointBaseComponent::OnComponentDestroyed(bool bDestroyingHier
 		{
 			ParentSpline->PointComponents.Remove(this);
 		}
+		ParentSpline->OnSplineUpdatedEvent();
 	}
 	SplinePointProxy.Reset();
 	Super::OnComponentDestroyed(bDestroyingHierarchy);
