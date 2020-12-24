@@ -39,6 +39,16 @@ void URuntimeCustomSplineBaseComponent::OnAttachmentChanged()
 	}
 }
 
+bool URuntimeCustomSplineBaseComponent::MoveComponentImpl(const FVector& Delta, const FQuat& NewRotation, bool bSweep, FHitResult* Hit, EMoveComponentFlags MoveFlags, ETeleportType Teleport)
+{
+	bool bReturnValue = Super::MoveComponentImpl(Delta, NewRotation, bSweep, Hit, MoveFlags, Teleport);
+	if (bReturnValue)
+	{
+		UpdateTransformByCtrlPoint();
+	}
+	return bReturnValue;
+}
+
 FPrimitiveSceneProxy* URuntimeCustomSplineBaseComponent::CreateSceneProxy()
 {
 	return new FRuntimeCustomSplineSceneProxy(this);
@@ -558,6 +568,14 @@ void URuntimeCustomSplineBaseComponent::Reverse()
 
 void URuntimeCustomSplineBaseComponent::ClearSpline()
 {
+	if (IsValid(ParentGraph) && !ParentGraph->IsActorBeingDestroyed())
+	{
+		URuntimeCustomSplineBaseComponent** CompPtr = ParentGraph->SplineComponentMap.Find(SplineBaseWrapperProxy);
+		if (CompPtr && *CompPtr == this)
+		{
+			ParentGraph->SplineComponentMap.Remove(SplineBaseWrapperProxy);
+		}
+	}
 	if (PointComponents.Num() > 0)
 	{
 		int32 Num = PointComponents.Num();

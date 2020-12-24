@@ -111,6 +111,7 @@ void URuntimeSplinePointBaseComponent::OnComponentDestroyed(bool bDestroyingHier
 		{
 			ParentSpline->PointComponents.Remove(this);
 		}
+		ParentSpline->UpdateCollision();
 		ParentSpline->OnSplineUpdatedEvent();
 	}
 	SplinePointProxy.Reset();
@@ -313,6 +314,7 @@ void URuntimeSplinePointBaseComponent::SetCustomSelected(bool bValue)
 		{
 			if (bValue)
 			{
+				ParentSpline->SetCustomSelected(true);
 				if (IsValid(ParentSpline->SelectedPoint) && !ParentSpline->SelectedPoint->IsBeingDestroyed())
 				{
 					ParentSpline->SelectedPoint->SetCustomSelected(false);

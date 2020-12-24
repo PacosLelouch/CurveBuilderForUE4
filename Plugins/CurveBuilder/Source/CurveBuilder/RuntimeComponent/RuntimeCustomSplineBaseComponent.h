@@ -27,6 +27,8 @@ public:
 
 	virtual void OnAttachmentChanged() override;
 
+	virtual bool MoveComponentImpl(const FVector& Delta, const FQuat& NewRotation, bool bSweep, FHitResult* Hit = NULL, EMoveComponentFlags MoveFlags = MOVECOMP_NoFlags, ETeleportType Teleport = ETeleportType::None) override;
+
 	virtual FPrimitiveSceneProxy* CreateSceneProxy() override;
 
 	//virtual FMatrix GetRenderMatrix() const override;
