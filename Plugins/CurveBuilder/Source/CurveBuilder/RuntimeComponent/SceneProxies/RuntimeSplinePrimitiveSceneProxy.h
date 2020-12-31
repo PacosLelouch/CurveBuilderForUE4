@@ -5,10 +5,45 @@
 
 #include "CoreMinimal.h"
 #include "PrimitiveSceneProxy.h"
+#include "HitProxies.h"
 #include "../RuntimeSplinePrimitiveComponent.h"
+#if WITH_EDITOR
+#include "ComponentVisualizer.h"
+#endif
+//#include "RuntimeSplinePrimitiveSceneProxy.generated.h"
 
 #define CUSTOM_SPLINE_USES_CUSTOM_OCCLUSION_DISTANCE 0
 #define DISABLE_COPY_IN_SPLINE_SCENE_PROXY 1
+#define ENABLE_CUSTOM_SPLINE_HIT_PROXY_RUNTIME 1
+
+#if ENABLE_CUSTOM_SPLINE_HIT_PROXY_RUNTIME
+#include "EngineUtils.h"
+#include "PrimitiveSceneInfo.h"
+struct CURVEBUILDER_API HRuntimeSplinePrimitiveHitProxy : 
+//#if WITH_EDITOR
+//	public HComponentVisProxy
+//#else
+	public HActor
+//#endif
+{
+public:
+	DECLARE_HIT_PROXY()
+	HRuntimeSplinePrimitiveHitProxy(const URuntimeSplinePrimitiveComponent* InComponent, EHitProxyPriority InPriority = HPP_Wireframe)
+//#if WITH_EDITOR
+//		: HComponentVisProxy(InComponent, InPriority)
+//#else
+		: HActor(InComponent->GetAttachmentRootActor(), InComponent, InPriority)
+//#endif
+		, ComponentWeakPtr(InComponent)
+	{}
+
+	virtual EMouseCursor::Type GetMouseCursor() override;
+
+	virtual FRuntimeSplineCommandHelperBase* GetCommandHelper() const;
+
+	TWeakObjectPtr<const URuntimeSplinePrimitiveComponent> ComponentWeakPtr;
+};
+#endif
 
 class FRuntimeSplinePrimitiveSceneProxy : public FPrimitiveSceneProxy
 {
@@ -21,23 +56,33 @@ public:
 
 	FRuntimeSplinePrimitiveSceneProxy(const URuntimeSplinePrimitiveComponent* InComponent)
 		: FPrimitiveSceneProxy(InComponent)
-		, ComponentForCheck(InComponent)
 		, bDrawInGameOverride(InComponent->bDrawInGame)
+		, ComponentWeakPtr(InComponent)
 	{}
 
-	bool IsComponentVaild() const { return IsValid(ComponentForCheck) && !ComponentForCheck->IsBeingDestroyed(); }
+	bool IsComponentVaild() const { return ComponentWeakPtr.IsValid() && IsValid(ComponentWeakPtr.Get()) && !ComponentWeakPtr->IsBeingDestroyed(); }
 
 	virtual FPrimitiveViewRelevance GetViewRelevance(const FSceneView* View) const override;
-
-	virtual HHitProxy* CreateHitProxies(UPrimitiveComponent* Component, TArray<TRefCountPtr<HHitProxy> >& OutHitProxies) override
-	{
-		// Not implemented yet.
-		return FPrimitiveSceneProxy::CreateHitProxies(Component, OutHitProxies);
-	}
 
 	virtual bool CanBeOccluded() const override { return false; }
 
 	virtual bool IsDrawnInGame() const override { return bDrawInGameOverride; }
+
+#if ENABLE_CUSTOM_SPLINE_HIT_PROXY_RUNTIME
+	virtual HHitProxy* CreateHitProxies(UPrimitiveComponent* Component, TArray<TRefCountPtr<HHitProxy> >& OutHitProxies) override
+	{
+		HHitProxy* HitProxy = nullptr;
+		if (URuntimeSplinePrimitiveComponent* CastedComponent = Cast<URuntimeSplinePrimitiveComponent>(Component))
+		{
+			HitProxy = new HRuntimeSplinePrimitiveHitProxy(CastedComponent);
+			OutHitProxies.Add(HitProxy);
+			return HitProxy;
+		}
+
+		HitProxy = FPrimitiveSceneProxy::CreateHitProxies(Component, OutHitProxies);
+		return HitProxy;
+	}
+#endif
 
 #if CUSTOM_SPLINE_USES_CUSTOM_OCCLUSION_DISTANCE
 	virtual FBoxSphereBounds GetCustomOcclusionBounds() const override
@@ -95,15 +140,18 @@ public:
 #else
 		FBoxSphereBounds BoundsForRender = GetBounds();
 #endif
+#if ENABLE_CUSTOM_SPLINE_HIT_PROXY_RUNTIME
+		PDI->SetHitProxy(nullptr);
+#endif
 		RenderBounds(PDI, ViewFamily.EngineShowFlags, BoundsForRender, IsSelected());
 	}
 
 private:
-	const UPrimitiveComponent* ComponentForCheck;
 
 	bool bDrawInGameOverride;
 
 protected:
+	TWeakObjectPtr<const URuntimeSplinePrimitiveComponent> ComponentWeakPtr;
 
 	static const FVector CollisionScale3D;
 	static const int32 DrawCollisionSides;

@@ -7,8 +7,16 @@
 #include "SceneProxies/RuntimeSplinePrimitiveSceneProxy.h"
 #include "PhysicsEngine/BodySetup.h"
 #include "Engine/StaticMesh.h"
+#include "Styling/SlateStyle.h"
+#include "Styling/CoreStyle.h"
+#include "Framework/Commands/Commands.h"
+#include "Framework/Commands/UICommandInfo.h"
+
+#define LOCTEXT_NAMESPACE "RuntimeSplineCommandHelper"
 
 DEFINE_LOG_CATEGORY_STATIC(LogRuntimeSplinePrimitiveComponent, Warning, All)
+
+TSharedRef<ISlateStyle> FRuntimeSplineCommands::SlateStyle = FCoreStyle::Create();
 
 ECollisionTraceFlag URuntimeSplinePrimitiveComponent::SpCompCollisionTraceFlag = ECollisionTraceFlag::CTF_UseSimpleAsComplex;
 
@@ -267,3 +275,61 @@ void URuntimeSplinePrimitiveComponent::UpdateCollision()
 	UE_LOG(LogRuntimeSplinePrimitiveComponent, Warning, TEXT("UpdateCollision not override."));
 }
 
+FRuntimeSplineCommands::FRuntimeSplineCommands()
+	: TCommands<FRuntimeSplineCommands>
+	(
+		"RuntimeSplineCommandHelper",	// Context name for fast lookup
+		LOCTEXT("RuntimeSplineCommandHelper", "Runtime Spline Command Helper"),	// Localized context name for displaying
+		NAME_None,	// Parent
+		SlateStyle.Get().GetStyleSetName()
+	)
+{
+}
+
+void FRuntimeSplineCommands::RegisterCommands()
+{
+	//UI_COMMAND(DeleteKey, "Delete Spline Point", "Delete the currently selected spline point.", EUserInterfaceActionType::Button, FInputChord(EKeys::Delete));
+	//UI_COMMAND(DuplicateKey, "Duplicate Spline Point", "Duplicate the currently selected spline point.", EUserInterfaceActionType::Button, FInputChord());
+	//UI_COMMAND(AddKey, "Add Spline Point Here", "Add a new spline point at the cursor location.", EUserInterfaceActionType::Button, FInputChord());
+	//UI_COMMAND(SelectAll, "Select All Spline Points", "Select all spline points.", EUserInterfaceActionType::Button, FInputChord());
+	//UI_COMMAND(ResetToUnclampedTangent, "Unclamped Tangent", "Reset the tangent for this spline point to its default unclamped value.", EUserInterfaceActionType::Button, FInputChord());
+	//UI_COMMAND(ResetToClampedTangent, "Clamped Tangent", "Reset the tangent for this spline point to its default clamped value.", EUserInterfaceActionType::Button, FInputChord());
+	//UI_COMMAND(SetKeyToCurve, "Curve", "Set spline point to Curve type", EUserInterfaceActionType::RadioButton, FInputChord());
+	//UI_COMMAND(SetKeyToLinear, "Linear", "Set spline point to Linear type", EUserInterfaceActionType::RadioButton, FInputChord());
+	//UI_COMMAND(SetKeyToConstant, "Constant", "Set spline point to Constant type", EUserInterfaceActionType::RadioButton, FInputChord());
+	//UI_COMMAND(FocusViewportToSelection, "Focus Selected", "Moves the camera in front of the selection", EUserInterfaceActionType::Button, FInputChord(EKeys::F));
+	//UI_COMMAND(SnapToNearestSplinePoint, "Snap to Nearest Spline Point", "Snap to nearest spline point.", EUserInterfaceActionType::Button, FInputChord());
+	//UI_COMMAND(AlignToNearestSplinePoint, "Align to Nearest Spline Point", "Align to nearest spline point.", EUserInterfaceActionType::Button, FInputChord());
+	//UI_COMMAND(AlignPerpendicularToNearestSplinePoint, "Align Perpendicular to Nearest Spline Point", "Align perpendicular to nearest spline point.", EUserInterfaceActionType::Button, FInputChord());
+	//UI_COMMAND(SnapAllToSelectedX, "Snap All To Selected X", "Snap all spline points to selected spline point X.", EUserInterfaceActionType::Button, FInputChord());
+	//UI_COMMAND(SnapAllToSelectedY, "Snap All To Selected Y", "Snap all spline points to selected spline point Y.", EUserInterfaceActionType::Button, FInputChord());
+	//UI_COMMAND(SnapAllToSelectedZ, "Snap All To Selected Z", "Snap all spline points to selected spline point Z.", EUserInterfaceActionType::Button, FInputChord());
+	//UI_COMMAND(SetLockedAxisNone, "None", "New spline point axis is not fixed.", EUserInterfaceActionType::RadioButton, FInputChord());
+	//UI_COMMAND(SetLockedAxisX, "X", "Fix X axis when adding new spline points.", EUserInterfaceActionType::RadioButton, FInputChord());
+	//UI_COMMAND(SetLockedAxisY, "Y", "Fix Y axis when adding new spline points.", EUserInterfaceActionType::RadioButton, FInputChord());
+	//UI_COMMAND(SetLockedAxisZ, "Z", "Fix Z axis when adding new spline points.", EUserInterfaceActionType::RadioButton, FInputChord());
+	//UI_COMMAND(VisualizeRollAndScale, "Visualize Roll and Scale", "Whether the visualization should show roll and scale on this spline.", EUserInterfaceActionType::ToggleButton, FInputChord());
+	//UI_COMMAND(DiscontinuousSpline, "Allow Discontinuous Splines", "Whether the visualization allows Arrive and Leave tangents to be set separately.", EUserInterfaceActionType::ToggleButton, FInputChord());
+	//UI_COMMAND(ResetToDefault, "Reset to Default", "Reset this spline to its archetype default.", EUserInterfaceActionType::Button, FInputChord());
+}
+
+void FRuntimeSplineCommandHelperBase::CapturedMouseMove(FViewport* InViewport, int32 InMouseX, int32 InMouseY)
+{
+	UE_LOG(LogRuntimeSplinePrimitiveComponent, Log, TEXT("FRuntimeSplineCommandHelperBase::CapturedMouseMove: <%d, %d>"), InMouseX, InMouseY);
+}
+
+bool FRuntimeSplineCommandHelperBase::InputKey(FViewport* Viewport, int32 ControllerId, FKey Key, EInputEvent Event, float AmountDepressed, bool bGamepad)
+{
+	UE_LOG(LogRuntimeSplinePrimitiveComponent, Log, TEXT("FRuntimeSplineCommandHelperBase::InputKey: CtrlId: %d, Key: %s, Event: %d, AmountDepressed: %f, Gamepad: %d"),
+		ControllerId, *Key.ToString(), Event, AmountDepressed, bGamepad);
+	return false;
+}
+
+bool FRuntimeSplineCommandHelperBase::InputAxis(FViewport* Viewport, int32 ControllerId, FKey Key, float Delta, float DeltaTime, int32 NumSamples, bool bGamepad)
+{
+	UE_LOG(LogRuntimeSplinePrimitiveComponent, Log, TEXT("FRuntimeSplineCommandHelperBase::InputAxis: CtrlId: %d, Key: %s, Delta: %f, DeltaTime: %f, NumSamples: %d, Gamepad: %d"),
+		ControllerId, *Key.ToString(), Delta, DeltaTime, NumSamples, bGamepad);
+	return false;
+}
+
+#undef LOCTEXT_NAMESPACE

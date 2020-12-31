@@ -14,6 +14,24 @@
 
 class URuntimeCustomSplineBaseComponent;
 
+class CURVEBUILDER_API FRuntimeSplinePointCommandHelper : public FRuntimeSplineCommandHelperBase
+{
+public:
+	FRuntimeSplinePointCommandHelper(class URuntimeSplinePointBaseComponent* Component = nullptr)
+		: FRuntimeSplineCommandHelperBase()
+		, ComponentWeakPtr(Component)
+	{}
+
+	virtual void CapturedMouseMove(FViewport* InViewport, int32 InMouseX, int32 InMouseY) override;
+
+	virtual bool InputKey(FViewport* Viewport, int32 ControllerId, FKey Key, EInputEvent Event, float AmountDepressed = 1.f, bool bGamepad = false) override;
+
+	virtual bool InputAxis(FViewport* Viewport, int32 ControllerId, FKey Key, float Delta, float DeltaTime, int32 NumSamples = 1, bool bGamepad = false) override;
+
+public:
+	TWeakObjectPtr<URuntimeSplinePointBaseComponent> ComponentWeakPtr;
+};
+
 UCLASS(BlueprintType, Blueprintable, ClassGroup = CustomSpline, ShowCategories = (Mobility), HideCategories = (Physics, Lighting, Mobile), meta = (BlueprintSpawnableComponent))
 class CURVEBUILDER_API URuntimeSplinePointBaseComponent : public URuntimeSplinePrimitiveComponent
 {
@@ -80,10 +98,10 @@ public:
 	URuntimeCustomSplineBaseComponent* ParentSpline = nullptr;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "RuntimeCustomSpline|CollisionInfo")
-	float CollisionDiameter = 12.f;
+	float CollisionDiameter = 64.f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "RuntimeCustomSpline|DrawInfo")
-	int32 DrawPointSize = 8;
+	int32 DrawPointSize = 16;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "RuntimeCustomSpline|DrawInfo")
 	FLinearColor CtrlPointColor = FLinearColor(0.4f, 0.8f, 0.7f);

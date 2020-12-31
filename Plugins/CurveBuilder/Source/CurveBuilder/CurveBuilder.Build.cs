@@ -55,6 +55,7 @@ public class CurveBuilder : ModuleRules
 				"Engine",
 				"Slate",
 				"SlateCore",
+				"InputCore",
 				// ... add private dependencies that you statically link with here ...	
 			}
 			);

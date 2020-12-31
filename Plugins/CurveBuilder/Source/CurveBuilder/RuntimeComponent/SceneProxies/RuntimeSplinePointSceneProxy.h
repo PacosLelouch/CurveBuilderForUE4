@@ -7,6 +7,21 @@
 #include "RuntimeSplinePrimitiveSceneProxy.h"
 #include "../RuntimeSplinePointBaseComponent.h"
 #include "../RuntimeCustomSplineBaseComponent.h"
+//#include "RuntimeSplinePointProxy.generated.h"
+
+#if ENABLE_CUSTOM_SPLINE_HIT_PROXY_RUNTIME
+struct CURVEBUILDER_API HRuntimeSplinePointHitProxy : public HRuntimeSplinePrimitiveHitProxy
+{
+public:
+	DECLARE_HIT_PROXY()
+
+	HRuntimeSplinePointHitProxy(const URuntimeSplinePrimitiveComponent* InComponent)
+		: HRuntimeSplinePrimitiveHitProxy(InComponent)
+	{}
+
+	virtual EMouseCursor::Type GetMouseCursor() override;
+};
+#endif
 
 class FRuntimeSplinePointSceneProxy final : public FRuntimeSplinePrimitiveSceneProxy
 {
@@ -51,13 +66,14 @@ private:
 			: DebugCollisionColor(InComponent->DebugCollisionColor)
 			, DebugCollisionLineWidth(InComponent->DebugCollisionLineWidth)
 			, bDrawDebugCollision(InComponent->bDrawDebugCollision)
-			, CollisionLocalToWorld(InComponent->BodyInstance.GetUnrealWorldTransform().ToMatrixWithScale())
+			, CollisionLocalToWorld((FTransform(FQuat::Identity, FVector::OneVector, InComponent->BodyInstance.Scale3D) * InComponent->BodyInstance.GetUnrealWorldTransform()).ToMatrixWithScale())
 #if !DISABLE_COPY_IN_SPLINE_SCENE_PROXY
 			, SphereElems(IsValid(InComponent->BodySetup) ? InComponent->BodySetup->AggGeom.SphereElems : TArray<FKSphereElem>())
 #else
 			, BodySetupPtr(IsValid(InComponent->BodySetup) ? &InComponent->BodySetup : nullptr)
 #endif
-		{}
+		{
+		}
 
 		FLinearColor DebugCollisionColor = FLinearColor::White;
 		float DebugCollisionLineWidth = 1.f;
@@ -72,8 +88,8 @@ private:
 public:
 	FRuntimeSplinePointSceneProxy(const URuntimeSplinePointBaseComponent* InComponent)
 		: FRuntimeSplinePrimitiveSceneProxy(InComponent)
-		, DrawInfo(InComponent)
-		, CollisionInfo(InComponent)
+		, ProxyDrawInfo(InComponent)
+		, ProxyCollisionInfo(InComponent)
 	{}
 
 	virtual void GetDynamicMeshElements(const TArray<const FSceneView*>& Views, const FSceneViewFamily& ViewFamily, uint32 VisibilityMap, FMeshElementCollector& Collector) const override;
@@ -81,10 +97,11 @@ public:
 	virtual uint32 GetMemoryFootprint(void) const override { return sizeof(*this) + GetAllocatedSize(); }
 
 protected:
-	static void DrawRuntimeSplinePoint(FPrimitiveDrawInterface* PDI, const FSceneView* View, const FSpatial3DrawInfo& DrawInfo, const FMatrix& LocalToWorld, uint8 DepthPriorityGroup);
+	
+	void DrawRuntimeSplinePoint(FPrimitiveDrawInterface* PDI, const FSceneView* View, const FSpatial3DrawInfo& DrawInfo, const FMatrix& InLocalToWorld, uint8 DepthPriorityGroup) const;
 
-	static void DrawDebugCollisions(FPrimitiveDrawInterface* PDI, const FSceneView* View, const FSpatial3CollisionInfo& CollisionInfo, uint8 DepthPriorityGroup);
+	void DrawDebugCollisions(FPrimitiveDrawInterface* PDI, const FSceneView* View, const FSpatial3CollisionInfo& CollisionInfo, uint8 DepthPriorityGroup) const;
 
-	FSpatial3DrawInfo DrawInfo;
-	FSpatial3CollisionInfo CollisionInfo;
+	FSpatial3DrawInfo ProxyDrawInfo;
+	FSpatial3CollisionInfo ProxyCollisionInfo;
 };

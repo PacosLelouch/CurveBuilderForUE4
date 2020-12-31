@@ -4,6 +4,10 @@
 #include "RuntimeCustomSplineSceneProxy.h"
 #include "PhysicsEngine/BodySetup.h"
 
+#if ENABLE_CUSTOM_SPLINE_HIT_PROXY_RUNTIME
+IMPLEMENT_HIT_PROXY(HRuntimeSplineHitProxy, HRuntimeSplinePrimitiveHitProxy)
+#endif
+
 static constexpr bool bDrawLineByCurveLength = false;
 
 void FRuntimeCustomSplineSceneProxy::GetDynamicMeshElements(const TArray<const FSceneView*>& Views, const FSceneViewFamily& ViewFamily, uint32 VisibilityMap, FMeshElementCollector& Collector) const
@@ -41,12 +45,12 @@ void FRuntimeCustomSplineSceneProxy::GetDynamicMeshElements(const TArray<const F
 
 			DrawRuntimeSpline(
 				PDI, View,
-				DrawInfo, LocalToWorldMat,
+				ProxyDrawInfo, LocalToWorldMat,
 				CurrentDepthPriorityGroup);
 
 			DrawDebugCollisions(
 				PDI, View,
-				CollisionInfo, 
+				ProxyCollisionInfo,
 				CurrentDepthPriorityGroup);
 
 			DrawBoundsIfNecessary(PDI, ViewFamily);
@@ -54,7 +58,7 @@ void FRuntimeCustomSplineSceneProxy::GetDynamicMeshElements(const TArray<const F
 	}
 }
 
-void FRuntimeCustomSplineSceneProxy::DrawRuntimeSpline(FPrimitiveDrawInterface* PDI, const FSceneView* View, const FSpatial3DrawInfo& DrawInfo, const FMatrix& LocalToWorld, uint8 DepthPriorityGroup)
+void FRuntimeCustomSplineSceneProxy::DrawRuntimeSpline(FPrimitiveDrawInterface* PDI, const FSceneView* View, const FSpatial3DrawInfo& DrawInfo, const FMatrix& InLocalToWorld, uint8 DepthPriorityGroup) const
 {
 	if (!View || !PDI)
 	{
@@ -72,20 +76,28 @@ void FRuntimeCustomSplineSceneProxy::DrawRuntimeSpline(FPrimitiveDrawInterface* 
 #endif
 
 	//TTuple<double, double> ParamRange = SplineInternal.GetParamRange();
-
+	
+#if ENABLE_CUSTOM_SPLINE_HIT_PROXY_RUNTIME
+	//PDI->SetHitProxy(new HRuntimeSplineHitProxy(ComponentWeakPtr.Get()));
+#endif
+	
 	{
 		TArray<double> Parameters;
 		int32 SegNum = URuntimeCustomSplineBaseComponent::SampleParameters(Parameters, SplineInternal, DrawInfo.SegLength, bDrawLineByCurveLength);
 		double T = Parameters[0];
-		FVector Start = LocalToWorld.TransformPosition(SplineInternal.GetPosition(T));
+		FVector Start = InLocalToWorld.TransformPosition(SplineInternal.GetPosition(T));
 		for (int32 i = 0; i < SegNum; ++i)
 		{
 			T = Parameters[i + 1];
-			FVector End = LocalToWorld.TransformPosition(SplineInternal.GetPosition(T));
+			FVector End = InLocalToWorld.TransformPosition(SplineInternal.GetPosition(T));
 			PDI->DrawLine(Start, End, DrawInfo.CurveColor, DepthPriorityGroup, DrawInfo.Thickness, DrawInfo.DepthBias, false);
 			Start = End;
 		}
 	}
+
+#if ENABLE_CUSTOM_SPLINE_HIT_PROXY_RUNTIME
+	//PDI->SetHitProxy(nullptr);
+#endif
 
 	//if (bDrawLineByCurveLength)
 	//{
@@ -97,13 +109,13 @@ void FRuntimeCustomSplineSceneProxy::DrawRuntimeSpline(FPrimitiveDrawInterface* 
 
 	//	double NextS = 0.;
 	//	double T = ParamRange.Get<0>();
-	//	FVector Start = LocalToWorld.TransformPosition(SplineInternal.GetPosition(T));
+	//	FVector Start = InLocalToWorld.TransformPosition(SplineInternal.GetPosition(T));
 	//	for (int32 i = 0; i < SegNum; ++i)
 	//	{
 	//		NextS += StepLength;
 	//		T = SplineInternal.GetParameterAtLength(NextS);
 
-	//		FVector End = LocalToWorld.TransformPosition(SplineInternal.GetPosition(T));
+	//		FVector End = InLocalToWorld.TransformPosition(SplineInternal.GetPosition(T));
 	//		PDI->DrawLine(Start, End, DrawInfo.CurveColor, DepthPriorityGroup, DrawInfo.Thickness, DrawInfo.DepthBias, false);
 	//		Start = End;
 	//	}
@@ -116,12 +128,12 @@ void FRuntimeCustomSplineSceneProxy::DrawRuntimeSpline(FPrimitiveDrawInterface* 
 	//	double StepParam = DiffParam / SegNumDbl;
 
 	//	double T = ParamRange.Get<0>();
-	//	FVector Start = LocalToWorld.TransformPosition(SplineInternal.GetPosition(T));
+	//	FVector Start = InLocalToWorld.TransformPosition(SplineInternal.GetPosition(T));
 	//	for (int32 i = 0; i < SegNum; ++i)
 	//	{
 	//		T += StepParam;
 
-	//		FVector End = LocalToWorld.TransformPosition(SplineInternal.GetPosition(T));
+	//		FVector End = InLocalToWorld.TransformPosition(SplineInternal.GetPosition(T));
 	//		PDI->DrawLine(Start, End, DrawInfo.CurveColor, DepthPriorityGroup, DrawInfo.Thickness, DrawInfo.DepthBias, false);
 	//		Start = End;
 	//	}
@@ -139,11 +151,11 @@ void FRuntimeCustomSplineSceneProxy::DrawRuntimeSpline(FPrimitiveDrawInterface* 
 
 			if (CtrlPoints.Num() > 1)
 			{
-				FVector Start = LocalToWorld.TransformPosition(CtrlPoints[0]);
+				FVector Start = InLocalToWorld.TransformPosition(CtrlPoints[0]);
 				//PDI->DrawPoint(Start, DrawInfo.CtrlPointColor, DrawInfo.PointSize, DepthPriorityGroup);
 				for (int32 i = 1; i < CtrlPoints.Num(); ++i)
 				{
-					FVector End = LocalToWorld.TransformPosition(CtrlPoints[i]);
+					FVector End = InLocalToWorld.TransformPosition(CtrlPoints[i]);
 					PDI->DrawLine(Start, End, DrawInfo.CtrlSegColor, DepthPriorityGroup, DrawInfo.Thickness, DrawInfo.DepthBias, false);
 					Start = End;
 					//PDI->DrawPoint(Start, DrawInfo.CtrlPointColor, DrawInfo.PointSize, DepthPriorityGroup);
@@ -165,9 +177,9 @@ void FRuntimeCustomSplineSceneProxy::DrawRuntimeSpline(FPrimitiveDrawInterface* 
 			{
 				for (int32 i = 0; i < CtrlPoints.Num(); ++i)
 				{
-					FVector Start = LocalToWorld.TransformPosition(CtrlPoints[i]);
-					FVector Prev = LocalToWorld.TransformPosition(CtrlPointsPrev[i]);
-					FVector Next = LocalToWorld.TransformPosition(CtrlPointsNext[i]);
+					FVector Start = InLocalToWorld.TransformPosition(CtrlPoints[i]);
+					FVector Prev = InLocalToWorld.TransformPosition(CtrlPointsPrev[i]);
+					FVector Next = InLocalToWorld.TransformPosition(CtrlPointsNext[i]);
 
 					//PDI->DrawPoint(Start, DrawInfo.CtrlPointColor, DrawInfo.PointSize, DepthPriorityGroup);
 					//PDI->DrawPoint(Prev, DrawInfo.CtrlPointColor, DrawInfo.PointSize, DepthPriorityGroup);
@@ -183,7 +195,7 @@ void FRuntimeCustomSplineSceneProxy::DrawRuntimeSpline(FPrimitiveDrawInterface* 
 	}
 }
 
-void FRuntimeCustomSplineSceneProxy::DrawDebugCollisions(FPrimitiveDrawInterface* PDI, const FSceneView* View, const FSpatial3CollisionInfo& CollisionInfo, uint8 DepthPriorityGroup)
+void FRuntimeCustomSplineSceneProxy::DrawDebugCollisions(FPrimitiveDrawInterface* PDI, const FSceneView* View, const FSpatial3CollisionInfo& CollisionInfo, uint8 DepthPriorityGroup) const
 {
 	if (!CollisionInfo.bDrawDebugCollision)
 	{
@@ -237,3 +249,15 @@ void FRuntimeCustomSplineSceneProxy::DrawDebugCollisions(FPrimitiveDrawInterface
 		PDI->DrawLine(TopEnd - ScaledRadius*YAxis, BottomEnd - ScaledRadius*YAxis, Color, DepthPriorityGroup, Thickness);
 	}
 }
+
+#if ENABLE_CUSTOM_SPLINE_HIT_PROXY_RUNTIME
+EMouseCursor::Type HRuntimeSplineHitProxy::GetMouseCursor()
+{
+	const URuntimeCustomSplineBaseComponent* Spline = Cast<URuntimeCustomSplineBaseComponent>(ComponentWeakPtr.Get());
+	if (Spline)
+	{
+		//TODO?
+	}
+	return HRuntimeSplinePrimitiveHitProxy::GetMouseCursor();
+}
+#endif

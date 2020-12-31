@@ -15,6 +15,7 @@ URuntimeCustomSplineBaseComponent::URuntimeCustomSplineBaseComponent(const FObje
 	CustomSplinePointClass = URuntimeSplinePointBaseComponent::StaticClass();
 	bLastCreateCollisionByCurveLength = bCreateCollisionByCurveLength;
 	CollisionSegLength *= bCreateCollisionByCurveLength ? LengthFactor : 1.f;
+	CommandHelper = MakeShareable(new FRuntimeSplineCommandHelper(this));
 }
 
 void URuntimeCustomSplineBaseComponent::BeginPlay()
@@ -870,4 +871,21 @@ int32 URuntimeCustomSplineBaseComponent::SampleParameters(TArray<double>& OutPar
 	}
 
 	return OutParameters.Num() - 1;
+}
+
+void FRuntimeSplineCommandHelper::CapturedMouseMove(FViewport* InViewport, int32 InMouseX, int32 InMouseY)
+{
+	FRuntimeSplineCommandHelperBase::CapturedMouseMove(InViewport, InMouseX, InMouseY);
+}
+
+bool FRuntimeSplineCommandHelper::InputKey(FViewport* Viewport, int32 ControllerId, FKey Key, EInputEvent Event, float AmountDepressed, bool bGamepad)
+{
+	bool bBaseReturnValue = FRuntimeSplineCommandHelperBase::InputKey(Viewport, ControllerId, Key, Event, AmountDepressed, bGamepad);
+	return bBaseReturnValue;
+}
+
+bool FRuntimeSplineCommandHelper::InputAxis(FViewport* Viewport, int32 ControllerId, FKey Key, float Delta, float DeltaTime, int32 NumSamples, bool bGamepad)
+{
+	bool bBaseReturnValue = FRuntimeSplineCommandHelperBase::InputAxis(Viewport, ControllerId, Key, Delta, DeltaTime, NumSamples, bGamepad);
+	return bBaseReturnValue;
 }

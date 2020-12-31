@@ -6,6 +6,21 @@
 #include "CoreMinimal.h"
 #include "RuntimeSplinePrimitiveSceneProxy.h"
 #include "../RuntimeCustomSplineBaseComponent.h"
+//#include "RuntimeCustomSplineSceneProxy.generated.h"
+
+#if ENABLE_CUSTOM_SPLINE_HIT_PROXY_RUNTIME
+struct CURVEBUILDER_API HRuntimeSplineHitProxy : public HRuntimeSplinePrimitiveHitProxy
+{
+public:
+	DECLARE_HIT_PROXY()
+
+	HRuntimeSplineHitProxy(const URuntimeSplinePrimitiveComponent* InComponent)
+		: HRuntimeSplinePrimitiveHitProxy(InComponent)
+	{}
+
+	virtual EMouseCursor::Type GetMouseCursor() override;
+};
+#endif
 
 class FRuntimeCustomSplineSceneProxy final : public FRuntimeSplinePrimitiveSceneProxy
 {
@@ -81,8 +96,8 @@ public:
 
 	FRuntimeCustomSplineSceneProxy(const URuntimeCustomSplineBaseComponent* InComponent)
 		: FRuntimeSplinePrimitiveSceneProxy(InComponent)
-		, DrawInfo(InComponent)
-		, CollisionInfo(InComponent)
+		, ProxyDrawInfo(InComponent)
+		, ProxyCollisionInfo(InComponent)
 		//, SplineComponent(InComponent)
 	{}
 
@@ -110,16 +125,18 @@ public:
 public:
 	// Static function of draw spline curves.
 	//template<int32 Dim = 3, int32 Degree = 3>
-	//static void DrawRuntimeSpline(FPrimitiveDrawInterface* PDI, const FSceneView* View, const TRuntimeSplineDrawInfo<Dim, Degree>& DrawInfo, const FMatrix& LocalToWorld, uint8 DepthPriorityGroup);
+	//static void DrawRuntimeSpline(FPrimitiveDrawInterface* PDI, const FSceneView* View, const TRuntimeSplineDrawInfo<Dim, Degree>& DrawInfo, const FMatrix& InLocalToWorld, uint8 DepthPriorityGroup);
 
 protected:
-	static void DrawRuntimeSpline(FPrimitiveDrawInterface* PDI, const FSceneView* View, const FSpatial3DrawInfo& DrawInfo, const FMatrix& LocalToWorld, uint8 DepthPriorityGroup);
+	//static 
+	void DrawRuntimeSpline(FPrimitiveDrawInterface* PDI, const FSceneView* View, const FSpatial3DrawInfo& DrawInfo, const FMatrix& InLocalToWorld, uint8 DepthPriorityGroup) const;
 
-	static void DrawDebugCollisions(FPrimitiveDrawInterface* PDI, const FSceneView* View, const FSpatial3CollisionInfo& CollisionInfo, uint8 DepthPriorityGroup);
+	//static 
+	void DrawDebugCollisions(FPrimitiveDrawInterface* PDI, const FSceneView* View, const FSpatial3CollisionInfo& CollisionInfo, uint8 DepthPriorityGroup) const;
 
 
 	//const URuntimeCustomSplineBaseComponent* SplineComponent;
-	FSpatial3DrawInfo DrawInfo;
-	FSpatial3CollisionInfo CollisionInfo;
+	FSpatial3DrawInfo ProxyDrawInfo;
+	FSpatial3CollisionInfo ProxyCollisionInfo;
 };
 

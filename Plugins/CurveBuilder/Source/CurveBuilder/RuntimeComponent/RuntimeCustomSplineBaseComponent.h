@@ -11,6 +11,24 @@
 #include "../Compute/Splines/SplineGraph.h"
 #include "RuntimeCustomSplineBaseComponent.generated.h"
 
+class CURVEBUILDER_API FRuntimeSplineCommandHelper : public FRuntimeSplineCommandHelperBase
+{
+public:
+	FRuntimeSplineCommandHelper(class URuntimeCustomSplineBaseComponent* Component = nullptr)
+		: FRuntimeSplineCommandHelperBase()
+		, ComponentWeakPtr(Component)
+	{}
+
+	virtual void CapturedMouseMove(FViewport* InViewport, int32 InMouseX, int32 InMouseY) override;
+
+	virtual bool InputKey(FViewport* Viewport, int32 ControllerId, FKey Key, EInputEvent Event, float AmountDepressed = 1.f, bool bGamepad = false) override;
+
+	virtual bool InputAxis(FViewport* Viewport, int32 ControllerId, FKey Key, float Delta, float DeltaTime, int32 NumSamples = 1, bool bGamepad = false) override;
+
+public:
+	TWeakObjectPtr<URuntimeCustomSplineBaseComponent> ComponentWeakPtr;
+};
+
 UCLASS(BlueprintType, Blueprintable, ClassGroup = CustomSpline, ShowCategories = (Mobility), HideCategories = (Physics, Lighting, Mobile), meta = (BlueprintSpawnableComponent))
 class CURVEBUILDER_API URuntimeCustomSplineBaseComponent : public URuntimeSplinePrimitiveComponent//, public IInterface_CollisionDataProvider
 {
@@ -159,10 +177,10 @@ public:
 	bool bCreateCollisionByCurveLength = false;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "RuntimeCustomSpline|CollisionInfo")
-	float CollisionSegLength = 0.2f;
+	float CollisionSegLength = 0.05f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "RuntimeCustomSpline|CollisionInfo")
-	float CollisionSegWidth = 6.f;
+	float CollisionSegWidth = 32.f;
 
 	UPROPERTY(BlueprintAssignable, Category = "RuntimeCustomSpline|Update")
 	FOnSplineUpdated OnSplineUpdateHandle;

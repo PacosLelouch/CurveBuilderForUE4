@@ -6,6 +6,10 @@
 const FVector FRuntimeSplinePrimitiveSceneProxy::CollisionScale3D = FVector::OneVector;
 const int32 FRuntimeSplinePrimitiveSceneProxy::DrawCollisionSides = 16;
 
+#if ENABLE_CUSTOM_SPLINE_HIT_PROXY_RUNTIME
+IMPLEMENT_HIT_PROXY(HRuntimeSplinePrimitiveHitProxy, HActor)
+#endif
+
 FPrimitiveViewRelevance FRuntimeSplinePrimitiveSceneProxy::GetViewRelevance(const FSceneView* View) const
 {
 	FPrimitiveViewRelevance Result;
@@ -46,3 +50,26 @@ void FRuntimeSplinePrimitiveSceneProxy::DrawHalfCircle(FPrimitiveDrawInterface* 
 		LastVertex = Vertex;
 	}
 }
+
+#if ENABLE_CUSTOM_SPLINE_HIT_PROXY_RUNTIME
+EMouseCursor::Type HRuntimeSplinePrimitiveHitProxy::GetMouseCursor()
+{
+	if (FRuntimeSplineCommandHelperBase* CommandHelper = GetCommandHelper())
+	{
+		//TODO
+	}
+	return EMouseCursor::Crosshairs;
+}
+
+FRuntimeSplineCommandHelperBase* HRuntimeSplinePrimitiveHitProxy::GetCommandHelper() const
+{
+	if (ComponentWeakPtr.IsValid())
+	{
+		if (ComponentWeakPtr.Get()->CommandHelper.IsValid())
+		{
+			return ComponentWeakPtr.Get()->CommandHelper.Get();
+		}
+	}
+	return nullptr;
+}
+#endif

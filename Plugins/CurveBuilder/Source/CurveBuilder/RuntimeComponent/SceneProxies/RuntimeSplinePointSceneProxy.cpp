@@ -4,6 +4,10 @@
 #include "RuntimeSplinePointSceneProxy.h"
 #include "PhysicsEngine/BodySetup.h"
 
+#if ENABLE_CUSTOM_SPLINE_HIT_PROXY_RUNTIME
+IMPLEMENT_HIT_PROXY(HRuntimeSplinePointHitProxy, HRuntimeSplinePrimitiveHitProxy)
+#endif
+
 void FRuntimeSplinePointSceneProxy::GetDynamicMeshElements(const TArray<const FSceneView*>& Views, const FSceneViewFamily& ViewFamily, uint32 VisibilityMap, FMeshElementCollector& Collector) const
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_RuntimeSplinePointSceneProxy_GetDynamicMeshElements);
@@ -28,12 +32,12 @@ void FRuntimeSplinePointSceneProxy::GetDynamicMeshElements(const TArray<const FS
 
 			DrawRuntimeSplinePoint(
 				PDI, View,
-				DrawInfo, LocalToWorldMat,
+				ProxyDrawInfo, LocalToWorldMat,
 				CurrentDepthPriorityGroup);
 
 			DrawDebugCollisions(
 				PDI, View,
-				CollisionInfo,
+				ProxyCollisionInfo,
 				CurrentDepthPriorityGroup);
 
 			DrawBoundsIfNecessary(PDI, ViewFamily);
@@ -41,13 +45,13 @@ void FRuntimeSplinePointSceneProxy::GetDynamicMeshElements(const TArray<const FS
 	}
 }
 
-void FRuntimeSplinePointSceneProxy::DrawRuntimeSplinePoint(FPrimitiveDrawInterface* PDI, const FSceneView* View, const FSpatial3DrawInfo& DrawInfo, const FMatrix& LocalToWorld, uint8 DepthPriorityGroup)
+void FRuntimeSplinePointSceneProxy::DrawRuntimeSplinePoint(FPrimitiveDrawInterface* PDI, const FSceneView* View, const FSpatial3DrawInfo& DrawInfo, const FMatrix& InLocalToWorld, uint8 DepthPriorityGroup) const
 {
 	if (!View || !PDI)
 	{
 		return;
 	}
-
+	
 #if DISABLE_COPY_IN_SPLINE_SCENE_PROXY
 	if (!DrawInfo.SplinePointInternalWeakPtr.IsValid())
 	{
@@ -59,39 +63,48 @@ void FRuntimeSplinePointSceneProxy::DrawRuntimeSplinePoint(FPrimitiveDrawInterfa
 #endif
 
 	FLinearColor UseColor = DrawInfo.bSelected ? DrawInfo.SelectedCtrlPointColor : DrawInfo.CtrlPointColor;
+	FVector Pos = FVector::ZeroVector;
 
 	switch (DrawInfo.SpType)
 	{
 	case ESplineType::ClampedBSpline:
 	{
 		const auto& BSplineControlPoint = static_cast<const TSplineTraitByType<ESplineType::ClampedBSpline, 3, 3>::FControlPointType&>(SplinePointInternal);
-		FVector Pos = LocalToWorld.TransformPosition(BSplineControlPoint.Pos);
-		PDI->DrawPoint(Pos, UseColor, DrawInfo.PointSize, DepthPriorityGroup);
+		Pos = InLocalToWorld.TransformPosition(BSplineControlPoint.Pos);
 	}
 	break;
 	case ESplineType::BezierString:
 	{
 		const auto& BeziersControlPoint = static_cast<const TSplineTraitByType<ESplineType::BezierString, 3, 3>::FControlPointType&>(SplinePointInternal);
-		FVector Pos;
 		if (DrawInfo.TangentFlag == 0)
 		{
-			Pos = LocalToWorld.TransformPosition(BeziersControlPoint.Pos);
+			Pos = InLocalToWorld.TransformPosition(BeziersControlPoint.Pos);
 		}
 		else if (DrawInfo.TangentFlag > 0)
 		{
-			Pos = LocalToWorld.TransformPosition(BeziersControlPoint.NextCtrlPointPos);
+			Pos = InLocalToWorld.TransformPosition(BeziersControlPoint.NextCtrlPointPos);
 		}
 		else
 		{
-			Pos = LocalToWorld.TransformPosition(BeziersControlPoint.PrevCtrlPointPos);
+			Pos = InLocalToWorld.TransformPosition(BeziersControlPoint.PrevCtrlPointPos);
 		}
-		PDI->DrawPoint(Pos, UseColor, DrawInfo.PointSize, DepthPriorityGroup);
 	}
 	break;
 	}
+
+#if ENABLE_CUSTOM_SPLINE_HIT_PROXY_RUNTIME
+	HHitProxy* Default = GetPrimitiveSceneInfo()->DefaultDynamicHitProxy;
+	//PDI->SetHitProxy(new HRuntimeSplinePointHitProxy(ComponentWeakPtr.Get()));
+#endif
+
+	PDI->DrawPoint(Pos, UseColor, DrawInfo.PointSize, DepthPriorityGroup);
+
+#if ENABLE_CUSTOM_SPLINE_HIT_PROXY_RUNTIME
+	//PDI->SetHitProxy(nullptr);
+#endif
 }
 
-void FRuntimeSplinePointSceneProxy::DrawDebugCollisions(FPrimitiveDrawInterface* PDI, const FSceneView* View, const FSpatial3CollisionInfo& CollisionInfo, uint8 DepthPriorityGroup)
+void FRuntimeSplinePointSceneProxy::DrawDebugCollisions(FPrimitiveDrawInterface* PDI, const FSceneView* View, const FSpatial3CollisionInfo& CollisionInfo, uint8 DepthPriorityGroup) const
 {
 	if (!CollisionInfo.bDrawDebugCollision)
 	{
@@ -112,6 +125,7 @@ void FRuntimeSplinePointSceneProxy::DrawDebugCollisions(FPrimitiveDrawInterface*
 	for (const FKSphereElem& Elem : SphereElems)
 	{
 		FTransform LocalTransform(Elem.Center);
+		//FTransform LocalTransform(Elem.GetFinalScaled(FVector::OneVector, FTransform(CollisionInfo.CollisionLocalToWorld)).GetTransform());
 
 		FMatrix ElemTM = LocalTransform.ToMatrixWithScale() * CollisionInfo.CollisionLocalToWorld;
 
@@ -125,3 +139,15 @@ void FRuntimeSplinePointSceneProxy::DrawDebugCollisions(FPrimitiveDrawInterface*
 		DrawCircle(PDI, Origin, YAxis, ZAxis, Color, Elem.Radius, DrawCollisionSides, DepthPriorityGroup, Thickness);
 	}
 }
+
+#if ENABLE_CUSTOM_SPLINE_HIT_PROXY_RUNTIME
+EMouseCursor::Type HRuntimeSplinePointHitProxy::GetMouseCursor()
+{
+	const URuntimeSplinePointBaseComponent* SplinePoint = Cast<URuntimeSplinePointBaseComponent>(ComponentWeakPtr.Get());
+	if (SplinePoint)
+	{
+		//TODO?
+	}
+	return HRuntimeSplinePrimitiveHitProxy::GetMouseCursor();
+}
+#endif

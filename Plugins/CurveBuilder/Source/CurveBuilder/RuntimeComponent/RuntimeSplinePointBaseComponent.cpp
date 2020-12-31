@@ -15,6 +15,7 @@ URuntimeSplinePointBaseComponent::URuntimeSplinePointBaseComponent(const FObject
 	{
 		bIsDuplicated = true;
 	}
+	CommandHelper = MakeShareable(new FRuntimeSplinePointCommandHelper(this));
 }
 
 void URuntimeSplinePointBaseComponent::BeginPlay()
@@ -315,10 +316,10 @@ void URuntimeSplinePointBaseComponent::SetCustomSelected(bool bValue)
 			if (bValue)
 			{
 				ParentSpline->SetCustomSelected(true);
-				if (IsValid(ParentSpline->SelectedPoint) && !ParentSpline->SelectedPoint->IsBeingDestroyed())
-				{
-					ParentSpline->SelectedPoint->SetCustomSelected(false);
-				}
+				//if (IsValid(ParentSpline->SelectedPoint) && !ParentSpline->SelectedPoint->IsBeingDestroyed())
+				//{
+				//	ParentSpline->SelectedPoint->SetCustomSelected(false);
+				//}
 				ParentSpline->SelectedPoint = this;
 			}
 			else if (ParentSpline->SelectedPoint == this)
@@ -400,4 +401,21 @@ void URuntimeSplinePointBaseComponent::MoveSplinePointInternal()
 		ParentSpline->UpdateTransformByCtrlPoint();
 		ParentSpline->OnUpdateTransform(EUpdateTransformFlags::None, ETeleportType::None);
 	}
+}
+
+void FRuntimeSplinePointCommandHelper::CapturedMouseMove(FViewport* InViewport, int32 InMouseX, int32 InMouseY)
+{
+	FRuntimeSplineCommandHelperBase::CapturedMouseMove(InViewport, InMouseX, InMouseY);
+}
+
+bool FRuntimeSplinePointCommandHelper::InputKey(FViewport* Viewport, int32 ControllerId, FKey Key, EInputEvent Event, float AmountDepressed, bool bGamepad)
+{
+	bool bBaseReturnValue = FRuntimeSplineCommandHelperBase::InputKey(Viewport, ControllerId, Key, Event, AmountDepressed, bGamepad);
+	return bBaseReturnValue;
+}
+
+bool FRuntimeSplinePointCommandHelper::InputAxis(FViewport* Viewport, int32 ControllerId, FKey Key, float Delta, float DeltaTime, int32 NumSamples, bool bGamepad)
+{
+	bool bBaseReturnValue = FRuntimeSplineCommandHelperBase::InputAxis(Viewport, ControllerId, Key, Delta, DeltaTime, NumSamples, bGamepad);
+	return bBaseReturnValue;
 }
