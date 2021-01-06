@@ -20,7 +20,8 @@ public:
 	FRuntimeSplinePointCommandHelper(class URuntimeSplinePointBaseComponent* Component = nullptr)
 		: FRuntimeSplineCommandHelperBase()
 		, ComponentWeakPtr(Component)
-	{}
+	{
+	}
 
 	virtual void CapturedMouseMove(FViewport* InViewport, int32 InMouseX, int32 InMouseY) override;
 

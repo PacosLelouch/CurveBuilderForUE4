@@ -6,6 +6,12 @@
 #include "SceneProxies/RuntimeCustomSplineSceneProxy.h"
 #include "PhysicsEngine/BodySetup.h"
 #include "SerializeUtils/SplineSerialize.h"
+#include "Framework/Commands/Commands.h"
+#include "Framework/Commands/UICommandInfo.h"
+#include "Framework/Multibox/MultiboxBuilder.h"
+#include "Framework/Application/SlateApplication.h"
+
+#define LOCTEXT_NAMESPACE "RuntimeSplineCommandHelper"
 
 static const auto LengthFactor = 100.f, InvLengthFactor = 1.f / 100.f;
 
@@ -15,12 +21,19 @@ URuntimeCustomSplineBaseComponent::URuntimeCustomSplineBaseComponent(const FObje
 	CustomSplinePointClass = URuntimeSplinePointBaseComponent::StaticClass();
 	bLastCreateCollisionByCurveLength = bCreateCollisionByCurveLength;
 	CollisionSegLength *= bCreateCollisionByCurveLength ? LengthFactor : 1.f;
-	CommandHelper = MakeShareable(new FRuntimeSplineCommandHelper(this));
 }
 
 void URuntimeCustomSplineBaseComponent::BeginPlay()
 {
 	Super::BeginPlay();
+}
+
+void URuntimeCustomSplineBaseComponent::OnComponentCreated()
+{
+	Super::OnComponentCreated();
+
+	CommandHelper = MakeShareable(new FRuntimeSplineCommandHelper(this));
+	CommandHelper.Get()->MapActions();
 }
 
 void URuntimeCustomSplineBaseComponent::OnComponentDestroyed(bool bDestroyingHierarchy)
@@ -527,55 +540,19 @@ void URuntimeCustomSplineBaseComponent::GetHermiteForms(
 
 void URuntimeCustomSplineBaseComponent::Reverse()
 {
-	auto* Spline = GetSplineProxy();
-	if (!Spline)
-	{
-		return;
-	}
-	TArray<TWeakPtr<FSpatialControlPoint3>> CPs;
-	TArray<FSpatialControlPoint3*> CPsRaw;
-	TMap<FSpatialControlPoint3* , URuntimeSplinePointBaseComponent*> CPMap;
-	CPMap.Reserve(Spline->GetCtrlPointNum());
-	Spline->GetCtrlPointStructs(CPs);
-	CPsRaw.Reserve(CPs.Num());
-	for (const auto& Ptr : CPs)
-	{
-		CPsRaw.Add(Ptr.Pin().Get());
-	}
-	for (URuntimeSplinePointBaseComponent* CPComp : PointComponents)
-	{
-		if(IsValid(CPComp) && !CPComp->IsBeingDestroyed() && CPComp->SplinePointProxy.IsValid())
-		CPMap.Add(CPComp->SplinePointProxy.Pin().Get(), CPComp);
-	}
-
-	Spline->Reverse();
-
-	TArray<TWeakPtr<FSpatialControlPoint3>> NewCPs;
-	Spline->GetCtrlPointStructs(NewCPs);
-	for (int32 i = 0; i < NewCPs.Num(); ++i)
-	{
-		FSpatialControlPoint3* OldCP = CPsRaw.Last(i);
-		URuntimeSplinePointBaseComponent* CPComp = CPMap[OldCP];
-		CPComp->SplinePointProxy = NewCPs[i];
-		CPComp->UpdateBounds();
-		CPComp->UpdateCollision();
-		CPComp->MarkRenderStateDirty();
-	}
-
-	UpdateBounds();
-	UpdateCollision();
-	MarkRenderStateDirty();
+	ReverseImpl();
 }
 
 void URuntimeCustomSplineBaseComponent::ClearSpline()
 {
 	if (IsValid(ParentGraph) && !ParentGraph->IsActorBeingDestroyed())
 	{
-		URuntimeCustomSplineBaseComponent** CompPtr = ParentGraph->SplineComponentMap.Find(SplineBaseWrapperProxy);
-		if (CompPtr && *CompPtr == this)
-		{
-			ParentGraph->SplineComponentMap.Remove(SplineBaseWrapperProxy);
-		}
+		ParentGraph->RemoveSplineFromGraph(this);
+		//URuntimeCustomSplineBaseComponent** CompPtr = ParentGraph->SplineComponentMap.Find(SplineBaseWrapperProxy);
+		//if (CompPtr && *CompPtr == this)
+		//{
+		//	ParentGraph->SplineComponentMap.Remove(SplineBaseWrapperProxy);
+		//}
 	}
 	if (PointComponents.Num() > 0)
 	{
@@ -701,6 +678,55 @@ void URuntimeCustomSplineBaseComponent::UpdateControlPointsLocation()
 			CPComp->UpdateComponentLocationBySpline();
 		}
 	}
+}
+
+void URuntimeCustomSplineBaseComponent::ReverseImpl()
+{
+	auto* Spline = GetSplineProxy();
+	if (!Spline)
+	{
+		return;
+	}
+	TArray<TWeakPtr<FSpatialControlPoint3>> CPs;
+	TArray<FSpatialControlPoint3*> CPsRaw;
+	TMap<FSpatialControlPoint3*, URuntimeSplinePointBaseComponent*> CPMap;
+	CPMap.Reserve(Spline->GetCtrlPointNum());
+	Spline->GetCtrlPointStructs(CPs);
+	CPsRaw.Reserve(CPs.Num());
+	for (const auto& Ptr : CPs)
+	{
+		CPsRaw.Add(Ptr.Pin().Get());
+	}
+	for (URuntimeSplinePointBaseComponent* CPComp : PointComponents)
+	{
+		if (IsValid(CPComp) && !CPComp->IsBeingDestroyed() && CPComp->SplinePointProxy.IsValid())
+			CPMap.Add(CPComp->SplinePointProxy.Pin().Get(), CPComp);
+	}
+
+	if (IsValid(ParentGraph) && !ParentGraph->IsActorBeingDestroyed())
+	{
+		ParentGraph->SplineGraphProxy.ReverseSpline(GetSplineProxyWeakPtr());
+	}
+	else
+	{
+		Spline->Reverse();
+	}
+
+	TArray<TWeakPtr<FSpatialControlPoint3>> NewCPs;
+	Spline->GetCtrlPointStructs(NewCPs);
+	for (int32 i = 0; i < NewCPs.Num(); ++i)
+	{
+		FSpatialControlPoint3* OldCP = CPsRaw.Last(i);
+		URuntimeSplinePointBaseComponent* CPComp = CPMap[OldCP];
+		CPComp->SplinePointProxy = NewCPs[i];
+		CPComp->UpdateBounds();
+		CPComp->UpdateCollision();
+		CPComp->MarkRenderStateDirty();
+	}
+
+	UpdateBounds();
+	UpdateCollision();
+	MarkRenderStateDirty();
 }
 
 TWeakPtr<FSpatialSplineGraph3::FSplineType> URuntimeCustomSplineBaseComponent::GetSplineProxyWeakPtr() const
@@ -889,3 +915,143 @@ bool FRuntimeSplineCommandHelper::InputAxis(FViewport* Viewport, int32 Controlle
 	bool bBaseReturnValue = FRuntimeSplineCommandHelperBase::InputAxis(Viewport, ControllerId, Key, Delta, DeltaTime, NumSamples, bGamepad);
 	return bBaseReturnValue;
 }
+
+void FRuntimeSplineCommandHelper::OnInsertControlPoint()
+{
+	auto* Component = ComponentWeakPtr.Get();
+	bool bSucceedReturn = false;
+	Component->InsertPoint(LastSnappedWorldPosition.GetValue(), bSucceedReturn, ECustomSplineCoordinateType::World);
+}
+
+bool FRuntimeSplineCommandHelper::CanInsertControlPoint() const
+{
+	if (!ComponentWeakPtr.IsValid() || !LastSnappedWorldPosition.IsSet())
+	{
+		return false;
+	}
+	if (ComponentWeakPtr->PointComponents.Num() < 4)
+	{
+		return false;
+	}
+
+	return true;
+}
+
+void FRuntimeSplineCommandHelper::OnAddNewSplineAtEnd()
+{
+	auto* Component = ComponentWeakPtr.Get();
+	auto* Graph = Component->ParentGraph;
+	bool bSucceedReturn = false;
+	Graph->ExtendNewSplineWithContinuity(bSucceedReturn, Component, true);
+}
+
+bool FRuntimeSplineCommandHelper::CanAddNewSplineAtEnd() const
+{
+	if (!ComponentWeakPtr.IsValid() || !LastSnappedWorldPosition.IsSet())
+	{
+		return false;
+	}
+	if (!IsValid(ComponentWeakPtr->ParentGraph) || ComponentWeakPtr->ParentGraph->IsActorBeingDestroyed())
+	{
+		return false;
+	}
+	if (ComponentWeakPtr->PointComponents.Num() < 2)
+	{
+		return false;
+	}
+	return true;
+}
+
+void FRuntimeSplineCommandHelper::OnAddNewSplineAtStart()
+{
+	auto* Component = ComponentWeakPtr.Get();
+	auto* Graph = Component->ParentGraph;
+	bool bSucceedReturn = false;
+	Graph->ExtendNewSplineWithContinuity(bSucceedReturn, Component, false);
+}
+
+bool FRuntimeSplineCommandHelper::CanAddNewSplineAtStart() const
+{
+	return CanAddNewSplineAtEnd();
+}
+
+void FRuntimeSplineCommandHelper::OnReverseSpline()
+{
+	auto* Component = ComponentWeakPtr.Get();
+	Component->Reverse();
+}
+
+bool FRuntimeSplineCommandHelper::CanReverseSpline() const
+{
+	if (!ComponentWeakPtr.IsValid() || !LastSnappedWorldPosition.IsSet())
+	{
+		return false;
+	}
+	if (!IsValid(ComponentWeakPtr->ParentGraph) || ComponentWeakPtr->ParentGraph->IsActorBeingDestroyed())
+	{
+		return false;
+	}
+	if (ComponentWeakPtr->PointComponents.Num() < 2)
+	{
+		return false;
+	}
+	return true;
+}
+
+void FRuntimeSplineCommandHelper::MapActions()
+{
+	const auto& Commands = FRuntimeSplineCommands::Get();
+
+	CommandList->MapAction(
+		Commands.InsertControlPoint,
+		FExecuteAction::CreateSP(this, &FRuntimeSplineCommandHelper::OnInsertControlPoint),
+		FCanExecuteAction::CreateSP(this, &FRuntimeSplineCommandHelper::CanInsertControlPoint));
+
+	CommandList->MapAction(
+		Commands.AddNewSplineAtEnd,
+		FExecuteAction::CreateSP(this, &FRuntimeSplineCommandHelper::OnAddNewSplineAtEnd),
+		FCanExecuteAction::CreateSP(this, &FRuntimeSplineCommandHelper::CanAddNewSplineAtEnd));
+
+	CommandList->MapAction(
+		Commands.AddNewSplineAtStart,
+		FExecuteAction::CreateSP(this, &FRuntimeSplineCommandHelper::OnAddNewSplineAtStart),
+		FCanExecuteAction::CreateSP(this, &FRuntimeSplineCommandHelper::CanAddNewSplineAtStart));
+
+	CommandList->MapAction(
+		Commands.ReverseSpline,
+		FExecuteAction::CreateSP(this, &FRuntimeSplineCommandHelper::OnReverseSpline),
+		FCanExecuteAction::CreateSP(this, &FRuntimeSplineCommandHelper::CanReverseSpline));
+}
+
+void FRuntimeSplineCommandHelper::GenerateContextMenuSections(FMenuBuilder& InMenuBuilder)
+{
+	InMenuBuilder.BeginSection("SplinePointEdit", LOCTEXT("SplinePoint", "Spline Point"));
+	{
+		InMenuBuilder.AddMenuEntry(FRuntimeSplineCommands::Get().InsertControlPoint);
+		InMenuBuilder.AddMenuEntry(FRuntimeSplineCommands::Get().AddNewSplineAtEnd);
+		InMenuBuilder.AddMenuEntry(FRuntimeSplineCommands::Get().AddNewSplineAtStart);
+		InMenuBuilder.AddMenuEntry(FRuntimeSplineCommands::Get().ReverseSpline);
+	}
+	InMenuBuilder.EndSection();
+}
+
+FRuntimeSplineCommands::FRuntimeSplineCommands()
+	: TCommands<FRuntimeSplineCommands>
+	(
+		"RuntimeSplineCommandHelper",	// Context name for fast lookup
+		LOCTEXT("RuntimeSplineCommandHelper", "Runtime Spline Command Helper"),	// Localized context name for displaying
+		NAME_None,	// Parent
+		FRuntimeSplineCommandHelperBase::GetSlateStyle().GetStyleSetName()
+	)
+{
+}
+
+void FRuntimeSplineCommands::RegisterCommands()
+{
+	UI_COMMAND(InsertControlPoint, "Insert Control Point", "Insert a control point here.", EUserInterfaceActionType::Button, FInputChord());
+	UI_COMMAND(AddNewSplineAtEnd, "Add New Spline At End", "Add new spline at end.", EUserInterfaceActionType::Button, FInputChord());
+	UI_COMMAND(AddNewSplineAtStart, "Add New Spline At Start", "Add new spline at start.", EUserInterfaceActionType::Button, FInputChord());
+	UI_COMMAND(ReverseSpline, "Reverse Spline", "Reverse spline without changing shape.", EUserInterfaceActionType::Button, FInputChord());
+}
+
+#undef LOCTEXT_NAMESPACE

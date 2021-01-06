@@ -79,6 +79,9 @@ public:
 	void ClearAllSplines();
 
 	UFUNCTION(BlueprintCallable, Category = "RuntimeCustomSpline|Update")
+	void RemoveSplineFromGraph(URuntimeCustomSplineBaseComponent* SplineToDelete);
+
+	UFUNCTION(BlueprintCallable, Category = "RuntimeCustomSpline|Update")
 	URuntimeCustomSplineBaseComponent* CreateNewActorWithEmptySpline(
 		ERuntimeSplineType SplineTypeToCreate = ERuntimeSplineType::ClampedBSpline);
 

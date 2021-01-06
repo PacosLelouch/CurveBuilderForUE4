@@ -15,11 +15,13 @@
 
 class FUICommandInfo;
 class ISlateStyle;
+class SWidget;
+class FMenuBuilder;
 
-class CURVEBUILDER_API FRuntimeSplineCommands : public TCommands<FRuntimeSplineCommands>
+class CURVEBUILDER_API FRuntimeSplineCommandsBase : public TCommands<FRuntimeSplineCommandsBase>
 {
 public:
-	FRuntimeSplineCommands();
+	FRuntimeSplineCommandsBase();
 
 	virtual void RegisterCommands() override;
 
@@ -92,20 +94,41 @@ public:
 
 	///** Reset this spline to its default */
 	//TSharedPtr<FUICommandInfo> ResetToDefault;
-
-public:
-	static TSharedRef<ISlateStyle> SlateStyle;
 };
 
-class CURVEBUILDER_API FRuntimeSplineCommandHelperBase
+class CURVEBUILDER_API FRuntimeSplineCommandHelperBase : public TSharedFromThis<FRuntimeSplineCommandHelperBase>
 {
 public:
+	FRuntimeSplineCommandHelperBase()
+		: CommandList(MakeShareable(new FUICommandList()))
+	{
+	}
+
+	virtual ~FRuntimeSplineCommandHelperBase() {}
+
+	virtual void MapActions();
+
+	virtual TSharedPtr<SWidget> GenerateContextMenu();
+
+	virtual void GenerateContextMenuSections(FMenuBuilder& InMenuBuilder);
 
 	virtual void CapturedMouseMove(FViewport* InViewport, int32 InMouseX, int32 InMouseY);
 
 	virtual bool InputKey(FViewport* Viewport, int32 ControllerId, FKey Key, EInputEvent Event, float AmountDepressed = 1.f, bool bGamepad = false);
 
 	virtual bool InputAxis(FViewport* Viewport, int32 ControllerId, FKey Key, float Delta, float DeltaTime, int32 NumSamples = 1, bool bGamepad = false);
+
+	virtual bool CreateMenuBarAt(const FVector& SnappedWorldPosition = FVector::ZeroVector, TSharedPtr<IMenu>* OpenedMenuPtr = nullptr);
+
+public:
+	TSharedPtr<FUICommandList> CommandList;
+
+	TOptional<FVector> LastSnappedWorldPosition;
+
+public:
+	static ISlateStyle& GetSlateStyle();
+
+	static TSharedPtr<ISlateStyle> SlateStyle;
 };
 
 UCLASS(BlueprintType, ClassGroup = CustomSpline, ShowCategories = (Mobility), HideCategories = (Physics, Lighting, Mobile), meta = (BlueprintSpawnableComponent))
@@ -154,6 +177,13 @@ public:
 	virtual void UpdateCollision();
 
 public:
+	UFUNCTION(BlueprintCallable, Category = "RuntimeCustomSpline|UI")
+	void OpenMenu(const FVector& SnappedWorldPosition);
+
+	UFUNCTION(BlueprintCallable, Category = "RuntimeCustomSpline|UI")
+	void CloseMenu();
+
+public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "RuntimeCustomSpline|Component")
 	ARuntimeSplineGraph* ParentGraph = nullptr;
 
@@ -178,6 +208,8 @@ public:
 
 public:
 	TSharedPtr<FRuntimeSplineCommandHelperBase> CommandHelper;
+
+	TSharedPtr<IMenu> OpenedMenu;
 
 public:
 	static ECollisionTraceFlag SpCompCollisionTraceFlag;

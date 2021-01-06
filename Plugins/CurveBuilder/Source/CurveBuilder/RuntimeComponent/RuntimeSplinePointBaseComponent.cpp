@@ -15,7 +15,6 @@ URuntimeSplinePointBaseComponent::URuntimeSplinePointBaseComponent(const FObject
 	{
 		bIsDuplicated = true;
 	}
-	CommandHelper = MakeShareable(new FRuntimeSplinePointCommandHelper(this));
 }
 
 void URuntimeSplinePointBaseComponent::BeginPlay()
@@ -96,6 +95,9 @@ void URuntimeSplinePointBaseComponent::OnComponentCreated()
 		}
 	}
 	UpdateCollision();
+
+	CommandHelper = MakeShareable(new FRuntimeSplinePointCommandHelper(this));
+	CommandHelper.Get()->MapActions();
 }
 
 void URuntimeSplinePointBaseComponent::OnComponentDestroyed(bool bDestroyingHierarchy)

@@ -11,19 +11,61 @@
 #include "../Compute/Splines/SplineGraph.h"
 #include "RuntimeCustomSplineBaseComponent.generated.h"
 
+class CURVEBUILDER_API FRuntimeSplineCommands : public TCommands<FRuntimeSplineCommands>
+{
+public:
+	FRuntimeSplineCommands();
+
+	virtual void RegisterCommands() override;
+
+public:
+	/** Insert control point here */
+	TSharedPtr<FUICommandInfo> InsertControlPoint;
+
+	/** Add new spline at end */
+	TSharedPtr<FUICommandInfo> AddNewSplineAtEnd;
+
+	/** Add new spline at start */
+	TSharedPtr<FUICommandInfo> AddNewSplineAtStart;
+
+	/** Reverse spline */
+	TSharedPtr<FUICommandInfo> ReverseSpline;
+};
+
 class CURVEBUILDER_API FRuntimeSplineCommandHelper : public FRuntimeSplineCommandHelperBase
 {
 public:
 	FRuntimeSplineCommandHelper(class URuntimeCustomSplineBaseComponent* Component = nullptr)
 		: FRuntimeSplineCommandHelperBase()
 		, ComponentWeakPtr(Component)
-	{}
+	{
+		FRuntimeSplineCommands::Register();
+	}
 
 	virtual void CapturedMouseMove(FViewport* InViewport, int32 InMouseX, int32 InMouseY) override;
 
 	virtual bool InputKey(FViewport* Viewport, int32 ControllerId, FKey Key, EInputEvent Event, float AmountDepressed = 1.f, bool bGamepad = false) override;
 
 	virtual bool InputAxis(FViewport* Viewport, int32 ControllerId, FKey Key, float Delta, float DeltaTime, int32 NumSamples = 1, bool bGamepad = false) override;
+
+protected:
+	void OnInsertControlPoint();
+	bool CanInsertControlPoint() const;
+
+	void OnAddNewSplineAtEnd();
+	bool CanAddNewSplineAtEnd() const;
+
+	void OnAddNewSplineAtStart();
+	bool CanAddNewSplineAtStart() const;
+
+	void OnReverseSpline();
+	bool CanReverseSpline() const;
+
+public:
+
+	virtual void MapActions() override;
+
+	virtual void GenerateContextMenuSections(FMenuBuilder& InMenuBuilder) override;
 
 public:
 	TWeakObjectPtr<URuntimeCustomSplineBaseComponent> ComponentWeakPtr;
@@ -40,6 +82,8 @@ public:
 	URuntimeCustomSplineBaseComponent(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
 	virtual void BeginPlay() override;
+
+	virtual void OnComponentCreated() override;
 
 	virtual void OnComponentDestroyed(bool bDestroyingHierarchy) override;
 
@@ -122,6 +166,9 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "RuntimeCustomSpline|Update")
 	void UpdateControlPointsLocation();
+
+public:
+	virtual void ReverseImpl();
 
 public:
 	TWeakPtr<FSpatialSplineGraph3::FSplineType> GetSplineProxyWeakPtr() const;

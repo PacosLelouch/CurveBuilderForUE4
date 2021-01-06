@@ -10,9 +10,6 @@
 #include "Curves/BezierCurve.h"
 #include "CurveOperations/BezierOperations.h"
 #include "Utils/Continuity.h"
-THIRD_PARTY_INCLUDES_START
-#include "Eigen/LU"
-THIRD_PARTY_INCLUDES_END
 
 template<int32 Dim>
 struct TBezierString3ControlPoint : public TSplineBaseControlPoint<Dim, 3>

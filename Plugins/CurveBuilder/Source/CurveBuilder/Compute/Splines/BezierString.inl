@@ -783,7 +783,10 @@ inline void TBezierString3<Dim>::Reverse()
 	for (const auto& Point : CtrlPointsList) {
 		NewList.AddHead(Point);
 		NewList.GetHead()->GetValueRef().Param = SumParam - NewList.GetHead()->GetValueRef().Param;
-		std::swap(NewList.GetHead()->GetValueRef().PrevCtrlPointPos, NewList.GetHead()->GetValueRef().NextCtrlPointPos);
+		TVectorX<Dim+1> TempPos = NewList.GetHead()->GetValueRef().PrevCtrlPointPos;
+		NewList.GetHead()->GetValueRef().PrevCtrlPointPos = NewList.GetHead()->GetValueRef().NextCtrlPointPos;
+		NewList.GetHead()->GetValueRef().NextCtrlPointPos = TempPos;
+		//std::swap(NewList.GetHead()->GetValueRef().PrevCtrlPointPos, NewList.GetHead()->GetValueRef().NextCtrlPointPos);
 	}
 	CtrlPointsList.Empty();
 	for (const FControlPointTypeRef& Point : NewList) {

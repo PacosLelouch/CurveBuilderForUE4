@@ -7,16 +7,22 @@
 #include "SceneProxies/RuntimeSplinePrimitiveSceneProxy.h"
 #include "PhysicsEngine/BodySetup.h"
 #include "Engine/StaticMesh.h"
+#include "Engine/Engine.h"
 #include "Styling/SlateStyle.h"
 #include "Styling/CoreStyle.h"
+#include "Widgets/SWidget.h"
+#include "Widgets/SViewport.h"
 #include "Framework/Commands/Commands.h"
 #include "Framework/Commands/UICommandInfo.h"
+#include "Framework/Multibox/MultiboxBuilder.h"
+#include "Framework/Application/SlateApplication.h"
 
 #define LOCTEXT_NAMESPACE "RuntimeSplineCommandHelper"
 
 DEFINE_LOG_CATEGORY_STATIC(LogRuntimeSplinePrimitiveComponent, Warning, All)
 
-TSharedRef<ISlateStyle> FRuntimeSplineCommands::SlateStyle = FCoreStyle::Create();
+// Initialize in static scope will crash after packaging.
+TSharedPtr<ISlateStyle> FRuntimeSplineCommandHelperBase::SlateStyle;
 
 ECollisionTraceFlag URuntimeSplinePrimitiveComponent::SpCompCollisionTraceFlag = ECollisionTraceFlag::CTF_UseSimpleAsComplex;
 
@@ -275,18 +281,35 @@ void URuntimeSplinePrimitiveComponent::UpdateCollision()
 	UE_LOG(LogRuntimeSplinePrimitiveComponent, Warning, TEXT("UpdateCollision not override."));
 }
 
-FRuntimeSplineCommands::FRuntimeSplineCommands()
-	: TCommands<FRuntimeSplineCommands>
+void URuntimeSplinePrimitiveComponent::OpenMenu(const FVector& SnappedWorldPosition)
+{
+	if (CommandHelper.IsValid())
+	{
+		CloseMenu();
+		CommandHelper.Get()->CreateMenuBarAt(SnappedWorldPosition, &OpenedMenu);
+	}
+}
+
+void URuntimeSplinePrimitiveComponent::CloseMenu()
+{
+	if (OpenedMenu.IsValid())
+	{
+		FSlateApplication::Get().DismissMenu(OpenedMenu);
+	}
+}
+
+FRuntimeSplineCommandsBase::FRuntimeSplineCommandsBase()
+	: TCommands<FRuntimeSplineCommandsBase>
 	(
 		"RuntimeSplineCommandHelper",	// Context name for fast lookup
 		LOCTEXT("RuntimeSplineCommandHelper", "Runtime Spline Command Helper"),	// Localized context name for displaying
 		NAME_None,	// Parent
-		SlateStyle.Get().GetStyleSetName()
+		FRuntimeSplineCommandHelperBase::GetSlateStyle().GetStyleSetName()
 	)
 {
 }
 
-void FRuntimeSplineCommands::RegisterCommands()
+void FRuntimeSplineCommandsBase::RegisterCommands()
 {
 	//UI_COMMAND(DeleteKey, "Delete Spline Point", "Delete the currently selected spline point.", EUserInterfaceActionType::Button, FInputChord(EKeys::Delete));
 	//UI_COMMAND(DuplicateKey, "Duplicate Spline Point", "Duplicate the currently selected spline point.", EUserInterfaceActionType::Button, FInputChord());
@@ -313,6 +336,118 @@ void FRuntimeSplineCommands::RegisterCommands()
 	//UI_COMMAND(ResetToDefault, "Reset to Default", "Reset this spline to its archetype default.", EUserInterfaceActionType::Button, FInputChord());
 }
 
+void FRuntimeSplineCommandHelperBase::MapActions()
+{
+}
+
+TSharedPtr<SWidget> FRuntimeSplineCommandHelperBase::GenerateContextMenu()
+{
+	if (!CommandList.IsValid())
+	{
+		//FRuntimeSplineCommandsBase::Register();
+		//MapActions();
+		return nullptr;
+	}
+
+	FMenuBuilder MenuBuilder(true, CommandList, TSharedPtr<FExtender>(), false, &GetSlateStyle());
+
+	GenerateContextMenuSections(MenuBuilder);
+
+	TSharedPtr<SWidget> MenuWidget = MenuBuilder.MakeWidget();
+	return MenuWidget;
+}
+
+void FRuntimeSplineCommandHelperBase::GenerateContextMenuSections(FMenuBuilder& InMenuBuilder)
+{
+	//InMenuBuilder.BeginSection("SplinePointEdit", LOCTEXT("SplinePoint", "Spline Point"));
+	//{
+	//	if (SelectedSegmentIndex != INDEX_NONE)
+	//	{
+	//		InMenuBuilder.AddMenuEntry(FSplineComponentVisualizerCommands::Get().AddKey);
+	//	}
+	//	else if (LastKeyIndexSelected != INDEX_NONE)
+	//	{
+	//		InMenuBuilder.AddMenuEntry(FSplineComponentVisualizerCommands::Get().DeleteKey);
+	//		InMenuBuilder.AddMenuEntry(FSplineComponentVisualizerCommands::Get().DuplicateKey);
+	//		InMenuBuilder.AddMenuEntry(FSplineComponentVisualizerCommands::Get().SelectAll);
+
+	//		InMenuBuilder.AddSubMenu(
+	//			LOCTEXT("SplinePointType", "Spline Point Type"),
+	//			LOCTEXT("SplinePointTypeTooltip", "Define the type of the spline point."),
+	//			FNewMenuDelegate::CreateSP(this, &FSplineComponentVisualizer::GenerateSplinePointTypeSubMenu));
+
+	//		// Only add the Automatic Tangents submenu if any of the keys is a curve type
+	//		USplineComponent* SplineComp = GetEditedSplineComponent();
+	//		if (SplineComp != nullptr)
+	//		{
+	//			for (int32 SelectedKeyIndex : SelectedKeys)
+	//			{
+	//				check(SelectedKeyIndex >= 0);
+	//				check(SelectedKeyIndex < SplineComp->GetNumberOfSplinePoints());
+	//				const auto& Point = SplineComp->SplineCurves.Position.Points[SelectedKeyIndex];
+	//				if (Point.IsCurveKey())
+	//				{
+	//					InMenuBuilder.AddSubMenu(
+	//						LOCTEXT("ResetToAutomaticTangent", "Reset to Automatic Tangent"),
+	//						LOCTEXT("ResetToAutomaticTangentTooltip", "Reset the spline point tangent to an automatically generated value."),
+	//						FNewMenuDelegate::CreateSP(this, &FSplineComponentVisualizer::GenerateTangentTypeSubMenu));
+	//					break;
+	//				}
+	//			}
+	//		}
+
+	//		InMenuBuilder.AddMenuEntry(
+	//			LOCTEXT("SplineGenerate", "Spline Generation Panel"),
+	//			LOCTEXT("SplineGenerateTooltip", "Opens up a spline generation panel to easily create basic shapes with splines"),
+	//			FSlateIcon(),
+	//			FUIAction(
+	//				FExecuteAction::CreateSP(const_cast<FSplineComponentVisualizer*>(this), &FSplineComponentVisualizer::CreateSplineGeneratorPanel),
+	//				FCanExecuteAction::CreateLambda([] { return true; })
+	//			)
+	//		);
+	//	}
+	//}
+	//InMenuBuilder.EndSection();
+
+	//InMenuBuilder.BeginSection("Transform");
+	//{
+	//	InMenuBuilder.AddMenuEntry(FSplineComponentVisualizerCommands::Get().FocusViewportToSelection);
+
+	//	InMenuBuilder.AddSubMenu(
+	//		LOCTEXT("SnapAlign", "Snap/Align"),
+	//		LOCTEXT("SnapAlignTooltip", "Snap align options."),
+	//		FNewMenuDelegate::CreateSP(this, &FSplineComponentVisualizer::GenerateSnapAlignSubMenu));
+
+	//	/* temporarily disabled
+	//	InMenuBuilder.AddSubMenu(
+	//		LOCTEXT("LockAxis", "Lock Axis"),
+	//		LOCTEXT("LockAxisTooltip", "Axis to lock when adding new spline points."),
+	//		FNewMenuDelegate::CreateSP(this, &FSplineComponentVisualizer::GenerateLockAxisSubMenu));
+	//		*/
+	//}
+	//InMenuBuilder.EndSection();
+
+	//InMenuBuilder.BeginSection("Spline", LOCTEXT("Spline", "Spline"));
+	//{
+	//	InMenuBuilder.AddMenuEntry(FSplineComponentVisualizerCommands::Get().ResetToDefault);
+	//}
+	//InMenuBuilder.EndSection();
+
+	//InMenuBuilder.BeginSection("Visualization", LOCTEXT("Visualization", "Visualization"));
+	//{
+	//	InMenuBuilder.AddMenuEntry(FSplineComponentVisualizerCommands::Get().VisualizeRollAndScale);
+	//	InMenuBuilder.AddMenuEntry(FSplineComponentVisualizerCommands::Get().DiscontinuousSpline);
+	//}
+	//InMenuBuilder.EndSection();
+}
+
+//void FSplineComponentVisualizer::GenerateSplinePointTypeSubMenu(FMenuBuilder& MenuBuilder) const
+//{
+//	MenuBuilder.AddMenuEntry(FSplineComponentVisualizerCommands::Get().SetKeyToCurve);
+//	MenuBuilder.AddMenuEntry(FSplineComponentVisualizerCommands::Get().SetKeyToLinear);
+//	MenuBuilder.AddMenuEntry(FSplineComponentVisualizerCommands::Get().SetKeyToConstant);
+//}
+
 void FRuntimeSplineCommandHelperBase::CapturedMouseMove(FViewport* InViewport, int32 InMouseX, int32 InMouseY)
 {
 	UE_LOG(LogRuntimeSplinePrimitiveComponent, Log, TEXT("FRuntimeSplineCommandHelperBase::CapturedMouseMove: <%d, %d>"), InMouseX, InMouseY);
@@ -330,6 +465,50 @@ bool FRuntimeSplineCommandHelperBase::InputAxis(FViewport* Viewport, int32 Contr
 	UE_LOG(LogRuntimeSplinePrimitiveComponent, Log, TEXT("FRuntimeSplineCommandHelperBase::InputAxis: CtrlId: %d, Key: %s, Delta: %f, DeltaTime: %f, NumSamples: %d, Gamepad: %d"),
 		ControllerId, *Key.ToString(), Delta, DeltaTime, NumSamples, bGamepad);
 	return false;
+}
+
+bool FRuntimeSplineCommandHelperBase::CreateMenuBarAt(const FVector& SnappedWorldPosition, TSharedPtr<IMenu>* OpenedMenuPtr)
+{
+	TSharedPtr<SWidget> MenuWidget = GenerateContextMenu();
+	if (!MenuWidget.IsValid())
+	{
+		return false;
+	}
+	
+	if (!IsValid(GEngine) || !IsValid(GEngine->GameViewport))
+	{
+		return false;
+	}
+	
+	TSharedPtr<SViewport> GameViewportWidget = GEngine->GameViewport->GetGameViewportWidget();
+	if (!GameViewportWidget.IsValid())
+	{
+		return false;
+	}
+
+	TSharedPtr<IMenu> OpenedMenu = FSlateApplication::Get().PushMenu(
+		GameViewportWidget.ToSharedRef(),
+		FWidgetPath(),
+		MenuWidget.ToSharedRef(),
+		FSlateApplication::Get().GetCursorPos(), 
+		FPopupTransitionEffect(FPopupTransitionEffect::ContextMenu));
+	LastSnappedWorldPosition = SnappedWorldPosition;
+
+	if (OpenedMenuPtr)
+	{
+		*OpenedMenuPtr = OpenedMenu;
+	}
+
+	return true;
+}
+
+ISlateStyle& FRuntimeSplineCommandHelperBase::GetSlateStyle()
+{
+	if (!SlateStyle.IsValid())
+	{
+		SlateStyle = TSharedPtr<ISlateStyle>(FCoreStyle::Create());
+	}
+	return *SlateStyle.Get();
 }
 
 #undef LOCTEXT_NAMESPACE

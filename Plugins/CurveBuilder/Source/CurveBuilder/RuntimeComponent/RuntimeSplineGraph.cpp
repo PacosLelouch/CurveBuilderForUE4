@@ -121,6 +121,21 @@ void ARuntimeSplineGraph::ClearAllSplines()
 	SplineComponentMap.Empty();
 }
 
+void ARuntimeSplineGraph::RemoveSplineFromGraph(URuntimeCustomSplineBaseComponent* SplineToDelete)
+{
+	if (!IsValid(SplineToDelete) || !SplineToDelete->SplineBaseWrapperProxy.IsValid())
+	{
+		return;
+	}
+
+	URuntimeCustomSplineBaseComponent** CompPtr = SplineComponentMap.Find(SplineToDelete->SplineBaseWrapperProxy);
+	if (CompPtr && *CompPtr == SplineToDelete)
+	{
+		SplineGraphProxy.DeleteSpline(SplineToDelete->SplineBaseWrapperProxy.Get()->Spline);
+		SplineComponentMap.Remove(SplineToDelete->SplineBaseWrapperProxy);
+	}
+}
+
 URuntimeCustomSplineBaseComponent* ARuntimeSplineGraph::CreateNewActorWithEmptySpline(ERuntimeSplineType SplineTypeToCreate)
 {
 	TWeakPtr<FSpatialSplineBase3> SplineWeakPtr = SplineGraphProxy.AddDefaulted(GetInternalSplineType(SplineTypeToCreate));
