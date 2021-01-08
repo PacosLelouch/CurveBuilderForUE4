@@ -357,7 +357,7 @@ TSharedPtr<SWidget> FRuntimeSplineCommandHelperBase::GenerateContextMenu()
 	return MenuWidget;
 }
 
-void FRuntimeSplineCommandHelperBase::GenerateContextMenuSections(FMenuBuilder& InMenuBuilder)
+void FRuntimeSplineCommandHelperBase::GenerateContextMenuSections(FMenuBuilder& InMenuBuilder) const
 {
 	//InMenuBuilder.BeginSection("SplinePointEdit", LOCTEXT("SplinePoint", "Spline Point"));
 	//{

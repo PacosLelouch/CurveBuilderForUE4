@@ -52,20 +52,22 @@ protected:
 	void OnInsertControlPoint();
 	bool CanInsertControlPoint() const;
 
-	void OnAddNewSplineAtEnd();
-	bool CanAddNewSplineAtEnd() const;
+	void OnAddNewSplineAdj(bool bAtLast);
+	bool CanAddNewSplineAdj() const;
 
-	void OnAddNewSplineAtStart();
-	bool CanAddNewSplineAtStart() const;
+	//void OnAddNewSplineAtStart();
+	//bool CanAddNewSplineAtStart() const;
 
 	void OnReverseSpline();
 	bool CanReverseSpline() const;
 
 public:
-
 	virtual void MapActions() override;
 
-	virtual void GenerateContextMenuSections(FMenuBuilder& InMenuBuilder) override;
+	virtual void GenerateContextMenuSections(FMenuBuilder& InMenuBuilder) const override;
+
+protected:
+	virtual void GenerateContextMenu_AddNewSpline(FMenuBuilder& InMenuBuilder) const;
 
 public:
 	TWeakObjectPtr<URuntimeCustomSplineBaseComponent> ComponentWeakPtr;

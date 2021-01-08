@@ -70,13 +70,22 @@ public:
 	bool CheckSplineHasConnection(URuntimeCustomSplineBaseComponent* SplineComponent, bool bAtLast = true);
 
 	UFUNCTION(BlueprintPure, Category = "RuntimeCustomSpline|Query")
-	void GetAdjacentSplines(TArray<URuntimeCustomSplineBaseComponent*>& OutAdjacentSplines, URuntimeCustomSplineBaseComponent* SourceSpline, bool bForward = true);
+	void GetAdjacentSplines(TMap<URuntimeCustomSplineBaseComponent*, bool>& OutAdjacentSplinesAndForward, URuntimeCustomSplineBaseComponent* SourceSpline, bool bForward = true);
 
 	UFUNCTION(BlueprintPure, Category = "RuntimeCustomSpline|Query")
 	void GetClusterSplinesWithoutSource(TMap<URuntimeCustomSplineBaseComponent*, int32>& OutClusterSplinesWithDistance, URuntimeCustomSplineBaseComponent* SourceSpline, bool bForward = true);
 
 	UFUNCTION(BlueprintCallable, Category = "RuntimeCustomSpline|Update")
 	void ClearAllSplines();
+
+	UFUNCTION(BlueprintCallable, Category = "RuntimeCustomSpline|Update")
+	void SplitConnection(URuntimeCustomSplineBaseComponent* Source, URuntimeCustomSplineBaseComponent* Target, bool bForward = true);
+
+	UFUNCTION(BlueprintCallable, Category = "RuntimeCustomSpline|Update")
+	URuntimeCustomSplineBaseComponent* ConnectAndFill(
+		URuntimeCustomSplineBaseComponent* Source, URuntimeCustomSplineBaseComponent* Target,
+		bool bSourceForward = true, bool bTargetForward = false,
+		bool bFillInSource = true);
 
 	UFUNCTION(BlueprintCallable, Category = "RuntimeCustomSpline|Update")
 	void RemoveSplineFromGraph(URuntimeCustomSplineBaseComponent* SplineToDelete);

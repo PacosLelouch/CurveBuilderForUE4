@@ -14,6 +14,30 @@
 
 class URuntimeCustomSplineBaseComponent;
 
+class CURVEBUILDER_API FRuntimeSplinePointCommands : public TCommands<FRuntimeSplinePointCommands>
+{
+public:
+	FRuntimeSplinePointCommands();
+
+	virtual void RegisterCommands() override;
+
+public:
+	/** Split connection here */
+	TSharedPtr<FUICommandInfo> SplitConnection;
+
+	/** Connect and fill splines */
+	TSharedPtr<FUICommandInfo> ConnectAndFillSplinesEnd;
+
+	/** Connect and fill splines */
+	TSharedPtr<FUICommandInfo> ConnectAndFillSplinesStart;
+
+	/** Create and fill splines */
+	TSharedPtr<FUICommandInfo> CreateAndConnectSplinesEnd;
+
+	/** Create and fill splines */
+	TSharedPtr<FUICommandInfo> CreateAndConnectSplinesStart;
+};
+
 class CURVEBUILDER_API FRuntimeSplinePointCommandHelper : public FRuntimeSplineCommandHelperBase
 {
 public:
@@ -21,6 +45,7 @@ public:
 		: FRuntimeSplineCommandHelperBase()
 		, ComponentWeakPtr(Component)
 	{
+		FRuntimeSplinePointCommands::Register();
 	}
 
 	virtual void CapturedMouseMove(FViewport* InViewport, int32 InMouseX, int32 InMouseY) override;
@@ -28,6 +53,22 @@ public:
 	virtual bool InputKey(FViewport* Viewport, int32 ControllerId, FKey Key, EInputEvent Event, float AmountDepressed = 1.f, bool bGamepad = false) override;
 
 	virtual bool InputAxis(FViewport* Viewport, int32 ControllerId, FKey Key, float Delta, float DeltaTime, int32 NumSamples = 1, bool bGamepad = false) override;
+
+protected:
+	bool IsPointAndSplineValid() const;
+	bool IsGraphValid() const;
+	bool CheckPointIsEndPointOrNot(EContactType& OutContactType) const;
+
+	void OnSplitConnection();
+	bool CanSplitConnection() const;
+
+	void OnConnectAndFillSplines(bool bForward, bool bFillInSource);
+	bool CanConnectAndFillSplines() const;
+
+public:
+	virtual void MapActions() override;
+
+	virtual void GenerateContextMenuSections(FMenuBuilder& InMenuBuilder) const override;
 
 public:
 	TWeakObjectPtr<URuntimeSplinePointBaseComponent> ComponentWeakPtr;

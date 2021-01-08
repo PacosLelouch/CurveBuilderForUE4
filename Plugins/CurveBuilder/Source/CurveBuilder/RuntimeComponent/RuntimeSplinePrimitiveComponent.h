@@ -110,7 +110,7 @@ public:
 
 	virtual TSharedPtr<SWidget> GenerateContextMenu();
 
-	virtual void GenerateContextMenuSections(FMenuBuilder& InMenuBuilder);
+	virtual void GenerateContextMenuSections(FMenuBuilder& InMenuBuilder) const;
 
 	virtual void CapturedMouseMove(FViewport* InViewport, int32 InMouseX, int32 InMouseY);
 

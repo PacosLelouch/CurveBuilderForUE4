@@ -74,19 +74,20 @@ bool ARuntimeSplineGraph::CheckSplineHasConnection(URuntimeCustomSplineBaseCompo
 	return false;
 }
 
-void ARuntimeSplineGraph::GetAdjacentSplines(TArray<URuntimeCustomSplineBaseComponent*>& OutAdjacentSplines, URuntimeCustomSplineBaseComponent* SourceSpline, bool bForward)
+void ARuntimeSplineGraph::GetAdjacentSplines(TMap<URuntimeCustomSplineBaseComponent*, bool>& OutAdjacentSplinesAndForward, URuntimeCustomSplineBaseComponent* SourceSpline, bool bForward)
 {
 	if (IsValid(SourceSpline) && !SourceSpline->IsBeingDestroyed())
 	{
-		TArray<TWeakPtr<FSpatialSplineGraph3::FSplineWrapper> > ConnectedSplineWrappers;
-		SplineGraphProxy.HasConnection(SourceSpline->GetSplineProxyWeakPtr(), bForward ? EContactType::End : EContactType::Start, &ConnectedSplineWrappers);
-		OutAdjacentSplines.Empty(ConnectedSplineWrappers.Num());
-		for (const auto& Wrapper : ConnectedSplineWrappers)
+		TArray<FSpatialSplineGraph3::FGraphNode> ConnectedSplineNodes;
+		//TArray<TWeakPtr<FSpatialSplineGraph3::FSplineWrapper> > ConnectedSplineWrappers;
+		SplineGraphProxy.HasConnection(SourceSpline->GetSplineProxyWeakPtr(), bForward ? EContactType::End : EContactType::Start, &ConnectedSplineNodes);
+		OutAdjacentSplinesAndForward.Empty(ConnectedSplineNodes.Num());
+		for (const auto& Node : ConnectedSplineNodes)
 		{
-			URuntimeCustomSplineBaseComponent** CompPtr = SplineComponentMap.Find(Wrapper.Pin());
+			URuntimeCustomSplineBaseComponent** CompPtr = SplineComponentMap.Find(Node.SplineWrapper.Pin());
 			if (CompPtr)
 			{
-				OutAdjacentSplines.Add(*CompPtr);
+				OutAdjacentSplinesAndForward.Add(*CompPtr, Node.ContactType == EContactType::End ? true : false);
 			}
 		}
 	}
@@ -119,6 +120,90 @@ void ARuntimeSplineGraph::ClearAllSplines()
 	}
 	SplineGraphProxy.Empty();
 	SplineComponentMap.Empty();
+}
+
+void ARuntimeSplineGraph::SplitConnection(URuntimeCustomSplineBaseComponent* Source, URuntimeCustomSplineBaseComponent* Target, bool bForward)
+{
+	if (!IsValid(Source) || Source->IsBeingDestroyed() || !IsValid(Target) || Target->IsBeingDestroyed())
+	{
+		return;
+	}
+	SplineGraphProxy.SplitConnection(
+		Target->SplineBaseWrapperProxy.Get()->Spline,
+		Source->SplineBaseWrapperProxy.Get()->Spline,
+		bForward ? EContactType::End : EContactType::Start);
+}
+
+URuntimeCustomSplineBaseComponent* ARuntimeSplineGraph::ConnectAndFill(
+	URuntimeCustomSplineBaseComponent* Source, URuntimeCustomSplineBaseComponent* Target, 
+	bool bSourceForward, bool bTargetForward, 
+	bool bFillInSource)
+{
+	if (!IsValid(Source) || Source->IsBeingDestroyed() || !IsValid(Target) || Target->IsBeingDestroyed())
+	{
+		return nullptr;
+	}
+	TWeakPtr<FSpatialSplineBase3> ReturnSplineWeakPtr = SplineGraphProxy.ConnectAndFill(
+		Source->SplineBaseWrapperProxy.Get()->Spline, Target->SplineBaseWrapperProxy.Get()->Spline,
+		bSourceForward ? EContactType::End : EContactType::Start,
+		bTargetForward ? EContactType::End : EContactType::Start,
+		bFillInSource);
+
+	if (!ReturnSplineWeakPtr.IsValid())
+	{
+		return nullptr;
+	}
+
+	if (!bFillInSource)
+	{
+		auto* NewSplineComponent = CreateSplineActorInternal(ReturnSplineWeakPtr);
+		return NewSplineComponent;
+	}
+	else // Fill in source. Need to bind new points.
+	{
+		TArray<TWeakPtr<FSpatialControlPoint3> > NewCtrlPointStructs;
+		auto* SourceSpline = ReturnSplineWeakPtr.Pin().Get();
+		switch (SourceSpline->GetType())
+		{
+		case ESplineType::ClampedBSpline:
+		{
+			auto* SBSpline = static_cast<TSplineTraitByType<ESplineType::ClampedBSpline, 3, 3>::FSplineType*>(SourceSpline);
+			TSplineTraitByType<ESplineType::ClampedBSpline, 3, 3>::FSplineType::FPointNode* FirstNode = nullptr;
+			TSplineTraitByType<ESplineType::ClampedBSpline, 3, 3>::FSplineType::FPointNode* SecondNode = nullptr;
+			if (bSourceForward)
+			{
+				SecondNode = SBSpline->LastNode();
+				FirstNode = SecondNode->GetPrevNode();
+			}
+			else
+			{
+				SecondNode = SBSpline->FirstNode();
+				FirstNode = SecondNode->GetNextNode();
+			}
+			NewCtrlPointStructs.Add(FirstNode->GetValue());
+			NewCtrlPointStructs.Add(SecondNode->GetValue());
+		}
+			break;
+		case ESplineType::BezierString:
+		{
+			auto* SBeziers = static_cast<TSplineTraitByType<ESplineType::BezierString, 3, 3>::FSplineType*>(SourceSpline);
+			TSplineTraitByType<ESplineType::BezierString, 3, 3>::FSplineType::FPointNode* FirstNode = nullptr;
+			if (bSourceForward)
+			{
+				FirstNode = SBeziers->LastNode();
+			}
+			else
+			{
+				FirstNode = SBeziers->FirstNode();
+			}
+			NewCtrlPointStructs.Add(FirstNode->GetValue());
+		}
+			break;
+		}
+
+		AddUnbindingPointsInternal(NewCtrlPointStructs, Source);
+	}
+	return Source;
 }
 
 void ARuntimeSplineGraph::RemoveSplineFromGraph(URuntimeCustomSplineBaseComponent* SplineToDelete)

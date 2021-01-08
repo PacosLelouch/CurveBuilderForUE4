@@ -937,15 +937,15 @@ bool FRuntimeSplineCommandHelper::CanInsertControlPoint() const
 	return true;
 }
 
-void FRuntimeSplineCommandHelper::OnAddNewSplineAtEnd()
+void FRuntimeSplineCommandHelper::OnAddNewSplineAdj(bool bAtLast)
 {
 	auto* Component = ComponentWeakPtr.Get();
 	auto* Graph = Component->ParentGraph;
 	bool bSucceedReturn = false;
-	Graph->ExtendNewSplineWithContinuity(bSucceedReturn, Component, true);
+	Graph->ExtendNewSplineWithContinuity(bSucceedReturn, Component, bAtLast);
 }
 
-bool FRuntimeSplineCommandHelper::CanAddNewSplineAtEnd() const
+bool FRuntimeSplineCommandHelper::CanAddNewSplineAdj() const
 {
 	if (!ComponentWeakPtr.IsValid() || !LastSnappedWorldPosition.IsSet())
 	{
@@ -961,19 +961,19 @@ bool FRuntimeSplineCommandHelper::CanAddNewSplineAtEnd() const
 	}
 	return true;
 }
-
-void FRuntimeSplineCommandHelper::OnAddNewSplineAtStart()
-{
-	auto* Component = ComponentWeakPtr.Get();
-	auto* Graph = Component->ParentGraph;
-	bool bSucceedReturn = false;
-	Graph->ExtendNewSplineWithContinuity(bSucceedReturn, Component, false);
-}
-
-bool FRuntimeSplineCommandHelper::CanAddNewSplineAtStart() const
-{
-	return CanAddNewSplineAtEnd();
-}
+//
+//void FRuntimeSplineCommandHelper::OnAddNewSplineAtStart()
+//{
+//	auto* Component = ComponentWeakPtr.Get();
+//	auto* Graph = Component->ParentGraph;
+//	bool bSucceedReturn = false;
+//	Graph->ExtendNewSplineWithContinuity(bSucceedReturn, Component, false);
+//}
+//
+//bool FRuntimeSplineCommandHelper::CanAddNewSplineAtStart() const
+//{
+//	return CanAddNewSplineAdj();
+//}
 
 void FRuntimeSplineCommandHelper::OnReverseSpline()
 {
@@ -1009,13 +1009,13 @@ void FRuntimeSplineCommandHelper::MapActions()
 
 	CommandList->MapAction(
 		Commands.AddNewSplineAtEnd,
-		FExecuteAction::CreateSP(this, &FRuntimeSplineCommandHelper::OnAddNewSplineAtEnd),
-		FCanExecuteAction::CreateSP(this, &FRuntimeSplineCommandHelper::CanAddNewSplineAtEnd));
+		FExecuteAction::CreateSP(this, &FRuntimeSplineCommandHelper::OnAddNewSplineAdj, true),
+		FCanExecuteAction::CreateSP(this, &FRuntimeSplineCommandHelper::CanAddNewSplineAdj));
 
 	CommandList->MapAction(
 		Commands.AddNewSplineAtStart,
-		FExecuteAction::CreateSP(this, &FRuntimeSplineCommandHelper::OnAddNewSplineAtStart),
-		FCanExecuteAction::CreateSP(this, &FRuntimeSplineCommandHelper::CanAddNewSplineAtStart));
+		FExecuteAction::CreateSP(this, &FRuntimeSplineCommandHelper::OnAddNewSplineAdj, false),
+		FCanExecuteAction::CreateSP(this, &FRuntimeSplineCommandHelper::CanAddNewSplineAdj));
 
 	CommandList->MapAction(
 		Commands.ReverseSpline,
@@ -1023,16 +1023,27 @@ void FRuntimeSplineCommandHelper::MapActions()
 		FCanExecuteAction::CreateSP(this, &FRuntimeSplineCommandHelper::CanReverseSpline));
 }
 
-void FRuntimeSplineCommandHelper::GenerateContextMenuSections(FMenuBuilder& InMenuBuilder)
+void FRuntimeSplineCommandHelper::GenerateContextMenuSections(FMenuBuilder& InMenuBuilder) const
 {
-	InMenuBuilder.BeginSection("SplinePointEdit", LOCTEXT("SplinePoint", "Spline Point"));
+	InMenuBuilder.BeginSection("SplineEdit", LOCTEXT("Spline", "Spline"));
 	{
 		InMenuBuilder.AddMenuEntry(FRuntimeSplineCommands::Get().InsertControlPoint);
-		InMenuBuilder.AddMenuEntry(FRuntimeSplineCommands::Get().AddNewSplineAtEnd);
-		InMenuBuilder.AddMenuEntry(FRuntimeSplineCommands::Get().AddNewSplineAtStart);
+		// Why assertion failed?
+		//InMenuBuilder.AddSubMenu(
+		//	LOCTEXT("AddNewSpline", "Add New Spline"),
+		//	LOCTEXT("AddNewSplineTooltip", "Add new spline at start or end."),
+		//	FNewMenuDelegate::CreateSP(this, &FRuntimeSplineCommandHelper::GenerateContextMenu_AddNewSpline));
+		GenerateContextMenu_AddNewSpline(InMenuBuilder);
+
 		InMenuBuilder.AddMenuEntry(FRuntimeSplineCommands::Get().ReverseSpline);
 	}
 	InMenuBuilder.EndSection();
+}
+
+void FRuntimeSplineCommandHelper::GenerateContextMenu_AddNewSpline(FMenuBuilder& InMenuBuilder) const
+{
+	InMenuBuilder.AddMenuEntry(FRuntimeSplineCommands::Get().AddNewSplineAtEnd);
+	InMenuBuilder.AddMenuEntry(FRuntimeSplineCommands::Get().AddNewSplineAtStart);
 }
 
 FRuntimeSplineCommands::FRuntimeSplineCommands()

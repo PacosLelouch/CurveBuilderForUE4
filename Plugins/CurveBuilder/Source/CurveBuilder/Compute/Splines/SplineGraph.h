@@ -90,7 +90,16 @@ public:
 
 	virtual TWeakPtr<FSplineType> CreateSplineBesidesExisted(TWeakPtr<FSplineType> Prev, EContactType Direction = EContactType::End, int32 EndContinuity = 1, TArray<TWeakPtr<FControlPointType>>* NewControlPointStructsPtr = nullptr);
 
-	virtual void Connect(TWeakPtr<FSplineType> Previous, TWeakPtr<FSplineType> Next, EContactType NextContactType = EContactType::Start);
+	virtual void VirtualConnectFromPrevEnd(TWeakPtr<FSplineType> Prev, TWeakPtr<FSplineType> Next, EContactType NextContactType = EContactType::Start);
+
+	virtual void VirtualConnect(
+		TWeakPtr<FSplineType> Previous, TWeakPtr<FSplineType> Next, 
+		EContactType PrevContactType = EContactType::End, EContactType NextContactType = EContactType::Start);
+
+	virtual TWeakPtr<FSplineType> ConnectAndFill(
+		TWeakPtr<FSplineType> Source, TWeakPtr<FSplineType> Target,
+		EContactType SourceContactType = EContactType::End, EContactType TargetContactType = EContactType::Start,
+		bool bFillInSource = true);
 
 	virtual void SplitConnection(TWeakPtr<FSplineType> Previous, TWeakPtr<FSplineType> Next, EContactType NextContactType = EContactType::Start);
 
@@ -113,7 +122,7 @@ public:
 
 	virtual bool HasConnection(
 		TWeakPtr<FSplineType> SplinePtr, EContactType Direction = EContactType::End, 
-		TArray<TWeakPtr<FSplineWrapper>>* ConnectedSplineWrappers = nullptr) const;
+		TArray<FGraphNode>* ConnectedSplineNodes = nullptr) const;
 
 	virtual void ChangeSplineType(TWeakPtr<FSplineType>& SplinePtr, ESplineType NewType);
 
