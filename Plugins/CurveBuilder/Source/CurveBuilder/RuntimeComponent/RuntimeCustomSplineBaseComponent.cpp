@@ -31,9 +31,7 @@ void URuntimeCustomSplineBaseComponent::BeginPlay()
 void URuntimeCustomSplineBaseComponent::OnComponentCreated()
 {
 	Super::OnComponentCreated();
-
-	CommandHelper = MakeShareable(new FRuntimeSplineCommandHelper(this));
-	CommandHelper.Get()->MapActions();
+	InitializeCommandHelper();
 }
 
 void URuntimeCustomSplineBaseComponent::OnComponentDestroyed(bool bDestroyingHierarchy)
@@ -56,7 +54,7 @@ void URuntimeCustomSplineBaseComponent::OnAttachmentChanged()
 bool URuntimeCustomSplineBaseComponent::MoveComponentImpl(const FVector& Delta, const FQuat& NewRotation, bool bSweep, FHitResult* Hit, EMoveComponentFlags MoveFlags, ETeleportType Teleport)
 {
 	bool bReturnValue = Super::MoveComponentImpl(Delta, NewRotation, bSweep, Hit, MoveFlags, Teleport);
-	if (bReturnValue)
+	if (bReturnValue && !Delta.IsNearlyZero(1e-3))
 	{
 		UpdateTransformByCtrlPoint();
 	}
@@ -273,6 +271,12 @@ void URuntimeCustomSplineBaseComponent::UpdateCollision()
 //		UpdateCollision();
 //	}
 //}
+
+void URuntimeCustomSplineBaseComponent::InitializeCommandHelper()
+{
+	CommandHelper = MakeShareable(new FRuntimeSplineCommandHelper(this));
+	CommandHelper.Get()->MapActions();
+}
 
 #if WITH_EDITOR
 void URuntimeCustomSplineBaseComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
@@ -803,7 +807,7 @@ URuntimeSplinePointBaseComponent* URuntimeCustomSplineBaseComponent::AddPointInt
 void URuntimeCustomSplineBaseComponent::UpdateTransformByCtrlPoint()
 {
 	auto* Spline = GetSplineProxy();
-	if (Spline && Spline->GetCtrlPointNum() > 0)
+	if (IsValid(this) && !this->IsBeingDestroyed() && Spline && Spline->GetCtrlPointNum() > 0)
 	{
 		TTuple<double, double> ParamRange = Spline->GetParamRange();
 		FVector SplineLocalPosition = Spline->GetPosition(ParamRange.Get<0>());

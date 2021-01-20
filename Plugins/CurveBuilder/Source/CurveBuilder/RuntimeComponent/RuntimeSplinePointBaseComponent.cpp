@@ -100,8 +100,7 @@ void URuntimeSplinePointBaseComponent::OnComponentCreated()
 	}
 	UpdateCollision();
 
-	CommandHelper = MakeShareable(new FRuntimeSplinePointCommandHelper(this));
-	CommandHelper.Get()->MapActions();
+	InitializeCommandHelper();
 }
 
 void URuntimeSplinePointBaseComponent::OnComponentDestroyed(bool bDestroyingHierarchy)
@@ -272,6 +271,12 @@ bool URuntimeSplinePointBaseComponent::MoveComponentImpl(const FVector& Delta, c
 	return bReturn;
 }
 
+void URuntimeSplinePointBaseComponent::InitializeCommandHelper()
+{
+	CommandHelper = MakeShareable(new FRuntimeSplinePointCommandHelper(this));
+	CommandHelper.Get()->MapActions();
+}
+
 #if WITH_EDITOR
 void URuntimeSplinePointBaseComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
@@ -394,6 +399,14 @@ void URuntimeSplinePointBaseComponent::UpdateComponentLocationBySpline()
 	}
 }
 
+bool URuntimeSplinePointBaseComponent::IsEndPoint(bool& bIsForwardEnd) const
+{
+	EContactType ContactType = EContactType::End;
+	bool bReturnValue = IsEndPointOrNot(ContactType);
+	bIsForwardEnd = ContactType == EContactType::End ? true : false;
+	return bReturnValue;
+}
+
 void URuntimeSplinePointBaseComponent::MoveSplinePointInternal()
 {
 	if (IsValid(ParentSpline) && !ParentSpline->IsBeingDestroyed() && SplinePointProxy.IsValid())
@@ -421,6 +434,28 @@ void URuntimeSplinePointBaseComponent::MoveSplinePointInternal()
 		ParentSpline->UpdateTransformByCtrlPoint();
 		ParentSpline->OnUpdateTransform(EUpdateTransformFlags::None, ETeleportType::None);
 	}
+}
+
+bool URuntimeSplinePointBaseComponent::IsEndPointOrNot(EContactType& OutContactType) const
+{
+	auto* SplinePointProxyRaw = SplinePointProxy.Pin().Get();
+	auto* SplineProxy = ParentSpline->SplineBaseWrapperProxy.Get()->Spline.Get();
+	const auto& ParamRange = SplineProxy->GetParamRange();
+	FVector PointPos = TVecLib<4>::Projection(SplinePointProxyRaw->Pos),
+		StartPos = SplineProxy->GetPosition(ParamRange.Get<0>()),
+		EndPos = SplineProxy->GetPosition(ParamRange.Get<1>());
+
+	bool bAtLast = (PointPos - EndPos).IsNearlyZero(1e-3);
+	bool bAtFirst = (PointPos - StartPos).IsNearlyZero(1e-3);
+
+	if (!bAtLast && !bAtFirst)
+	{
+		return false;
+	}
+
+	OutContactType = bAtLast ? EContactType::End : EContactType::Start;
+
+	return true;
 }
 
 void FRuntimeSplinePointCommandHelper::CapturedMouseMove(FViewport* InViewport, int32 InMouseX, int32 InMouseY)
@@ -455,24 +490,25 @@ bool FRuntimeSplinePointCommandHelper::IsGraphValid() const
 
 bool FRuntimeSplinePointCommandHelper::CheckPointIsEndPointOrNot(EContactType& OutContactType) const
 {
-	auto* SplinePointProxy = ComponentWeakPtr->SplinePointProxy.Pin().Get();
-	auto* SplineProxy = ComponentWeakPtr->ParentSpline->SplineBaseWrapperProxy.Get()->Spline.Get();
-	const auto& ParamRange = SplineProxy->GetParamRange();
-	FVector PointPos = TVecLib<4>::Projection(SplinePointProxy->Pos),
-		StartPos = SplineProxy->GetPosition(ParamRange.Get<0>()),
-		EndPos = SplineProxy->GetPosition(ParamRange.Get<1>());
+	return ComponentWeakPtr->IsEndPointOrNot(OutContactType);
+	//auto* SplinePointProxy = ComponentWeakPtr->SplinePointProxy.Pin().Get();
+	//auto* SplineProxy = ComponentWeakPtr->ParentSpline->SplineBaseWrapperProxy.Get()->Spline.Get();
+	//const auto& ParamRange = SplineProxy->GetParamRange();
+	//FVector PointPos = TVecLib<4>::Projection(SplinePointProxy->Pos),
+	//	StartPos = SplineProxy->GetPosition(ParamRange.Get<0>()),
+	//	EndPos = SplineProxy->GetPosition(ParamRange.Get<1>());
 
-	bool bAtLast = (PointPos - EndPos).IsNearlyZero(1e-3);
-	bool bAtFirst = (PointPos - StartPos).IsNearlyZero(1e-3);
+	//bool bAtLast = (PointPos - EndPos).IsNearlyZero(1e-3);
+	//bool bAtFirst = (PointPos - StartPos).IsNearlyZero(1e-3);
 
-	if (!bAtLast && !bAtFirst)
-	{
-		return false;
-	}
+	//if (!bAtLast && !bAtFirst)
+	//{
+	//	return false;
+	//}
 
-	OutContactType = bAtLast ? EContactType::End : EContactType::Start;
+	//OutContactType = bAtLast ? EContactType::End : EContactType::Start;
 
-	return true;
+	//return true;
 }
 
 void FRuntimeSplinePointCommandHelper::OnSplitConnection()

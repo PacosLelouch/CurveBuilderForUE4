@@ -166,6 +166,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "RuntimeCustomSpline|Settings")
 	TSubclassOf<URuntimeSplinePointBaseComponent> CustomSplinePointClass;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "RuntimeCustomSpline|Settings")
+	bool bAutoSelectNewSpline = false;
+
 public:
 	FSpatialSplineGraph3 SplineGraphProxy;
 	TMap<TSharedPtr<FSpatialSplineGraph3::FSplineWrapper>, URuntimeCustomSplineBaseComponent*> SplineComponentMap;

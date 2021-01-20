@@ -145,6 +145,10 @@ void URuntimeSplinePrimitiveComponent::SetDrawInGame(bool bValue)
 	}
 }
 
+void URuntimeSplinePrimitiveComponent::InitializeCommandHelper()
+{
+}
+
 #if WITH_EDITOR
 void URuntimeSplinePrimitiveComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {

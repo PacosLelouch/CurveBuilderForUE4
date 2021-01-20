@@ -111,6 +111,8 @@ public:
 
 	//virtual void SetDrawDebugCollision(bool bValue) override;
 
+	virtual void InitializeCommandHelper() override;
+
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 

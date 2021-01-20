@@ -99,6 +99,8 @@ public:
 
 	virtual bool MoveComponentImpl(const FVector& Delta, const FQuat& NewRotation, bool bSweep, FHitResult* Hit = NULL, EMoveComponentFlags MoveFlags = MOVECOMP_NoFlags, ETeleportType Teleport = ETeleportType::None) override;
 
+	virtual void InitializeCommandHelper() override;
+
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 
@@ -116,8 +118,13 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "RuntimeCustomSpline|Update")
 	void UpdateComponentLocationBySpline();
 
+	UFUNCTION(BlueprintPure, Category = "RuntimeCustomSpline|Query")
+	bool IsEndPoint(bool& bIsForwardEnd) const;
+
 public:
 	void MoveSplinePointInternal();
+
+	bool IsEndPointOrNot(EContactType& OutContactType) const;
 
 public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "RuntimeCustomSpline|Component")

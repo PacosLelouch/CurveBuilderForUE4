@@ -473,7 +473,10 @@ URuntimeCustomSplineBaseComponent* ARuntimeSplineGraph::CreateSplineActorInterna
 		}
 	}
 
-	NewSpline->SetCustomSelected(true);
+	if (bAutoSelectNewSpline)
+	{
+		NewSpline->SetCustomSelected(true);
+	}
 
 	return NewSpline;
 }
