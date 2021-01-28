@@ -56,6 +56,7 @@ public class CurveBuilder : ModuleRules
 				"Slate",
 				"SlateCore",
 				"InputCore",
+				"RHI",
 				// ... add private dependencies that you statically link with here ...	
 			}
 			);
