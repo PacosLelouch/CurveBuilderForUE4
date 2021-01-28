@@ -8,7 +8,7 @@
 IMPLEMENT_HIT_PROXY(HRuntimeSplineHitProxy, HRuntimeSplinePrimitiveHitProxy)
 #endif
 
-static constexpr bool bDrawLineByCurveLength = false;
+const bool FRuntimeCustomSplineSceneProxy::bDrawLineByCurveLength = false;
 
 void FRuntimeCustomSplineSceneProxy::GetDynamicMeshElements(const TArray<const FSceneView*>& Views, const FSceneViewFamily& ViewFamily, uint32 VisibilityMap, FMeshElementCollector& Collector) const
 {

@@ -22,9 +22,9 @@ public:
 };
 #endif
 
-class FRuntimeCustomSplineSceneProxy final : public FRuntimeSplinePrimitiveSceneProxy
+class CURVEBUILDER_API FRuntimeCustomSplineSceneProxy : public FRuntimeSplinePrimitiveSceneProxy
 {
-private:
+protected:
 
 	struct FSpatial3DrawInfo
 	{
@@ -128,15 +128,15 @@ public:
 	//static void DrawRuntimeSpline(FPrimitiveDrawInterface* PDI, const FSceneView* View, const TRuntimeSplineDrawInfo<Dim, Degree>& DrawInfo, const FMatrix& InLocalToWorld, uint8 DepthPriorityGroup);
 
 protected:
-	//static 
-	void DrawRuntimeSpline(FPrimitiveDrawInterface* PDI, const FSceneView* View, const FSpatial3DrawInfo& DrawInfo, const FMatrix& InLocalToWorld, uint8 DepthPriorityGroup) const;
+	virtual void DrawRuntimeSpline(FPrimitiveDrawInterface* PDI, const FSceneView* View, const FSpatial3DrawInfo& DrawInfo, const FMatrix& InLocalToWorld, uint8 DepthPriorityGroup) const;
 
-	//static 
-	void DrawDebugCollisions(FPrimitiveDrawInterface* PDI, const FSceneView* View, const FSpatial3CollisionInfo& CollisionInfo, uint8 DepthPriorityGroup) const;
+	virtual void DrawDebugCollisions(FPrimitiveDrawInterface* PDI, const FSceneView* View, const FSpatial3CollisionInfo& CollisionInfo, uint8 DepthPriorityGroup) const;
 
 
 	//const URuntimeCustomSplineBaseComponent* SplineComponent;
 	FSpatial3DrawInfo ProxyDrawInfo;
 	FSpatial3CollisionInfo ProxyCollisionInfo;
+
+	static const bool bDrawLineByCurveLength;
 };
 

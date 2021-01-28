@@ -45,7 +45,7 @@ public:
 };
 #endif
 
-class FRuntimeSplinePrimitiveSceneProxy : public FPrimitiveSceneProxy
+class CURVEBUILDER_API FRuntimeSplinePrimitiveSceneProxy : public FPrimitiveSceneProxy
 {
 public:
 	SIZE_T GetTypeHash() const override

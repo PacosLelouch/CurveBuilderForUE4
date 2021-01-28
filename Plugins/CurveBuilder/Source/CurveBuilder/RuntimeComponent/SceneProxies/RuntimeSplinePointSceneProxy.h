@@ -23,9 +23,9 @@ public:
 };
 #endif
 
-class FRuntimeSplinePointSceneProxy final : public FRuntimeSplinePrimitiveSceneProxy
+class CURVEBUILDER_API FRuntimeSplinePointSceneProxy : public FRuntimeSplinePrimitiveSceneProxy
 {
-private:
+protected:
 	struct FSpatial3DrawInfo
 	{
 		FSpatial3DrawInfo(const URuntimeSplinePointBaseComponent* InComponent)
@@ -98,9 +98,9 @@ public:
 
 protected:
 	
-	void DrawRuntimeSplinePoint(FPrimitiveDrawInterface* PDI, const FSceneView* View, const FSpatial3DrawInfo& DrawInfo, const FMatrix& InLocalToWorld, uint8 DepthPriorityGroup) const;
+	virtual void DrawRuntimeSplinePoint(FPrimitiveDrawInterface* PDI, const FSceneView* View, const FSpatial3DrawInfo& DrawInfo, const FMatrix& InLocalToWorld, uint8 DepthPriorityGroup) const;
 
-	void DrawDebugCollisions(FPrimitiveDrawInterface* PDI, const FSceneView* View, const FSpatial3CollisionInfo& CollisionInfo, uint8 DepthPriorityGroup) const;
+	virtual void DrawDebugCollisions(FPrimitiveDrawInterface* PDI, const FSceneView* View, const FSpatial3CollisionInfo& CollisionInfo, uint8 DepthPriorityGroup) const;
 
 	FSpatial3DrawInfo ProxyDrawInfo;
 	FSpatial3CollisionInfo ProxyCollisionInfo;
