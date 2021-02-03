@@ -564,7 +564,9 @@ inline bool TBezierString3<Dim>::AdjustCtrlPointPos(FPointNode* Node, const TVec
 		Node->GetValueRef().PrevCtrlPointPos += TVecLib<Dim>::Homogeneous(AdjustDiff, 0.);
 		Node->GetValueRef().NextCtrlPointPos += TVecLib<Dim>::Homogeneous(AdjustDiff, 0.);
 
-		UpdateBezierString(Node);
+		if (CtrlPointsList.Num() > 1) {
+			UpdateBezierString(Node);
+		}
 	}
 	return true;
 }
@@ -829,7 +831,13 @@ inline TVectorX<Dim> TBezierString3<Dim>::GetTangent(double T) const
 	if (!EndNode) {
 		EndNode = CtrlPointsList.GetTail();
 	}
+	if (!EndNode) {
+		return TVecLib<Dim>::Zero();
+	}
 	FPointNode* StartNode = EndNode->GetPrevNode();
+	if (!StartNode) {
+		return TVecLib<Dim>::Zero();
+	}
 	double TN = GetNormalizedParam(StartNode, EndNode, T);
 	TBezierCurve<Dim, 3> Curve = MakeBezierCurve(StartNode, EndNode);
 	TBezierCurve<Dim, 2> Hodograph;
@@ -846,7 +854,13 @@ inline double TBezierString3<Dim>::GetPlanCurvature(double T, int32 PlanIndex) c
 	if (!EndNode) {
 		EndNode = CtrlPointsList.GetTail();
 	}
+	if (!EndNode) {
+		return 0.;
+	}
 	FPointNode* StartNode = EndNode->GetPrevNode();
+	if (!StartNode) {
+		return 0.;
+	}
 	double TN = GetNormalizedParam(StartNode, EndNode, T);
 	TBezierCurve<Dim, 3> Curve = MakeBezierCurve(StartNode, EndNode);
 	TBezierCurve<Dim, 2> Hodograph;
@@ -861,7 +875,16 @@ template<int32 Dim>
 inline double TBezierString3<Dim>::GetCurvature(double T) const
 {
 	FPointNode* EndNode = FindNodeGreaterThanParam(T);
+	if (!EndNode) {
+		EndNode = CtrlPointsList.GetTail();
+	}
+	if (!EndNode) {
+		return 0.;
+	}
 	FPointNode* StartNode = EndNode->GetPrevNode();
+	if (!StartNode) {
+		return 0.;
+	}
 	double TN = GetNormalizedParam(StartNode, EndNode, T);
 	TBezierCurve<Dim, 3> Curve = MakeBezierCurve(StartNode, EndNode);
 	TBezierCurve<Dim, 2> Hodograph;

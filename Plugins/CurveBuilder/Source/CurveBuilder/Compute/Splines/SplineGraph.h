@@ -99,7 +99,9 @@ public:
 	virtual TWeakPtr<FSplineType> ConnectAndFill(
 		TWeakPtr<FSplineType> Source, TWeakPtr<FSplineType> Target,
 		EContactType SourceContactType = EContactType::End, EContactType TargetContactType = EContactType::Start,
-		bool bFillInSource = true);
+		bool bFillInSource = true,
+		TArray<TWeakPtr<FControlPointType>>* NewSrcControlPointStructsPtr = nullptr,
+		TArray<TWeakPtr<FControlPointType>>* NewTarControlPointStructsPtr = nullptr);
 
 	virtual void SplitConnection(TWeakPtr<FSplineType> Previous, TWeakPtr<FSplineType> Next, EContactType NextContactType = EContactType::Start);
 

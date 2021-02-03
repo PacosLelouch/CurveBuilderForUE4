@@ -143,66 +143,71 @@ URuntimeCustomSplineBaseComponent* ARuntimeSplineGraph::ConnectAndFill(
 	{
 		return nullptr;
 	}
+	TArray<TWeakPtr<FSpatialSplineBase3::FControlPointType> > NewSrcCtrlPoints, NewTarCtrlPoints;
 	TWeakPtr<FSpatialSplineBase3> ReturnSplineWeakPtr = SplineGraphProxy.ConnectAndFill(
 		Source->SplineBaseWrapperProxy.Get()->Spline, Target->SplineBaseWrapperProxy.Get()->Spline,
 		bSourceForward ? EContactType::End : EContactType::Start,
 		bTargetForward ? EContactType::End : EContactType::Start,
-		bFillInSource);
+		bFillInSource,
+		&NewSrcCtrlPoints,
+		&NewTarCtrlPoints);
 
 	if (!ReturnSplineWeakPtr.IsValid())
 	{
 		return nullptr;
 	}
 
+	AddUnbindingPointsInternal(NewSrcCtrlPoints, Source);
+	AddUnbindingPointsInternal(NewTarCtrlPoints, Target);
+
 	if (!bFillInSource)
 	{
 		auto* NewSplineComponent = CreateSplineActorInternal(ReturnSplineWeakPtr);
 		return NewSplineComponent;
 	}
-	else // Fill in source. Need to bind new points.
-	{
-		TArray<TWeakPtr<FSpatialControlPoint3> > NewCtrlPointStructs;
-		auto* SourceSpline = ReturnSplineWeakPtr.Pin().Get();
-		switch (SourceSpline->GetType())
-		{
-		case ESplineType::ClampedBSpline:
-		{
-			auto* SBSpline = static_cast<TSplineTraitByType<ESplineType::ClampedBSpline, 3, 3>::FSplineType*>(SourceSpline);
-			TSplineTraitByType<ESplineType::ClampedBSpline, 3, 3>::FSplineType::FPointNode* FirstNode = nullptr;
-			TSplineTraitByType<ESplineType::ClampedBSpline, 3, 3>::FSplineType::FPointNode* SecondNode = nullptr;
-			if (bSourceForward)
-			{
-				SecondNode = SBSpline->LastNode();
-				FirstNode = SecondNode->GetPrevNode();
-			}
-			else
-			{
-				SecondNode = SBSpline->FirstNode();
-				FirstNode = SecondNode->GetNextNode();
-			}
-			NewCtrlPointStructs.Add(FirstNode->GetValue());
-			NewCtrlPointStructs.Add(SecondNode->GetValue());
-		}
-			break;
-		case ESplineType::BezierString:
-		{
-			auto* SBeziers = static_cast<TSplineTraitByType<ESplineType::BezierString, 3, 3>::FSplineType*>(SourceSpline);
-			TSplineTraitByType<ESplineType::BezierString, 3, 3>::FSplineType::FPointNode* FirstNode = nullptr;
-			if (bSourceForward)
-			{
-				FirstNode = SBeziers->LastNode();
-			}
-			else
-			{
-				FirstNode = SBeziers->FirstNode();
-			}
-			NewCtrlPointStructs.Add(FirstNode->GetValue());
-		}
-			break;
-		}
-
-		AddUnbindingPointsInternal(NewCtrlPointStructs, Source);
-	}
+	//else // Fill in source. Need to bind new points.
+	//{
+	//	TArray<TWeakPtr<FSpatialControlPoint3> > NewCtrlPointStructs;
+	//	auto* SourceSpline = ReturnSplineWeakPtr.Pin().Get();
+	//	switch (SourceSpline->GetType())
+	//	{
+	//	case ESplineType::ClampedBSpline:
+	//	{
+	//		auto* SBSpline = static_cast<TSplineTraitByType<ESplineType::ClampedBSpline, 3, 3>::FSplineType*>(SourceSpline);
+	//		TSplineTraitByType<ESplineType::ClampedBSpline, 3, 3>::FSplineType::FPointNode* FirstNode = nullptr;
+	//		TSplineTraitByType<ESplineType::ClampedBSpline, 3, 3>::FSplineType::FPointNode* SecondNode = nullptr;
+	//		if (bSourceForward)
+	//		{
+	//			SecondNode = SBSpline->LastNode();
+	//			FirstNode = SecondNode->GetPrevNode();
+	//		}
+	//		else
+	//		{
+	//			SecondNode = SBSpline->FirstNode();
+	//			FirstNode = SecondNode->GetNextNode();
+	//		}
+	//		NewCtrlPointStructs.Add(FirstNode->GetValue());
+	//		NewCtrlPointStructs.Add(SecondNode->GetValue());
+	//	}
+	//		break;
+	//	case ESplineType::BezierString:
+	//	{
+	//		auto* SBeziers = static_cast<TSplineTraitByType<ESplineType::BezierString, 3, 3>::FSplineType*>(SourceSpline);
+	//		TSplineTraitByType<ESplineType::BezierString, 3, 3>::FSplineType::FPointNode* FirstNode = nullptr;
+	//		if (bSourceForward)
+	//		{
+	//			FirstNode = SBeziers->LastNode();
+	//		}
+	//		else
+	//		{
+	//			FirstNode = SBeziers->FirstNode();
+	//		}
+	//		NewCtrlPointStructs.Add(FirstNode->GetValue());
+	//	}
+	//		break;
+	//	}
+	//	AddUnbindingPointsInternal(NewCtrlPointStructs, Source);
+	//}
 	return Source;
 }
 

@@ -862,7 +862,7 @@ int32 URuntimeCustomSplineBaseComponent::SampleParameters(TArray<double>& OutPar
 		{
 			SplineInternal.GetSegParams(SegParams);
 		}
-		if (SegParams.Num() == 1 || !bAdjustKeyLength)
+		if (SegParams.Num() <= 1 || !bAdjustKeyLength)
 		{
 			SegParams = { ParamRange.Get<0>(), ParamRange.Get<1>() };
 		}
@@ -933,7 +933,7 @@ bool FRuntimeSplineCommandHelper::CanInsertControlPoint() const
 	{
 		return false;
 	}
-	if (ComponentWeakPtr->PointComponents.Num() < 4)
+	if (ComponentWeakPtr->PointComponents.Num() < 2)
 	{
 		return false;
 	}

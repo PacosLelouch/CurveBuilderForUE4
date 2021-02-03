@@ -506,7 +506,7 @@ inline void TClampedBSpline<Dim, Degree>::AddPointAt(const TClampedBSplineContro
 template<int32 Dim, int32 Degree>
 inline typename TClampedBSpline<Dim, Degree>::FPointNode* TClampedBSpline<Dim, Degree>::AddPointWithParamWithoutChangingShape(double T)
 {
-	if (CtrlPointsList.Num() <= Degree) {
+	if (CtrlPointsList.Num() <= 1) {
 		return nullptr;
 	}
 	TTuple<double, double> ParamRange = GetParamRange();
@@ -530,7 +530,7 @@ inline typename TClampedBSpline<Dim, Degree>::FPointNode* TClampedBSpline<Dim, D
 	}
 
 	FPointNode* NewNode = nullptr;
-	for (int32 i = k - Degree + 1; i <= k; ++i) {
+	for (int32 i = k - Degree + 1; i <= FMath::Min(CtrlPoints.Num() - 1, k); ++i) {
 		double De = Params[i + Degree] - Params[i];
 		double Alpha = FMath::IsNearlyZero(De) ? 0. : (T - Params[i]) / De;
 		TVectorX<Dim+1> NewPos = CtrlPoints[i - 1];

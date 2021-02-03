@@ -118,6 +118,7 @@ inline TWeakPtr<typename TSplineGraph<Dim, 3>::FSplineType> TSplineGraph<Dim, 3>
 		if (PrevWrapperPtr) {
 			TSharedRef<FSplineType> TempSpline = PrevSharedPtr.Get()->Copy();
 			auto& TempSplineGet = TempSpline.Get();
+			//TempSplineGet.ProcessBeforeCreateSameType(nullptr);
 			auto* GraphPtr1 = &InternalGraphForward;
 			auto* GraphPtr2 = &InternalGraphBackward;
 
@@ -230,7 +231,9 @@ template<int32 Dim>
 inline TWeakPtr<typename TSplineGraph<Dim, 3>::FSplineType> TSplineGraph<Dim, 3>::ConnectAndFill(
 	TWeakPtr<FSplineType> Source, TWeakPtr<FSplineType> Target, 
 	EContactType SourceContactType, EContactType TargetContactType, 
-	bool bFillInSource)
+	bool bFillInSource,
+	TArray<TWeakPtr<FControlPointType>>* NewSrcControlPointStructsPtr,
+	TArray<TWeakPtr<FControlPointType>>* NewTarControlPointStructsPtr)
 {
 	if (!Source.IsValid() || !Target.IsValid())
 	{
@@ -244,8 +247,8 @@ inline TWeakPtr<typename TSplineGraph<Dim, 3>::FSplineType> TSplineGraph<Dim, 3>
 
 	if (!bFillInSource)
 	{
-		TWeakPtr<FSplineType> NewSource = this->CreateSplineBesidesExisted(Source, SourceContactType);
-		return ConnectAndFill(NewSource, Target, EContactType::End, TargetContactType, true);
+		TWeakPtr<FSplineType> NewSource = this->CreateSplineBesidesExisted(Source, SourceContactType, 1, NewSrcControlPointStructsPtr);
+		return ConnectAndFill(NewSource, Target, EContactType::End, TargetContactType, true, nullptr, NewTarControlPointStructsPtr);
 	}
 
 	auto* TargetSpline = Target.Pin().Get();
@@ -255,6 +258,7 @@ inline TWeakPtr<typename TSplineGraph<Dim, 3>::FSplineType> TSplineGraph<Dim, 3>
 	}
 
 	TVectorX<Dim> FirstPos, SecondPos;
+	TargetSpline->ProcessBeforeCreateSameType(NewTarControlPointStructsPtr);
 	switch (TargetSpline->GetType())
 	{
 	case ESplineType::ClampedBSpline:
@@ -273,7 +277,7 @@ inline TWeakPtr<typename TSplineGraph<Dim, 3>::FSplineType> TSplineGraph<Dim, 3>
 			FirstNode = SecondNode->GetPrevNode();
 		}
 		SecondPos = TVecLib<Dim+1>::Projection(SecondNode->GetValue().Get().Pos);
-		FirstPos = SecondPos * 2. - TVecLib<Dim+1>::Projection(FirstNode->GetValue().Get().Pos);
+		FirstPos = SecondPos + (SecondPos - TVecLib<Dim+1>::Projection(FirstNode->GetValue().Get().Pos)) * (TargetSpline->GetCtrlPointNum() < 2 ? 1. / 3. : 1.);
 	}
 		break;
 	case ESplineType::BezierString:
@@ -304,11 +308,21 @@ inline TWeakPtr<typename TSplineGraph<Dim, 3>::FSplineType> TSplineGraph<Dim, 3>
 		{
 			SBSpline->AddPointAtLast(FirstPos);
 			SBSpline->AddPointAtLast(SecondPos);
+			if (NewSrcControlPointStructsPtr)
+			{
+				(*NewSrcControlPointStructsPtr).Add(TWeakPtr<FControlPointType>(SBSpline->LastNode()->GetPrevNode()->GetValue()));
+				(*NewSrcControlPointStructsPtr).Add(TWeakPtr<FControlPointType>(SBSpline->LastNode()->GetValue()));
+			}
 		}
 		else
 		{
 			SBSpline->AddPointAtFirst(FirstPos);
 			SBSpline->AddPointAtFirst(SecondPos);
+			if (NewSrcControlPointStructsPtr)
+			{
+				(*NewSrcControlPointStructsPtr).Add(TWeakPtr<FControlPointType>(SBSpline->FirstNode()->GetValue()));
+				(*NewSrcControlPointStructsPtr).Add(TWeakPtr<FControlPointType>(SBSpline->FirstNode()->GetNextNode()->GetValue()));
+			}
 		}
 	}
 		break;
@@ -319,11 +333,19 @@ inline TWeakPtr<typename TSplineGraph<Dim, 3>::FSplineType> TSplineGraph<Dim, 3>
 		{
 			SBeziers->AddPointAtLast(SecondPos);
 			SBeziers->AdjustCtrlPointPos(SBeziers->LastNode()->GetValue().Get(), FirstPos, -1, 0);
+			if (NewSrcControlPointStructsPtr)
+			{
+				(*NewSrcControlPointStructsPtr).Add(TWeakPtr<FControlPointType>(SBeziers->LastNode()->GetValue()));
+			}
 		}
 		else
 		{
 			SBeziers->AddPointAtFirst(SecondPos);
 			SBeziers->AdjustCtrlPointPos(SBeziers->FirstNode()->GetValue().Get(), FirstPos, 1, 0);
+			if (NewSrcControlPointStructsPtr)
+			{
+				(*NewSrcControlPointStructsPtr).Add(TWeakPtr<FControlPointType>(SBeziers->FirstNode()->GetValue()));
+			}
 		}
 	}
 		break;
@@ -421,7 +443,7 @@ inline void TSplineGraph<Dim, 3>::AdjustCtrlPointPos(FControlPointType& PointStr
 			{ EContactType::Start, Spline.GetTangent(GetEndParam(ParamRange, EContactType::Start)) },
 			{ EContactType::End, Spline.GetTangent(GetEndParam(ParamRange, EContactType::End)) },
 		};
-		if (Spline.AdjustCtrlPointPos(PointStructToAdjust, To, NthPointOfFrom, TangentFlag))
+		if (Spline.AdjustCtrlPointPos(PointStructToAdjust, To, TangentFlag, NthPointOfFrom))
 		{
 			AdjustAuxiliaryFunc(SplinePtr, ParamRange, InitialPos, InitialTangent, MoveLevel, NthPointOfFrom);
 			return true;
