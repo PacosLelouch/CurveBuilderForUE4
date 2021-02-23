@@ -397,6 +397,7 @@ inline void TClampedBSpline<Dim, Degree>::CreateHodograph(TClampedBSpline<Dim, C
 	GetCtrlPoints(CtrlPoints);
 	GetClampedKnotIntervals(Params);
 	constexpr auto DegreeDbl = static_cast<double>(Degree);
+	auto Factor = FMath::Min(DegreeDbl, static_cast<double>(CtrlPoints.Num() - 1));
 
 	//for (int32 i = 0; i + Degree + 1 < Params.Num(); ++i) {
 	for (int32 i = 0; i + 1 < CtrlPoints.Num(); ++i) {
@@ -406,7 +407,10 @@ inline void TClampedBSpline<Dim, Degree>::CreateHodograph(TClampedBSpline<Dim, C
 		//double DiffParam = Params[i + 1] - Params[i];
 		double DiffParam = Params[i + Degree + 1] - Params[i + 1];
 		// H_i = d * \frac{P_{i+1} - P_i}{t_{i+d} - t_i}?
-		OutHodograph.AddPointAtLast(FMath::IsNearlyZero(DiffParam) ? TVecLib<Dim>::Zero() : DiffPos * DegreeDbl / DiffParam, TOptional<double>(), Weight);
+		OutHodograph.AddPointAtLast(FMath::IsNearlyZero(DiffParam) ? TVecLib<Dim>::Zero() : DiffPos * Factor / DiffParam,
+			Params[i + Degree],
+			//TOptional<double>(), 
+			Weight);
 	}
 }
 
@@ -548,7 +552,11 @@ inline typename TClampedBSpline<Dim, Degree>::FPointNode* TClampedBSpline<Dim, D
 		}
 		NodeStart = NodeStart->GetNextNode();
 	}
-	KnotIntervals.Insert(T, k - Degree + 1);
+
+	int32 MaxKnotIndexSupportedByCtrlPoints = FMath::Max(CtrlPointsList.Num() - Degree, 1);
+	if (KnotIntervals.Num() < MaxKnotIndexSupportedByCtrlPoints + 1) {
+		KnotIntervals.Insert(T, k - Degree + 1);
+	}
 	//AddNewKnotIntervalIfNecessary(T);
 
 	return NewNode;
