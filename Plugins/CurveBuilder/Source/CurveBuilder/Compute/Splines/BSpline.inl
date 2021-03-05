@@ -117,37 +117,17 @@ inline void TClampedBSpline<Dim, Degree>::ProcessBeforeCreateSameType(TArray<TWe
 		return;
 	}
 
-	FPointNode* Start = CtrlPointsList.GetHead();
-	FPointNode* End = CtrlPointsList.GetTail();
-
-	auto MoveStartAndEnd = [this, &Start, &End]() {
-		if ((CtrlPointsList.Num() & 1) == 0) {
-			while (Start->GetNextNode() != End) {
-				Start = Start->GetNextNode();
-				End = End->GetPrevNode();
-			}
-		}
-		else {
-			while (Start != End) {
-				Start = Start->GetNextNode();
-				End = End->GetPrevNode();
-			}
-		}
-	};
-
+	auto ParamRange = GetParamRange();
 	if (NewControlPointStructsPtr)
 	{
 		NewControlPointStructsPtr->Empty();
 	}
-
-	while (CtrlPointsList.Num() <= Degree) {
-		MoveStartAndEnd();
-		if (CtrlPointsList.InsertNode(MakeShared<FControlPointType>((Start->GetValueRef().Pos + End->GetValueRef().Pos) * 0.5), End))
+	while (CtrlPointsList.Num() <= Degree)
+	{
+		FPointNode* NewNode = AddPointWithParamWithoutChangingShape(0.5 * (ParamRange.Get<0>() + ParamRange.Get<1>()));
+		if (NewControlPointStructsPtr)
 		{
-			if (NewControlPointStructsPtr)
-			{
-				NewControlPointStructsPtr->Add(TWeakPtr<FControlPointType>(End->GetPrevNode()->GetValue()));
-			}
+			NewControlPointStructsPtr->Add(TWeakPtr<FControlPointType>(NewNode->GetValue()));
 		}
 	}
 }
@@ -294,6 +274,7 @@ inline bool TClampedBSpline<Dim, Degree>::ToBezierCurves(TArray<TBezierCurve<Dim
 	};
 
 	TClampedBSpline<Dim, Degree> SplitFirst, SplitSecond, ToSplit(*this);
+	ToSplit.ProcessBeforeCreateSameType();
 	if (ParamRangesPtr)
 	{
 		ParamRangesPtr->Empty(KnotIntervals.Num() - 1);
@@ -384,7 +365,7 @@ inline void TClampedBSpline<Dim, Degree>::RemoveKnotIntervalIfNecessary()
 }
 
 template<int32 Dim, int32 Degree>
-inline void TClampedBSpline<Dim, Degree>::CreateHodograph(TClampedBSpline<Dim, CLAMP_DEGREE(Degree-1, 0)>& OutHodograph) const
+inline void TClampedBSpline<Dim, Degree>::CreateHodograph(TClampedBSpline<Dim, CLAMP_DEGREE(Degree - 1, 0)>& OutHodograph) const
 {
 	OutHodograph.Reset();
 	FPointNode* CurNode = CtrlPointsList.GetHead();
@@ -393,25 +374,35 @@ inline void TClampedBSpline<Dim, Degree>::CreateHodograph(TClampedBSpline<Dim, C
 	}
 	FPointNode* NextNode = CurNode->GetNextNode();
 
-	TArray<TVectorX<Dim+1> > CtrlPoints; TArray<double> Params;
+	TArray<TVectorX<Dim + 1> > CtrlPoints; TArray<double> Params;
 	GetCtrlPoints(CtrlPoints);
 	GetClampedKnotIntervals(Params);
 	constexpr auto DegreeDbl = static_cast<double>(Degree);
 	auto Factor = FMath::Min(DegreeDbl, static_cast<double>(CtrlPoints.Num() - 1));
+	//constexpr auto DegreeDblInv = Degree == 0 ? 1. : 1 / DegreeDbl;
+
+	TArray<TVectorX<Dim + 1>> HodographPoints;
+	HodographPoints.Reserve(CtrlPoints.Num() - 1);
+	TArray<double> HodographKnots;
+	HodographKnots.Reserve(CtrlPoints.Num() - 1);
 
 	//for (int32 i = 0; i + Degree + 1 < Params.Num(); ++i) {
 	for (int32 i = 0; i + 1 < CtrlPoints.Num(); ++i) {
-		TVectorX<Dim> DiffPos = TVecLib<Dim+1>::Projection(CtrlPoints[i + 1]) - TVecLib<Dim+1>::Projection(CtrlPoints[i]);
-		double WN = TVecLib<Dim+1>::Last(CtrlPoints[i + 1]), WC = TVecLib<Dim+1>::Last(CtrlPoints[i]);
+		TVectorX<Dim> DiffPos = TVecLib<Dim + 1>::Projection(CtrlPoints[i + 1]) - TVecLib<Dim + 1>::Projection(CtrlPoints[i]);
+		double WN = TVecLib<Dim + 1>::Last(CtrlPoints[i + 1]), WC = TVecLib<Dim + 1>::Last(CtrlPoints[i]);
 		double Weight = FMath::IsNearlyZero(WC) ? 1. : WN / WC;
 		//double DiffParam = Params[i + 1] - Params[i];
 		double DiffParam = Params[i + Degree + 1] - Params[i + 1];
-		// H_i = d * \frac{P_{i+1} - P_i}{t_{i+d} - t_i}?
-		OutHodograph.AddPointAtLast(FMath::IsNearlyZero(DiffParam) ? TVecLib<Dim>::Zero() : DiffPos * Factor / DiffParam,
-			Params[i + Degree],
-			//TOptional<double>(), 
-			Weight);
+		// H_i = d * \frac{P_{i+1} - P_i}{t_{i+d} - t_i}
+		HodographPoints.Add(TVecLib<Dim>::Homogeneous(FMath::IsNearlyZero(DiffParam) ? TVecLib<Dim>::Zero() : DiffPos * Factor / DiffParam, Weight));
+		HodographKnots.Add(Params[i + Degree]);
 	}
+
+	int32 MaxKnotIndexSupportedByCtrlPointsHodograph = FMath::Max(HodographPoints.Num() - OutHodograph.SplineDegree(), 1);
+	while (HodographKnots.Num() > MaxKnotIndexSupportedByCtrlPointsHodograph + 1) {
+		HodographKnots.Pop();
+	}
+	OutHodograph.Reset(HodographPoints, HodographKnots);
 }
 
 template<int32 Dim, int32 Degree>
@@ -775,15 +766,21 @@ inline TVectorX<Dim> TClampedBSpline<Dim, Degree>::GetPosition(double T) const
 		return TVecLib<Dim>::Zero();
 	}
 	else if (ListNum == 1) {
-		return TVecLib<Dim+1>::Projection(CtrlPointsList.GetHead()->GetValueRef().Pos);
+		return TVecLib<Dim + 1>::Projection(CtrlPointsList.GetHead()->GetValueRef().Pos);
 	}
-	TArray<TVectorX<Dim+1> > CtrlPoints;
+	// Number of points are low.
+	if (ListNum <= Degree) {
+		TClampedBSpline<Dim, Degree> PostProcessSpline(*this);
+		PostProcessSpline.ProcessBeforeCreateSameType();
+		return PostProcessSpline.GetPosition(T);
+	}
+	TArray<TVectorX<Dim + 1> > CtrlPoints;
 	TArray<double> Params;
 	GetCtrlPoints(CtrlPoints);
 	GetClampedKnotIntervals(Params);
 
 	//return TVecLib<Dim+1>::Projection(CoxDeBoor(T, CtrlPoints, Params));
-	return TVecLib<Dim+1>::Projection(DeBoor(T, CtrlPoints, Params));
+	return TVecLib<Dim + 1>::Projection(DeBoor(T, CtrlPoints, Params));
 }
 
 template<int32 Dim, int32 Degree>
@@ -792,7 +789,17 @@ inline TVectorX<Dim> TClampedBSpline<Dim, Degree>::GetTangent(double T) const
 	if (constexpr(Degree <= 0)) {
 		return TVecLib<Dim>::Zero();
 	}
-	TClampedBSpline<Dim, CLAMP_DEGREE(Degree-1, 0)> Hodograph;
+	int32 ListNum = CtrlPointsList.Num();
+	if (ListNum <= 1) {
+		return TVecLib<Dim>::Zero();
+	}
+	// Number of points are low.
+	if (ListNum <= Degree) {
+		TClampedBSpline<Dim, Degree> PostProcessSpline(*this);
+		PostProcessSpline.ProcessBeforeCreateSameType();
+		return PostProcessSpline.GetTangent(T);
+	}
+	TClampedBSpline<Dim, CLAMP_DEGREE(Degree - 1, 0)> Hodograph;
 	CreateHodograph(Hodograph);
 	TTuple<double, double> ParamRange = GetParamRange();
 	TTuple<double, double> HParamRange = Hodograph.GetParamRange();

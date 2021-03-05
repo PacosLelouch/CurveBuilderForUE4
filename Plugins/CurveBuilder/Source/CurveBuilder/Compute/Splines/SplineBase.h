@@ -63,12 +63,34 @@ public:
 
 	double GetLength(double T) const
 	{
-		TTuple<double, double> ParamRange = GetParamRange();
-		// if (Degree < 5) 
-		TGaussLegendre<NumericalCalculationConst::GaussLegendreN> GaussLegendre([this](double InT) -> double {
-			return TVecLib<Dim>::Size(GetTangent(InT));
-		}, ParamRange.Get<0>(), ParamRange.Get<1>());
-		return GaussLegendre.Integrate(T);
+		TArray<TBezierCurve<Dim, Degree>> BezierCurves;
+		TArray<TTuple<double, double>> ParamSegsPair;
+		if (!ToBezierCurves(BezierCurves, &ParamSegsPair))
+		{
+			return 0.;
+		}
+		double Length = 0.;
+		bool bShouldBreak = false;
+		for (int32 i = 0; i < BezierCurves.Num() && !bShouldBreak; ++i)
+		{
+			double Start = ParamSegsPair[i].Get<0>(), End = ParamSegsPair[i].Get<1>(), Target = End;
+			if (Start <= T && T <= End)
+			{
+				Target = T;
+				bShouldBreak = true;
+			}
+			double De = End - Start;
+			double NormalTarget = FMath::IsNearlyZero(De) ? 0.5 : (Target - Start) / De;
+			Length += BezierCurves[i].GetLength(NormalTarget);
+		}
+		return Length;
+
+		//TTuple<double, double> ParamRange = GetParamRange();
+		//// if (Degree < 5) 
+		//TGaussLegendre<NumericalCalculationConst::GaussLegendreN> GaussLegendre([this](double InT) -> double {
+		//	return TVecLib<Dim>::Size(GetTangent(InT));
+		//	}, ParamRange.Get<0>(), ParamRange.Get<1>());
+		//return GaussLegendre.Integrate(T);
 	}
 
 	double GetParameterAtLength(double S) const
