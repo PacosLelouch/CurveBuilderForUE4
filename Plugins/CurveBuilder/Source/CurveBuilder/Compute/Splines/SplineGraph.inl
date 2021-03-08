@@ -366,8 +366,9 @@ inline void TSplineGraph<Dim, 3>::SplitConnection(TWeakPtr<FSplineType> Prev, TW
 
 		if (PrevWrapperPtr && NextWrapperPtr)
 		{
-			auto* PrevFwdValuePtr = InternalGraphForward.Find(PrevWrapperPtr->Pin());
-			auto* PrevBwdValuePtr = InternalGraphBackward.Find(PrevWrapperPtr->Pin());
+			auto PrevWrapperSP = PrevWrapperPtr->Pin();
+			auto* PrevFwdValuePtr = InternalGraphForward.Find(PrevWrapperSP);
+			auto* PrevBwdValuePtr = InternalGraphBackward.Find(PrevWrapperSP);
 			//auto* NextFwdValuePtr = InternalGraphForward.Find(NextWrapperPtr->Pin());
 			//auto* NextBwdValuePtr = InternalGraphBackward.Find(NextWrapperPtr->Pin());
 			auto* NextValuePtr = PrevFwdValuePtr;
@@ -381,11 +382,11 @@ inline void TSplineGraph<Dim, 3>::SplitConnection(TWeakPtr<FSplineType> Prev, TW
 				//&& NextFwdValuePtr && NextBwdValuePtr
 				&& NextValuePtr) {
 				const FGraphNode* Node = FindGraphNodeBySplinePtrInSet(*PrevFwdValuePtr, Next);
-				if (Node) {
+				if (Node && Node->ContactType == NextContactType) {
 					(*PrevFwdValuePtr).Remove(*Node);
 				}
 				Node = FindGraphNodeBySplinePtrInSet(*PrevBwdValuePtr, Next);
-				if (Node) {
+				if (Node && Node->ContactType == NextContactType) {
 					(*PrevBwdValuePtr).Remove(*Node);
 				}
 				Node = FindGraphNodeBySplinePtrInSet(*NextValuePtr, Prev);
