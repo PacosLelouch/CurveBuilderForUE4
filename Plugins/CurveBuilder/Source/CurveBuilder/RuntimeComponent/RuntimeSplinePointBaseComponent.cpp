@@ -119,7 +119,7 @@ void URuntimeSplinePointBaseComponent::OnComponentDestroyed(bool bDestroyingHier
 			ParentSpline->PointComponents.Remove(this);
 		}
 
-		if (ParentSpline->PointComponents.Num() < 2)
+		if (ParentSpline->PointComponents.Num() < 2 || !ParentSpline->IsRegistered())
 		{
 			bNeedToDestroySpline = true;
 		}
