@@ -38,11 +38,11 @@ using F_Transform3 = FTransform;
 			} \
 		} \
 	} \
-	FORCEINLINE static bool IsNearlyZero(const FType& V) \
+	FORCEINLINE static bool IsNearlyZero(const FType& V, double Tolerance = SMALL_NUMBER) \
 	{ \
 		for(int32 i = 0; i < Dim; ++i) \
 		{ \
-			if(!FMath::IsNearlyZero(V[i])) { \
+			if(!FMath::IsNearlyZero(static_cast<double>(V[i]), Tolerance)) { \
 				return false; \
 			} \
 		} \

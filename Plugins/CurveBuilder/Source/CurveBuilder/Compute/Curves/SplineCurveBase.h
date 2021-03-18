@@ -111,11 +111,11 @@ public:
 	}
 	FORCEINLINE bool IsSmallEnough() const
 	{
-		return TVecLib<Dim+1>::Projection(CtrlPoints[0]).Equals(TVecLib<Dim+1>::(CtrlPoints[Degree]), 0.01);
+		return TVecLib<Dim+1>::Projection(CtrlPoints[0]).Equals(TVecLib<Dim+1>::Projection(CtrlPoints[Degree]), 0.01);
 	}
 	FORCEINLINE TVectorX<Dim> Center() const
 	{
-		return (TVecLib<Dim+1>::Projection(CtrlPoints[0]) + TVecLib<Dim+1>::(CtrlPoints[Degree])) * 0.5;
+		return (TVecLib<Dim+1>::Projection(CtrlPoints[0]) + TVecLib<Dim+1>::Projection(CtrlPoints[Degree])) * 0.5;
 	}
 	FORCEINLINE TVectorX<Dim+1> CenterHomogeneous() const
 	{

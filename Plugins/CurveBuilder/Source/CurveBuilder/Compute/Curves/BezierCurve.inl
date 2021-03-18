@@ -71,10 +71,14 @@ inline void TBezierCurve<Dim, Degree>::ToPolynomialForm(TVectorX<Dim+1>* OutPoly
 	TVecLib<Dim+1>::Last(OutPolyForm[0]) = 1.;
 	for (int32 i = 1; i <= Degree; ++i) {
 		for (int32 j = 0; j <= Degree - i; ++j) {
-			DTable[j] = DTable[j + 1] - DTable[j];
+			DTable[j] = TVecLib<Dim>::Homogeneous(
+				TVecLib<Dim+1>::Projection(DTable[j + 1]) - TVecLib<Dim+1>::Projection(DTable[j]),
+				TVecLib<Dim+1>::Last(DTable[j + 1]) / TVecLib<Dim+1>::Last(DTable[j]));
 		}
 		Combination *= static_cast<double>(Degree - i + 1) / i;
-		OutPolyForm[i] = DTable[0] * Combination;
+		OutPolyForm[i] = TVecLib<Dim>::Homogeneous(
+			TVecLib<Dim+1>::Projection(DTable[0]) * Combination,
+			TVecLib<Dim+1>::Last(DTable[0]));
 		TVecLib<Dim+1>::WeightToOne(OutPolyForm[i]);
 		TVecLib<Dim+1>::Last(OutPolyForm[i]) = 1.;
 	}
@@ -168,4 +172,33 @@ inline TVectorX<Dim> TBezierCurve<Dim, Degree>::DeCasteljau(double T, TArray<TAr
 		}
 	}
 	return TVecLib<Dim+1>::Projection(CalCtrlPoints[0]);
+}
+
+template<int32 Dim, int32 Degree>
+inline void TBezierCurve<Dim, Degree>::CreateFromPolynomialForm(const TVectorX<Dim + 1>* InPolyForm)
+{
+	TVectorX<Dim + 1> DTable[Degree + 1];
+	//TVecLib<Dim+1>::CopyArray(DTable, InPolyForm, Degree + 1);
+	double Combination = 1;
+	DTable[0] = InPolyForm[0];
+	for (int32 i = 1; i <= Degree; ++i)
+	{
+		Combination *= static_cast<double>(Degree - i + 1) / i;
+		DTable[i] = TVecLib<Dim>::Homogeneous(
+			TVecLib<Dim + 1>::Projection(InPolyForm[i]) / Combination,
+			TVecLib<Dim + 1>::Last(InPolyForm[i]));
+	}
+	CtrlPoints[0] = DTable[0];
+	TVecLib<Dim + 1>::WeightToOne(CtrlPoints[0]);
+	TVecLib<Dim + 1>::Last(CtrlPoints[0]) = 1.;
+	for (int32 i = 1; i <= Degree; ++i) {
+		for (int32 j = Degree; j >= i; --j) {
+			DTable[j] = TVecLib<Dim>::Homogeneous(
+				TVecLib<Dim + 1>::Projection(DTable[j]) + TVecLib<Dim + 1>::Projection(DTable[j - 1]),
+				TVecLib<Dim + 1>::Last(DTable[j]) * TVecLib<Dim + 1>::Last(DTable[j - 1]));
+		}
+		CtrlPoints[i] = DTable[i];
+		TVecLib<Dim + 1>::WeightToOne(CtrlPoints[i]);
+		TVecLib<Dim + 1>::Last(CtrlPoints[i]) = 1.;
+	}
 }

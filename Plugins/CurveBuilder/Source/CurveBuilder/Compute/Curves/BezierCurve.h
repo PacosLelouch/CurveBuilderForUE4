@@ -21,7 +21,9 @@ public:
 
 public:
 	TVectorX<Dim+1> Split(TBezierCurve<Dim, Degree>& OutFirst, TBezierCurve<Dim, Degree>& OutSecond, double T = 0.5) const;
+	void CreateFromPolynomialForm(const TVectorX<Dim+1>* InPolyForm);
 
+protected:
 	TVectorX<Dim> Horner(double T) const;
 	TVectorX<Dim> DeCasteljau(double T, TArray<TArray<TVectorX<Dim+1> > >* SplitArray = nullptr) const;
 };

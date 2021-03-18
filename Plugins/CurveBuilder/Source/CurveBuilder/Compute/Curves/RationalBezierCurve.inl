@@ -61,20 +61,24 @@ inline double TRationalBezierCurve<Dim, Degree>::GetCurvature(double T) const
 template<int32 Dim, int32 Degree>
 inline void TRationalBezierCurve<Dim, Degree>::ToPolynomialForm(TVectorX<Dim+1> OutPolyForm[Degree + 1]) const
 {
-	TVectorX<Dim+1> DTable[Degree + 1];
-	TVecLib<Dim+1>::CopyArray(DTable, CtrlPoints, Degree + 1);
+	TVectorX<Dim + 1> DTable[Degree + 1];
+	TVecLib<Dim + 1>::CopyArray(DTable, CtrlPoints, Degree + 1);
 	double Combination = 1;
 	OutPolyForm[0] = CtrlPoints[0];
-	TVecLib<Dim+1>::WeightToOne(OutPolyForm[0]);
-	TVecLib<Dim+1>::Last(OutPolyForm[0]) = 1.;
+	TVecLib<Dim + 1>::WeightToOne(OutPolyForm[0]);
+	TVecLib<Dim + 1>::Last(OutPolyForm[0]) = 1.;
 	for (int32 i = 1; i <= Degree; ++i) {
 		for (int32 j = 0; j <= Degree - i; ++j) {
-			DTable[j] = DTable[j + 1] - DTable[j];
+			DTable[j] = TVecLib<Dim>::Homogeneous(
+				TVecLib<Dim + 1>::Projection(DTable[j + 1]) - TVecLib<Dim + 1>::Projection(DTable[j]),
+				TVecLib<Dim + 1>::Last(DTable[j + 1]) / TVecLib<Dim + 1>::Last(DTable[j]));
 		}
 		Combination *= static_cast<double>(Degree - i + 1) / i;
-		OutPolyForm[i] = DTable[0] * Combination;
-		TVecLib<Dim+1>::WeightToOne(OutPolyForm[i]);
-		TVecLib<Dim+1>::Last(OutPolyForm[i]) = 1.;
+		OutPolyForm[i] = TVecLib<Dim>::Homogeneous(
+			TVecLib<Dim + 1>::Projection(DTable[0]) * Combination,
+			TVecLib<Dim + 1>::Last(DTable[0]));
+		TVecLib<Dim + 1>::WeightToOne(OutPolyForm[i]);
+		TVecLib<Dim + 1>::Last(OutPolyForm[i]) = 1.;
 	}
 }
 

@@ -297,6 +297,73 @@ inline bool TClampedBSpline<Dim, Degree>::ToBezierCurves(TArray<TBezierCurve<Dim
 }
 
 template<int32 Dim, int32 Degree>
+inline int32 TClampedBSpline<Dim, Degree>::CreateFromBezierCurves(const TArray<TBezierCurve<Dim, Degree>>& BezierCurves, double TOL)
+{
+	if (BezierCurves.Num() == 0)
+	{
+		return 0;
+	}
+	TArray<TVectorX<Dim + 1> > NewCtrlPoints;
+	TArray<double> NewKnots;
+	NewCtrlPoints.Reserve(BezierCurves.Num() * Degree);
+	NewKnots.Reserve(BezierCurves.Num() * Degree);
+	for (int32 i = 0; i <= Degree; ++i)
+	{
+		NewCtrlPoints.Add(BezierCurves[0].GetPointHomogeneous(i));
+	}
+	NewKnots.Add(0.);
+	NewKnots.Add(1.);
+
+	for (int32 i = 1; i < BezierCurves.Num(); ++i)
+	{
+		TVectorX<Dim> LastPoint = BezierCurves[i - 1].GetPoint(Degree);
+		TVectorX<Dim> FirstPoint = BezierCurves[i].GetPoint(0);
+		TVectorX<Dim> Diff = FirstPoint - LastPoint;
+		if (!TVecLib<Dim>::IsNearlyZero(Diff, TOL))
+		{
+			Reset(NewCtrlPoints, NewKnots);
+			return i;
+		}
+
+		TOptional<double> ParamRatio;
+		int32 Continuity = DetermineContinuity(ParamRatio, BezierCurves[i - 1], BezierCurves[i], TOL);
+		if (!ParamRatio)
+		{
+			Reset(NewCtrlPoints, NewKnots);
+			return i;
+		}
+
+		TVectorX<Dim + 1> LastPopedCtrlPoints = TVecLib<Dim + 1>::Zero();
+		for (int32 j = 0; j < Continuity; ++j)
+		{
+			LastPopedCtrlPoints = NewCtrlPoints.Pop(false);
+		}
+		if (Continuity > 1)
+		{
+			NewCtrlPoints.Add(NewCtrlPoints.Last() + (LastPopedCtrlPoints - NewCtrlPoints.Last()) * Continuity);
+			if (Continuity > 2)
+			{
+				NewCtrlPoints.Add(BezierCurves[i].GetPointHomogeneous(Continuity) +
+					(BezierCurves[i].GetPointHomogeneous(Continuity - 1) - BezierCurves[i].GetPointHomogeneous(Continuity)) * Continuity);
+			}
+		}
+		for (int32 j = FMath::Max(1, Continuity); j <= Degree; ++j)
+		{
+			NewCtrlPoints.Add(BezierCurves[i].GetPointHomogeneous(j));
+		}
+
+		double DiffKnot = (NewKnots.Last(0) - NewKnots.Last(1)) * ParamRatio.GetValue();
+		for (int32 j = Degree - 1; j > Continuity; --j)
+		{
+			NewKnots.Emplace(NewKnots.Last(0));
+		}
+		NewKnots.Add(NewKnots.Last(0) + DiffKnot);
+	}
+	Reset(NewCtrlPoints, NewKnots);
+	return BezierCurves.Num();
+}
+
+template<int32 Dim, int32 Degree>
 inline void TClampedBSpline<Dim, Degree>::GetClampedKnotIntervals(TArray<double>& OutClampedKnotIntervals) const
 {
 	if (KnotIntervals.Num() == 0) {
@@ -1038,6 +1105,52 @@ template<int32 Dim, int32 Degree>
 inline void TClampedBSpline<Dim, Degree>::AddKnotAtTailRaw(double Param)
 {
 	KnotIntervals.Add(Param);
+}
+
+template<int32 Dim, int32 Degree>
+template<int32 SubDegree>
+inline int32 TClampedBSpline<Dim, Degree>::DetermineContinuity(TOptional<double>& OutParamRatio, const TBezierCurve<Dim, SubDegree>& Bezier1, const TBezierCurve<Dim, SubDegree>& Bezier2, double TOL)
+{
+	if (SubDegree <= 1)
+	{
+		return Degree - SubDegree;
+	}
+	auto Tangent1 = Bezier1.GetTangent(1.);
+	auto Tangent2 = Bezier2.GetTangent(0.);
+	auto SqrDot = FMath::Square(TVecLib<Dim>::Dot(Tangent1, Tangent2));
+	auto SqrSize1 = TVecLib<Dim>::SizeSquared(Tangent1);
+	auto SqrSize2 = TVecLib<Dim>::SizeSquared(Tangent2);
+	bool bSqr1NonZero = !FMath::IsNearlyZero(SqrSize1);
+	bool bSqr2NonZero = !FMath::IsNearlyZero(SqrSize2);
+	auto SqrCos = bSqr1NonZero && bSqr2NonZero ? (SqrDot / (SqrSize1 * SqrSize2)) : 1.;
+	//auto Diff = Tangent1 - Tangent2;
+	//if (TVecLib<Dim>::SizeSquared(Diff) <= FMath::Square(TOL))
+	if (FMath::Abs(SqrCos - 1.) <= FMath::Square(TOL) && bSqr1NonZero)
+	{
+		if (!OutParamRatio)
+		{
+			OutParamRatio = FMath::Sqrt(SqrSize2 / SqrSize1);
+		}
+		else
+		{
+			auto SqrQuotient = SqrSize2 / SqrSize1;
+			auto SqrParamRatio = OutParamRatio.GetValue();
+			for (int32 i = Degree; i > SubDegree; --i)
+			{
+				SqrParamRatio *= OutParamRatio.GetValue();
+			}
+			SqrParamRatio = FMath::Square(SqrParamRatio);
+			if (!FMath::IsNearlyEqual(SqrParamRatio, SqrQuotient, TOL))
+			{
+				return Degree - SubDegree;
+			}
+		}
+		TBezierCurve<Dim, CLAMP_DEGREE(SubDegree - 1, 0)> Hodo1, Hodo2;
+		Bezier1.CreateHodograph(Hodo1);
+		Bezier2.CreateHodograph(Hodo2);
+		return DetermineContinuity(OutParamRatio, Hodo1, Hodo2, TOL * (Degree + 1));
+	}
+	return Degree - SubDegree;
 }
 
 #undef GetValueRef

@@ -221,8 +221,8 @@ void ARuntimeSplineGraph::RemoveSplineFromGraph(URuntimeCustomSplineBaseComponen
 	URuntimeCustomSplineBaseComponent** CompPtr = SplineComponentMap.Find(SplineToDelete->SplineBaseWrapperProxy);
 	if (CompPtr && *CompPtr == SplineToDelete)
 	{
-		SplineGraphProxy.DeleteSpline(SplineToDelete->SplineBaseWrapperProxy.Get()->Spline);
 		SplineComponentMap.Remove(SplineToDelete->SplineBaseWrapperProxy);
+		SplineGraphProxy.DeleteSpline(SplineToDelete->SplineBaseWrapperProxy.Get()->Spline);
 	}
 }
 

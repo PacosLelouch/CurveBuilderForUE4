@@ -97,6 +97,8 @@ public:
 
 	virtual bool ToBezierCurves(TArray<TBezierCurve<Dim, Degree> >& BezierCurves, TArray<TTuple<double, double> >* ParamRangesPtr = nullptr) const override;
 
+	int32 CreateFromBezierCurves(const TArray<TBezierCurve<Dim, Degree>>& BezierCurves, double TOL = 1e-2);
+
 	void GetClampedKnotIntervals(TArray<double>& OutClampedKnotIntervals) const;
 
 	void GetKnotIntervals(TArray<double>& OutKnotIntervals) const;
@@ -176,6 +178,9 @@ protected:
 	void AddPointAtTailRaw(const TVectorX<Dim+1>& CtrlPoint);
 
 	void AddKnotAtTailRaw(double Param);
+
+	template<int32 SubDegree = Degree>
+	int32 DetermineContinuity(TOptional<double>& OutParamRatio, const TBezierCurve<Dim, SubDegree>& Bezier1, const TBezierCurve<Dim, SubDegree>& Bezier2, double TOL);
 };
 
 template<int32 Dim, int32 Degree>
