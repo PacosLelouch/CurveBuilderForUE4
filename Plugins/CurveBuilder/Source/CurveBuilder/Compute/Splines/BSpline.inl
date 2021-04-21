@@ -296,6 +296,7 @@ inline bool TClampedBSpline<Dim, Degree>::ToBezierCurves(TArray<TBezierCurve<Dim
 	return true;
 }
 
+// Maybe the algorithm is not correct?
 template<int32 Dim, int32 Degree>
 inline int32 TClampedBSpline<Dim, Degree>::CreateFromBezierCurves(const TArray<TBezierCurve<Dim, Degree>>& BezierCurves, double TOL)
 {
@@ -338,13 +339,18 @@ inline int32 TClampedBSpline<Dim, Degree>::CreateFromBezierCurves(const TArray<T
 		{
 			LastPopedCtrlPoints = NewCtrlPoints.Pop(false);
 		}
+		// Maybe not correct?
 		if (Continuity > 1)
 		{
-			NewCtrlPoints.Add(NewCtrlPoints.Last() + (LastPopedCtrlPoints - NewCtrlPoints.Last()) * Continuity);
+			double Param = ParamRatio.GetValue();
+			double InvParam = 1. / Param;
+			NewCtrlPoints.Add(LastPopedCtrlPoints + (LastPopedCtrlPoints - NewCtrlPoints.Last())
+				* (1 + InvParam) * 0.5 * Continuity);
 			if (Continuity > 2)
 			{
-				NewCtrlPoints.Add(BezierCurves[i].GetPointHomogeneous(Continuity) +
-					(BezierCurves[i].GetPointHomogeneous(Continuity - 1) - BezierCurves[i].GetPointHomogeneous(Continuity)) * Continuity);
+				NewCtrlPoints.Add(BezierCurves[i].GetPointHomogeneous(Continuity - 1) +
+					(BezierCurves[i].GetPointHomogeneous(Continuity - 1) - BezierCurves[i].GetPointHomogeneous(Continuity))
+					* (1 + Param) * 0.5 * Continuity);
 			}
 		}
 		for (int32 j = FMath::Max(1, Continuity); j <= Degree; ++j)
@@ -1140,7 +1146,7 @@ inline int32 TClampedBSpline<Dim, Degree>::DetermineContinuity(TOptional<double>
 				SqrParamRatio *= OutParamRatio.GetValue();
 			}
 			SqrParamRatio = FMath::Square(SqrParamRatio);
-			if (!FMath::IsNearlyEqual(SqrParamRatio, SqrQuotient, TOL))
+			if (!FMath::IsNearlyEqual(SqrParamRatio, SqrQuotient, TOL * SqrParamRatio))
 			{
 				return Degree - SubDegree;
 			}

@@ -144,13 +144,15 @@ URuntimeCustomSplineBaseComponent* ARuntimeSplineGraph::ConnectAndFill(
 		return nullptr;
 	}
 	TArray<TWeakPtr<FSpatialSplineBase3::FControlPointType> > NewSrcCtrlPoints, NewTarCtrlPoints;
-	TWeakPtr<FSpatialSplineBase3> ReturnSplineWeakPtr = SplineGraphProxy.ConnectAndFill(
-		Source->SplineBaseWrapperProxy.Get()->Spline, Target->SplineBaseWrapperProxy.Get()->Spline,
-		bSourceForward ? EContactType::End : EContactType::Start,
-		bTargetForward ? EContactType::End : EContactType::Start,
-		bFillInSource,
-		&NewSrcCtrlPoints,
-		&NewTarCtrlPoints);
+	EXEC_WITH_THREAD_MUTEX_LOCK(Source->RenderMuteX,
+		TWeakPtr<FSpatialSplineBase3> ReturnSplineWeakPtr = SplineGraphProxy.ConnectAndFill(
+			Source->SplineBaseWrapperProxy.Get()->Spline, Target->SplineBaseWrapperProxy.Get()->Spline,
+			bSourceForward ? EContactType::End : EContactType::Start,
+			bTargetForward ? EContactType::End : EContactType::Start,
+			bFillInSource,
+			&NewSrcCtrlPoints,
+			&NewTarCtrlPoints);
+	);
 
 	if (!ReturnSplineWeakPtr.IsValid())
 	{

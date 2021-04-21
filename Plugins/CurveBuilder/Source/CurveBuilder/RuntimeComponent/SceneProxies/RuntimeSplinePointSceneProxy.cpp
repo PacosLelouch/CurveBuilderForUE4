@@ -51,7 +51,8 @@ void FRuntimeSplinePointSceneProxy::DrawRuntimeSplinePoint(FPrimitiveDrawInterfa
 	{
 		return;
 	}
-	
+
+	SCOPE_MUTEX_LOCK(ComponentWeakPtr->RenderMuteX);
 #if DISABLE_COPY_IN_SPLINE_SCENE_PROXY
 	if (!DrawInfo.SplinePointInternalWeakPtr.IsValid())
 	{
@@ -114,11 +115,13 @@ void FRuntimeSplinePointSceneProxy::DrawDebugCollisions(FPrimitiveDrawInterface*
 	float Thickness = CollisionInfo.DebugCollisionLineWidth;
 
 #if DISABLE_COPY_IN_SPLINE_SCENE_PROXY
-	if (!CollisionInfo.BodySetupPtr || !IsValid(*CollisionInfo.BodySetupPtr))
-	{
-		return;
-	}
-	const TArray<FKSphereElem> SphereElems = (*CollisionInfo.BodySetupPtr)->AggGeom.SphereElems;
+	EXEC_WITH_THREAD_MUTEX_LOCK(ComponentWeakPtr->RenderMuteX,
+		if (!CollisionInfo.BodySetupPtr || !IsValid(*CollisionInfo.BodySetupPtr))
+		{
+			return;
+		}
+		const TArray<FKSphereElem> SphereElems = (*CollisionInfo.BodySetupPtr)->AggGeom.SphereElems;
+	);
 #else
 	const TArray<FKSphereElem>& SphereElems = CollisionInfo.SphereElems;
 #endif

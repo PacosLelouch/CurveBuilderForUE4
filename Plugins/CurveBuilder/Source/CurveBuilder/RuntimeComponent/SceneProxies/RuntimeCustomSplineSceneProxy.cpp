@@ -65,6 +65,7 @@ void FRuntimeCustomSplineSceneProxy::DrawRuntimeSpline(FPrimitiveDrawInterface* 
 		return;
 	}
 
+	SCOPE_MUTEX_LOCK(ComponentWeakPtr->RenderMuteX);
 #if DISABLE_COPY_IN_SPLINE_SCENE_PROXY
 	if (!DrawInfo.SplineInternalWeakPtr.IsValid())
 	{
@@ -204,11 +205,13 @@ void FRuntimeCustomSplineSceneProxy::DrawDebugCollisions(FPrimitiveDrawInterface
 	FColor Color = CollisionInfo.DebugCollisionColor.ToFColor(true);
 	float Thickness = CollisionInfo.DebugCollisionLineWidth;
 #if DISABLE_COPY_IN_SPLINE_SCENE_PROXY
-	if (!CollisionInfo.BodySetupPtr || !IsValid(*CollisionInfo.BodySetupPtr))
-	{
-		return;
-	}
-	const TArray<FKSphylElem> SphylElems = (*CollisionInfo.BodySetupPtr)->AggGeom.SphylElems;
+	EXEC_WITH_THREAD_MUTEX_LOCK(ComponentWeakPtr->RenderMuteX,
+		if (!CollisionInfo.BodySetupPtr || !IsValid(*CollisionInfo.BodySetupPtr))
+		{
+			return;
+		}
+		const TArray<FKSphylElem> SphylElems = (*CollisionInfo.BodySetupPtr)->AggGeom.SphylElems;
+	);
 #else
 	const TArray<FKSphylElem>& SphylElems = CollisionInfo.SphylElems;
 #endif

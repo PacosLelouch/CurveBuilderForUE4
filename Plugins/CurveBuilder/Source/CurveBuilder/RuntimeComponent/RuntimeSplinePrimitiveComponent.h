@@ -18,6 +18,84 @@ class ISlateStyle;
 class SWidget;
 class FMenuBuilder;
 
+#ifdef CONCATENATE_FOR_PREPROCESSOR
+#undef CONCATENATE_FOR_PREPROCESSOR
+#endif
+#define CONCATENATE_FOR_PREPROCESSOR(A,B) A ## B
+#ifdef CONCATENATE_FOR_PREPROCESSOR_WRAPPER
+#undef CONCATENATE_FOR_PREPROCESSOR_WRAPPER
+#endif
+#define CONCATENATE_FOR_PREPROCESSOR_WRAPPER(A,B) CONCATENATE_FOR_PREPROCESSOR(A, B)
+
+#define ENABLE_THREAD_MUTEX_LOCK 1
+
+#if ENABLE_THREAD_MUTEX_LOCK
+// Execute with mutex lock.
+// Use a unique pointer to lock the mutex, in case of the code includes return.
+#define EXEC_WITH_THREAD_MUTEX_LOCK(MuteX,...) \
+		FScopeLockManual CONCATENATE_FOR_PREPROCESSOR_WRAPPER(Lock, __LINE__)(&(MuteX)); \
+		__VA_ARGS__ \
+		CONCATENATE_FOR_PREPROCESSOR_WRAPPER(Lock, __LINE__).UnlockManually()
+
+	//#define EXEC_WITH_THREAD_MUTEX_LOCK(MuteX,...) \
+	//	TUniquePtr<FScopeLock> CONCATENATE_FOR_PREPROCESSOR_WRAPPER(Lock, __LINE__) = MakeUnique<FScopeLock>(&(MuteX)); \
+	//	__VA_ARGS__ \
+	//	CONCATENATE_FOR_PREPROCESSOR_WRAPPER(Lock, __LINE__).Reset()
+
+#define SCOPE_MUTEX_LOCK(MuteX) FScopeLock CONCATENATE_FOR_PREPROCESSOR_WRAPPER(Lock, __LINE__)(&(MuteX))
+#else
+// Just execute without mutex.
+#define EXEC_WITH_THREAD_MUTEX_LOCK(MuteX,...) __VA_ARGS__
+
+#define SCOPE_MUTEX_LOCK(MuteX) 
+#endif
+
+class CURVEBUILDER_API FScopeLockManual
+{
+public:
+	FScopeLockManual(FCriticalSection* InSynchObject)
+		: SynchObject(InSynchObject)
+	{
+		if (SynchObject)
+		{
+			SynchObject->Lock();
+		}
+	}
+
+	void UnlockManually()
+	{
+		if (SynchObject)
+		{
+			SynchObject->Unlock();
+			SynchObject = nullptr;
+		}
+	}
+
+	/** Destructor that performs a release on the synchronization object. */
+	~FScopeLockManual()
+	{
+		if (SynchObject)
+		{
+			SynchObject->Unlock();
+		}
+	}
+private:
+
+	/** Default constructor (hidden on purpose). */
+	FScopeLockManual() = delete;
+
+	/** Copy constructor( hidden on purpose). */
+	FScopeLockManual(const FScopeLock& InScopeLock) = delete;
+
+	/** Assignment operator (hidden on purpose). */
+	FScopeLockManual& operator=(FScopeLock& InScopeLock) = delete;
+
+private:
+
+	// Holds the synchronization object to aggregate and scope manage.
+	FCriticalSection* SynchObject;
+};
+
 class CURVEBUILDER_API FRuntimeSplineCommandsBase : public TCommands<FRuntimeSplineCommandsBase>
 {
 public:
@@ -212,6 +290,8 @@ public:
 	TSharedPtr<FRuntimeSplineCommandHelperBase> CommandHelper;
 
 	TSharedPtr<IMenu> OpenedMenu;
+
+	mutable FCriticalSection RenderMuteX;
 
 public:
 	static ECollisionTraceFlag SpCompCollisionTraceFlag;

@@ -558,6 +558,7 @@ void URuntimeCustomSplineBaseComponent::ClearSpline()
 		//	ParentGraph->SplineComponentMap.Remove(SplineBaseWrapperProxy);
 		//}
 	}
+	SCOPE_MUTEX_LOCK(RenderMuteX);
 	if (PointComponents.Num() > 0)
 	{
 		int32 Num = PointComponents.Num();
@@ -591,11 +592,13 @@ URuntimeSplinePointBaseComponent* URuntimeCustomSplineBaseComponent::AddEndPoint
 		TWeakPtr<FSpatialControlPoint3> ControlPointWeakPtr;
 		if (bAtLast)
 		{
+			SCOPE_MUTEX_LOCK(RenderMuteX);
 			Spline->AddPointAtLast(SplineLocalPosition);
 			ControlPointWeakPtr = Spline->GetLastCtrlPointStruct();
 		}
 		else
 		{
+			SCOPE_MUTEX_LOCK(RenderMuteX);
 			Spline->AddPointAtFirst(SplineLocalPosition);
 			ControlPointWeakPtr = Spline->GetLastCtrlPointStruct();
 		}
@@ -639,6 +642,7 @@ URuntimeSplinePointBaseComponent* URuntimeCustomSplineBaseComponent::InsertPoint
 			switch (Spline->GetType()) {
 			case ESplineType::BezierString:
 			{
+				SCOPE_MUTEX_LOCK(RenderMuteX);
 				auto* NewNode = static_cast<TSplineTraitByType<ESplineType::BezierString, 3, 3>::FSplineType*>(Spline)->AddPointWithParamWithoutChangingShape(Param);
 				if (NewNode) {
 					NewNode->GetValue().Get().Continuity = EEndPointContinuity::G1;
@@ -650,6 +654,7 @@ URuntimeSplinePointBaseComponent* URuntimeCustomSplineBaseComponent::InsertPoint
 				break;
 			case ESplineType::ClampedBSpline:
 			{
+				SCOPE_MUTEX_LOCK(RenderMuteX);
 				auto* NewNode = static_cast<TSplineTraitByType<ESplineType::ClampedBSpline, 3, 3>::FSplineType*>(Spline)->AddPointWithParamWithoutChangingShape(Param);
 				if (NewNode) {
 					NewPointComponent = AddPointInternal(NewNode->GetValue(), 0);
@@ -707,14 +712,16 @@ void URuntimeCustomSplineBaseComponent::ReverseImpl()
 			CPMap.Add(CPComp->SplinePointProxy.Pin().Get(), CPComp);
 	}
 
-	if (IsValid(ParentGraph) && !ParentGraph->IsActorBeingDestroyed())
-	{
-		ParentGraph->SplineGraphProxy.ReverseSpline(GetSplineProxyWeakPtr());
-	}
-	else
-	{
-		Spline->Reverse();
-	}
+	EXEC_WITH_THREAD_MUTEX_LOCK(RenderMuteX,
+		if (IsValid(ParentGraph) && !ParentGraph->IsActorBeingDestroyed())
+		{
+			ParentGraph->SplineGraphProxy.ReverseSpline(GetSplineProxyWeakPtr());
+		}
+		else
+		{
+			Spline->Reverse();
+		}
+	);
 
 	TArray<TWeakPtr<FSpatialControlPoint3>> NewCPs;
 	Spline->GetCtrlPointStructs(NewCPs);

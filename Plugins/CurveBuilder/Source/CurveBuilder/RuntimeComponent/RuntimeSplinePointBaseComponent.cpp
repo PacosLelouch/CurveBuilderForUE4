@@ -105,6 +105,7 @@ void URuntimeSplinePointBaseComponent::OnComponentCreated()
 
 void URuntimeSplinePointBaseComponent::OnComponentDestroyed(bool bDestroyingHierarchy)
 {
+	SCOPE_MUTEX_LOCK(RenderMuteX);
 	bool bNeedToDestroySpline = false;
 	if (IsValid(ParentSpline) && !ParentSpline->IsBeingDestroyed())
 	{
