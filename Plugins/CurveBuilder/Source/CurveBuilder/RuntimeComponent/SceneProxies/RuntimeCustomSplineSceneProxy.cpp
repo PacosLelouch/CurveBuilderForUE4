@@ -73,7 +73,7 @@ void FRuntimeCustomSplineSceneProxy::DrawRuntimeSpline(FPrimitiveDrawInterface* 
 	}
 	const FSpatialSplineBase3& SplineInternal = *DrawInfo.SplineInternalWeakPtr.Pin().Get();
 #else
-	const FSpatialSplineBase3& SplineInternal = DrawInfo.SplineInternalRef.Get();
+	const FSpatialSplineBase3& SplineInternal = *DrawInfo.SplineInternalRef.Get();
 #endif
 
 	//TTuple<double, double> ParamRange = SplineInternal.GetParamRange();

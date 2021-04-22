@@ -43,6 +43,15 @@ void URuntimeSplinePrimitiveComponent::BeginPlay()
 	SetCollisionResponseToAllChannels(ECollisionResponse::ECR_Overlap);
 }
 
+bool URuntimeSplinePrimitiveComponent::MoveComponentImpl(const FVector& Delta, const FQuat& NewRotation, bool bSweep, FHitResult* Hit, EMoveComponentFlags MoveFlags, ETeleportType Teleport)
+{
+	bool bReturnValue = Super::MoveComponentImpl(Delta, NewRotation, bSweep, Hit, MoveFlags, Teleport);
+#if !DISABLE_COPY_IN_SPLINE_SCENE_PROXY
+	MarkRenderStateDirty();
+#endif // DISABLE_COPY_IN_SPLINE_SCENE_PROXY
+	return bReturnValue;
+}
+
 FPrimitiveSceneProxy* URuntimeSplinePrimitiveComponent::CreateSceneProxy()
 {
 	return new FRuntimeSplinePrimitiveSceneProxy(this);

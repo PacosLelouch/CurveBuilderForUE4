@@ -706,21 +706,21 @@ inline void TClampedBSpline<Dim, Degree>::AddPointAt(const TVectorX<Dim>& Point,
 		}
 	}
 	if (NodeToInsertBefore) {
-		FPointNode* BeforeNodeToInsertBefore = CtrlPointsList.GetHead();
-		if (BeforeNodeToInsertBefore == NodeToInsertBefore) {
-			//double InParam = Param ? Param.Get(0.) : GetParamRange().Get<0>() - 1.;
-			CtrlPointsList.AddHead(MakeShared<FControlPointType>(TVecLib<Dim>::Homogeneous(Point, Weight)));
-			AddNewKnotIntervalIfNecessary(Param);
-		}
-		else {
-			while (BeforeNodeToInsertBefore->GetNextNode() != NodeToInsertBefore) {
-				BeforeNodeToInsertBefore = BeforeNodeToInsertBefore->GetNextNode();
-			}
-			//double InParam = Param ? Param.Get(0.) :
-			//	(NodeToInsertBefore->GetValueRef().Param + BeforeNodeToInsertBefore->GetValueRef().Param) * 0.5;
+		//FPointNode* BeforeNodeToInsertBefore = CtrlPointsList.GetHead();
+		//if (BeforeNodeToInsertBefore == NodeToInsertBefore) {
+		//	//double InParam = Param ? Param.Get(0.) : GetParamRange().Get<0>() - 1.;
+		//	CtrlPointsList.AddHead(MakeShared<FControlPointType>(TVecLib<Dim>::Homogeneous(Point, Weight)));
+		//	AddNewKnotIntervalIfNecessary(Param);
+		//}
+		//else {
+		//	while (BeforeNodeToInsertBefore->GetNextNode() != NodeToInsertBefore) {
+		//		BeforeNodeToInsertBefore = BeforeNodeToInsertBefore->GetNextNode();
+		//	}
+		//	//double InParam = Param ? Param.Get(0.) :
+		//	//	(NodeToInsertBefore->GetValueRef().Param + BeforeNodeToInsertBefore->GetValueRef().Param) * 0.5;
 			CtrlPointsList.InsertNode(MakeShared<FControlPointType>(TVecLib<Dim>::Homogeneous(Point, Weight)), NodeToInsertBefore);
 			AddNewKnotIntervalIfNecessary(Param);
-		}
+		//}
 	}
 	else {
 		//double InParam = Param ? Param.Get(0.) : (CtrlPointsList.Num() > 0 ? GetParamRange().Get<1>() + 1. : 0.);

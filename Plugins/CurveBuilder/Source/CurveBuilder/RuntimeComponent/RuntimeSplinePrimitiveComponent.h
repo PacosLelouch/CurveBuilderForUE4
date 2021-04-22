@@ -27,7 +27,7 @@ class FMenuBuilder;
 #endif
 #define CONCATENATE_FOR_PREPROCESSOR_WRAPPER(A,B) CONCATENATE_FOR_PREPROCESSOR(A, B)
 
-#define ENABLE_THREAD_MUTEX_LOCK 1
+#define ENABLE_THREAD_MUTEX_LOCK 0
 
 #if ENABLE_THREAD_MUTEX_LOCK
 // Execute with mutex lock.
@@ -104,74 +104,6 @@ public:
 	virtual void RegisterCommands() override;
 
 public:
-	///** Delete key */
-	//TSharedPtr<FUICommandInfo> DeleteKey;
-
-	///** Duplicate key */
-	//TSharedPtr<FUICommandInfo> DuplicateKey;
-
-	///** Add key */
-	//TSharedPtr<FUICommandInfo> AddKey;
-
-	///** Select all */
-	//TSharedPtr<FUICommandInfo> SelectAll;
-
-	///** Reset to unclamped tangent */
-	//TSharedPtr<FUICommandInfo> ResetToUnclampedTangent;
-
-	///** Reset to clamped tangent */
-	//TSharedPtr<FUICommandInfo> ResetToClampedTangent;
-
-	///** Set spline key to Curve type */
-	//TSharedPtr<FUICommandInfo> SetKeyToCurve;
-
-	///** Set spline key to Linear type */
-	//TSharedPtr<FUICommandInfo> SetKeyToLinear;
-
-	///** Set spline key to Constant type */
-	//TSharedPtr<FUICommandInfo> SetKeyToConstant;
-
-	///** Focus on selection */
-	//TSharedPtr<FUICommandInfo> FocusViewportToSelection;
-
-	///** Snap to nearest spline point on another spline component */
-	//TSharedPtr<FUICommandInfo> SnapToNearestSplinePoint;
-
-	///** Align to nearest spline point on another spline component */
-	//TSharedPtr<FUICommandInfo> AlignToNearestSplinePoint;
-
-	///** Align perpendicular to nearest spline point on another spline component */
-	//TSharedPtr<FUICommandInfo> AlignPerpendicularToNearestSplinePoint;
-
-	///** Snap all spline points to selected point X */
-	//TSharedPtr<FUICommandInfo> SnapAllToSelectedX;
-
-	///** Snap all spline points to selected point Y */
-	//TSharedPtr<FUICommandInfo> SnapAllToSelectedY;
-
-	///** Snap all spline points to selected point Z */
-	//TSharedPtr<FUICommandInfo> SnapAllToSelectedZ;
-
-	///** No axis is locked when adding new spline points */
-	//TSharedPtr<FUICommandInfo> SetLockedAxisNone;
-
-	///** Lock X axis when adding new spline points */
-	//TSharedPtr<FUICommandInfo> SetLockedAxisX;
-
-	///** Lock Y axis when adding new spline points */
-	//TSharedPtr<FUICommandInfo> SetLockedAxisY;
-
-	///** Lock Z axis when adding new spline points */
-	//TSharedPtr<FUICommandInfo> SetLockedAxisZ;
-
-	///** Whether the visualization should show roll and scale */
-	//TSharedPtr<FUICommandInfo> VisualizeRollAndScale;
-
-	///** Whether we allow separate Arrive / Leave tangents, resulting in a discontinuous spline */
-	//TSharedPtr<FUICommandInfo> DiscontinuousSpline;
-
-	///** Reset this spline to its default */
-	//TSharedPtr<FUICommandInfo> ResetToDefault;
 };
 
 class CURVEBUILDER_API FRuntimeSplineCommandHelperBase : public TSharedFromThis<FRuntimeSplineCommandHelperBase>
@@ -217,6 +149,8 @@ public:
 	URuntimeSplinePrimitiveComponent(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
 	virtual void BeginPlay() override;
+
+	virtual bool MoveComponentImpl(const FVector& Delta, const FQuat& NewRotation, bool bSweep, FHitResult* Hit = NULL, EMoveComponentFlags MoveFlags = MOVECOMP_NoFlags, ETeleportType Teleport = ETeleportType::None) override;
 
 	virtual FPrimitiveSceneProxy* CreateSceneProxy() override;
 

@@ -38,7 +38,7 @@ protected:
 				InComponent->ParentSpline->GetSplineProxy()->GetType() : ESplineType::Unknown)
 			, TangentFlag(InComponent->TangentFlag)
 #if !DISABLE_COPY_IN_SPLINE_SCENE_PROXY
-			, SplinePointInternalRef(InComponent->SplinePointProxy.IsValid() ? InComponent->SplinePointProxy.Pin().Get()->Copy() : TSharedRef<FSpatialControlPoint3>())
+			, SplinePointInternalRef(InComponent->SplinePointProxy.IsValid() ? InComponent->SplinePointProxy.Pin().Get()->Copy() : TSharedPtr<FSpatialControlPoint3>())
 #else
 			, SplinePointInternalWeakPtr(InComponent->SplinePointProxy)
 #endif
@@ -53,7 +53,7 @@ protected:
 		ESplineType SpType = ESplineType::Unknown;
 		int32 TangentFlag = 0;
 #if !DISABLE_COPY_IN_SPLINE_SCENE_PROXY
-		TSharedRef<FSpatialControlPoint3> SplinePointInternalRef;
+		TSharedPtr<FSpatialControlPoint3> SplinePointInternalRef;
 #else
 		TWeakPtr<FSpatialControlPoint3> SplinePointInternalWeakPtr;
 #endif

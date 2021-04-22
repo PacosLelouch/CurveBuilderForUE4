@@ -60,7 +60,7 @@ void FRuntimeSplinePointSceneProxy::DrawRuntimeSplinePoint(FPrimitiveDrawInterfa
 	}
 	const FSpatialControlPoint3& SplinePointInternal = *DrawInfo.SplinePointInternalWeakPtr.Pin().Get();
 #else
-	const FSpatialControlPoint3& SplinePointInternal = DrawInfo.SplinePointInternalRef.Get();
+	const FSpatialControlPoint3& SplinePointInternal = *DrawInfo.SplinePointInternalRef.Get();
 #endif
 
 	FLinearColor UseColor = DrawInfo.bSelected ? DrawInfo.SelectedCtrlPointColor : DrawInfo.CtrlPointColor;

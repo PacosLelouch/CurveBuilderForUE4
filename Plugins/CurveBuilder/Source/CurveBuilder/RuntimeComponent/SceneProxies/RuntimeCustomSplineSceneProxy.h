@@ -39,7 +39,7 @@ protected:
 			, DepthBias(InComponent->DepthBias)
 			, bSelected(InComponent->bCustomSelected)
 #if !DISABLE_COPY_IN_SPLINE_SCENE_PROXY
-			, SplineInternalRef(InComponent->GetSplineProxy() ? InComponent->GetSplineProxy()->Copy() : TSharedRef<FSpatialSplineBase3>())
+			, SplineInternalRef(InComponent->GetSplineProxy() ? InComponent->GetSplineProxy()->Copy() : TSharedPtr<FSpatialSplineBase3>())
 #else
 			, SplineInternalWeakPtr(InComponent->GetSplineProxyWeakPtr())
 #endif
@@ -56,7 +56,7 @@ protected:
 		float DepthBias = 0.f;
 		bool bSelected = false;
 #if !DISABLE_COPY_IN_SPLINE_SCENE_PROXY
-		TSharedRef<FSpatialSplineBase3> SplineInternalRef;
+		TSharedPtr<FSpatialSplineBase3> SplineInternalRef;
 #else
 		TWeakPtr<FSpatialSplineBase3> SplineInternalWeakPtr;
 #endif
