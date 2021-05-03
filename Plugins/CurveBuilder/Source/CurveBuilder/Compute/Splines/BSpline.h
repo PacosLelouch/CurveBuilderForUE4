@@ -164,6 +164,8 @@ public:
 
 	virtual bool FindParamByPosition(double& OutParam, const TVectorX<Dim>& InPos, double ToleranceSqr = 1.) const override;
 
+	virtual bool FindParamsByComponentValue(TArray<double>& OutParams, double InValue, int32 InComponentIndex = 0, double ToleranceSqr = 1.) const override;
+
 protected:
 	TDoubleLinkedList<FControlPointTypeRef> CtrlPointsList;
 	TArray<double> KnotIntervals;

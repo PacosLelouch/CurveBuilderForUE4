@@ -363,7 +363,7 @@ void URuntimeSplinePointBaseComponent::MoveTo_Deprecated(const FVector& Position
 	{
 		if (IsValid(ParentGraph) && !ParentGraph->IsActorBeingDestroyed())
 		{
-			ParentGraph->MovePoint(ParentSpline, this, Position, CoordinateType);
+			ParentGraph->MovePointInternal(ParentSpline, this, Position, CoordinateType);
 		}
 		else
 		{
@@ -426,7 +426,7 @@ void URuntimeSplinePointBaseComponent::MoveSplinePointInternal()
 		//}
 		if (IsValid(ParentGraph))
 		{
-			SplineLocalPosition = ParentGraph->MovePoint(ParentSpline, this, GetRelativeLocation(), ECustomSplineCoordinateType::ComponentLocal);
+			SplineLocalPosition = ParentGraph->MovePointInternal(ParentSpline, this, GetRelativeLocation(), ECustomSplineCoordinateType::ComponentLocal);
 		}
 		else
 		{

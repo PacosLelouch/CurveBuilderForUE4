@@ -975,6 +975,60 @@ inline bool TBezierString3<Dim>::FindParamByPosition(double& OutParam, const TVe
 }
 
 template<int32 Dim>
+inline bool TBezierString3<Dim>::FindParamsByComponentValue(TArray<double>& OutParams, double InValue, int32 InComponentIndex, double ToleranceSqr) const
+{
+	FPointNode* Node = CtrlPointsList.GetHead();
+	if (!Node) {
+		return false;
+	}
+	TOptional<double> CurParam;
+	TOptional<double> CurDistSqr;
+
+	//F_Box3 InPosBox = F_Box3({ F_Vec3(InPos) }).ExpandBy(sqrt(ToleranceSqr));
+	while (Node && Node->GetNextNode()) {
+		FPointNode* Next = Node->GetNextNode();
+
+		TBezierCurve<Dim, 3> NewBezier = MakeBezierCurve(Node, Next);
+		F_Box3 BezierBox = NewBezier.GetBox();
+		if (BezierBox.Min[InComponentIndex] > InValue || BezierBox.Max[InComponentIndex] < InValue)
+		{
+			Node = Next;
+			continue;
+		}
+		TArray<double> LocalParams;
+		if (NewBezier.FindParamsByComponentValue(LocalParams, InValue, InComponentIndex, ToleranceSqr)) {
+			for (double NewParamNormal : LocalParams)
+			{
+				double NewParam = Node->GetValueRef().Param * (1. - NewParamNormal) + Next->GetValueRef().Param * NewParamNormal;
+				//if (CurParam) {
+				//	TVectorX<Dim> NewPos = NewBezier.GetPosition(NewParamNormal);
+				//	double NewDistSqr = TVecLib<Dim>::SizeSquared(NewPos - InPos);
+				//	if (NewDistSqr < CurDistSqr.Get(0.)) {
+				//		CurDistSqr = NewDistSqr;
+				//		CurParam = NewParam;
+				//	}
+
+				//}
+				//else {
+					double CurValue = NewBezier.GetPosition(NewParamNormal)[InComponentIndex];
+					CurDistSqr = FMath::Square(CurValue - InValue);
+					OutParams.Add(NewParam);
+					CurParam = NewParam;
+				//}
+			}
+		}
+
+		Node = Next;
+	}
+
+	if (CurParam) {
+		//OutParam = CurParam.Get(0.);
+		return true;
+	}
+	return false;
+}
+
+template<int32 Dim>
 inline double TBezierString3<Dim>::GetNormalizedParam(
 	const typename TBezierString3<Dim>::FPointNode* StartNode,
 	const typename TBezierString3<Dim>::FPointNode* EndNode, 

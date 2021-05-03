@@ -124,8 +124,8 @@ public:
 		bool bAtLast = true,
 		ECustomSplineCoordinateType CoordinateType = ECustomSplineCoordinateType::SplineGraphLocal);
 
-	UFUNCTION(BlueprintCallable, Category = "RuntimeCustomSpline|Update|Internal")
-	FVector MovePoint(
+	UFUNCTION(BlueprintInternalUseOnly, Category = "RuntimeCustomSpline|Update|Internal")
+	FVector MovePointInternal(
 		URuntimeCustomSplineBaseComponent* SourceSpline, 
 		URuntimeSplinePointBaseComponent* SourcePoint,
 		const FVector& TargetPosition,

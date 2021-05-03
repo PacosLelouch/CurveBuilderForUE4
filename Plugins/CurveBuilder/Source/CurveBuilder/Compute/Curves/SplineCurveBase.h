@@ -156,6 +156,7 @@ public:
 
 public:
 	virtual bool FindParamByPosition(double& OutParam, const TVectorX<Dim>& InPos, double ToleranceSqr = 1.) const;
+	virtual bool FindParamsByComponentValue(TArray<double>& OutParams, double InValue, int32 InComponentIndex = 0, double ToleranceSqr = 1.) const;
 
 public:
 	virtual TVectorX<Dim> GetPosition(double T) const = 0;

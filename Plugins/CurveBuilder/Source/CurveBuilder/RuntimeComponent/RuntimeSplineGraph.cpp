@@ -388,7 +388,7 @@ URuntimeSplinePointBaseComponent* ARuntimeSplineGraph::ExtendNewSplineAndNewPoin
 	return nullptr;
 }
 
-FVector ARuntimeSplineGraph::MovePoint(
+FVector ARuntimeSplineGraph::MovePointInternal(
 	URuntimeCustomSplineBaseComponent* SourceSpline,
 	URuntimeSplinePointBaseComponent* SourcePoint,
 	const FVector& TargetPosition,

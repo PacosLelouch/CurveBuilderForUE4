@@ -179,6 +179,8 @@ public:
 	virtual TTuple<double, double> GetParamRange() const { return MakeTuple(-1., -1.); }
 
 	virtual bool FindParamByPosition(double& OutParam, const TVectorX<Dim>& InPos, double ToleranceSqr = 1.) const { return false; }
+	
+	virtual bool FindParamsByComponentValue(TArray<double>& OutParams, double InValue, int32 InComponentIndex = 0, double ToleranceSqr = 1.) const { return false; }
 
 public:
 	static double ConvertRange(double T, const TTuple<double, double>& RangeFrom, const TTuple<double, double>& RangeTo)

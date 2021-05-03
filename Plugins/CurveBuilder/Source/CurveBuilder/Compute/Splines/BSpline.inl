@@ -987,6 +987,54 @@ inline bool TClampedBSpline<Dim, Degree>::FindParamByPosition(double& OutParam, 
 }
 
 template<int32 Dim, int32 Degree>
+inline bool TClampedBSpline<Dim, Degree>::FindParamsByComponentValue(TArray<double>& OutParams, double InValue, int32 InComponentIndex, double ToleranceSqr) const
+{
+	TArray<TBezierCurve<Dim, Degree> > Beziers;
+	ToBezierCurves(Beziers);
+
+	TOptional<double> CurParam;
+	TOptional<double> CurDistSqr;
+
+	//F_Box3 InPosBox = F_Box3({ F_Vec3(InPos) }).ExpandBy(sqrt(ToleranceSqr));
+	for (int32 i = 0; i < Beziers.Num(); ++i) {
+		const TBezierCurve<Dim, Degree>& NewBezier = Beziers[i];
+		F_Box3 BezierBox = NewBezier.GetBox();
+		if (BezierBox.Min[InComponentIndex] > InValue || BezierBox.Max[InComponentIndex] < InValue)
+		{
+			continue;
+		}
+		TArray<double> LocalParams;
+		if (NewBezier.FindParamsByComponentValue(LocalParams, InValue, InComponentIndex, ToleranceSqr)) {
+			for (double NewParamNormal : LocalParams)
+			{
+				double NewParam = KnotIntervals[i] * (1. - NewParamNormal) + KnotIntervals[i + 1] * NewParamNormal;
+				//if (CurParam) {
+				//	TVectorX<Dim> NewPos = NewBezier.GetPosition(NewParamNormal);
+				//	double NewDistSqr = TVecLib<Dim>::SizeSquared(NewPos - InPos);
+				//	if (NewDistSqr < CurDistSqr.Get(0.)) {
+				//		CurDistSqr = NewDistSqr;
+				//		CurParam = NewParam;
+				//	}
+
+				//}
+				//else {
+					double CurValue = NewBezier.GetPosition(NewParamNormal)[InComponentIndex];
+					CurDistSqr = FMath::Square(CurValue - InValue);
+					OutParams.Add(NewParam);
+					CurParam = NewParam;
+				//}
+			}
+		}
+	}
+
+	if (CurParam) {
+		//OutParam = CurParam.Get(0.);
+		return true;
+	}
+	return false;
+}
+
+template<int32 Dim, int32 Degree>
 inline TVectorX<Dim+1> TClampedBSpline<Dim, Degree>::DeBoor(
 	double T, const TArray<TVectorX<Dim+1>>& CtrlPoints, const TArray<double>& Params, 
 	TArray<TArray<TVectorX<Dim+1> > >* SplitPosArray, int32* OutEndIntervalIndex) const
