@@ -14,6 +14,7 @@ using FSpatialSplineBase3 = typename TSplineBase<3, 3>;
 using FSpatialControlPoint3 = typename TSplineBaseControlPoint<3, 3>;
 
 class URuntimeCustomSplineBaseComponent;
+class APlayerController;
 
 UENUM(BlueprintType)
 enum class ECustomSplineCoordinateType : uint8
@@ -75,6 +76,12 @@ public:
 	UFUNCTION(BlueprintPure, Category = "RuntimeCustomSpline|Query")
 	void GetClusterSplinesWithoutSource(TMap<URuntimeCustomSplineBaseComponent*, int32>& OutClusterSplinesWithDistance, URuntimeCustomSplineBaseComponent* SourceSpline, bool bForward = true);
 
+	UFUNCTION(BlueprintCallable, Category = "RuntimeCustomSpline|Query")
+	bool TraceSplinePoint(URuntimeSplinePointBaseComponent*& OutTracedComponent, APlayerController* PlayerController, const FVector2D& MousePosition);
+
+	UFUNCTION(BlueprintCallable, Category = "RuntimeCustomSpline|Query")
+	bool TraceSpline(URuntimeCustomSplineBaseComponent*& OutTracedComponent, float& OutTracedParam, FVector& OutTracedWorldPos, APlayerController* PlayerController, const FVector2D& MousePosition);
+
 	UFUNCTION(BlueprintCallable, Category = "RuntimeCustomSpline|Update")
 	void ClearAllSplines();
 
@@ -130,7 +137,6 @@ public:
 		URuntimeSplinePointBaseComponent* SourcePoint,
 		const FVector& TargetPosition,
 		ECustomSplineCoordinateType CoordinateType = ECustomSplineCoordinateType::SplineGraphLocal);
-
 
 public:
 

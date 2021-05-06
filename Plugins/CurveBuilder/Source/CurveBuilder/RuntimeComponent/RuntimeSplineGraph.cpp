@@ -4,6 +4,7 @@
 #include "RuntimeSplineGraph.h"
 #include "RuntimeCustomSplineBaseComponent.h"
 #include "RuntimeSplinePointBaseComponent.h"
+#include "GameFramework/PlayerController.h"
 
 void USplineGraphRootComponent::OnUpdateTransform(EUpdateTransformFlags UpdateTransformFlags, ETeleportType Teleport)
 {
@@ -110,6 +111,220 @@ void ARuntimeSplineGraph::GetClusterSplinesWithoutSource(TMap<URuntimeCustomSpli
 			}
 		}
 	}
+}
+
+bool ARuntimeSplineGraph::TraceSplinePoint(URuntimeSplinePointBaseComponent*& OutTracedComponent, APlayerController* PlayerController, const FVector2D& MousePosition)
+{
+	OutTracedComponent = nullptr;
+	if (!PlayerController)
+	{
+		return false;
+	}
+	TArray<TPair<FVector2D, URuntimeSplinePointBaseComponent*> > PointArray;
+	for (auto& SplinePair : SplineComponentMap)
+	{
+		if (!IsValid(SplinePair.Get<1>()) || SplinePair.Get<1>()->IsBeingDestroyed())
+		{
+			continue;
+		}
+
+		for (auto* PointComp : SplinePair.Get<1>()->PointComponents)
+		{
+			auto* CastedPointComp = PointComp;
+			{
+				if (!CastedPointComp->IsVisible())
+				{
+					continue;
+				}
+				FVector ScreenLocation;
+				bool bSucceed = PlayerController->ProjectWorldLocationToScreenWithDistance(CastedPointComp->GetComponentLocation(), ScreenLocation, true);
+				if (!bSucceed)
+				{
+					continue;
+				}
+
+				if (ScreenLocation.Z < 0.f)
+				{
+					continue;
+				}
+				FVector2D Key((FVector2D(ScreenLocation) - MousePosition).SizeSquared(), ScreenLocation.Z);
+				PointArray.Add(MakeTuple(Key, CastedPointComp));
+			}
+		}
+	}
+
+	if (PointArray.Num() == 0)
+	{
+		return false;
+	}
+
+	// Find Point?
+	FVector2D MinDistSqrAndDepth = PointArray[0].Get<0>();
+	auto* TargetSplinePoint = PointArray[0].Get<1>();
+
+	for (int32 i = 1; i < PointArray.Num(); ++i)
+	{
+		const FVector2D& CurDistSqrAndDepth = PointArray[i].Get<0>();
+		if ((FMath::IsNearlyEqual(CurDistSqrAndDepth.X, MinDistSqrAndDepth.X) && CurDistSqrAndDepth.Y < MinDistSqrAndDepth.Y)
+			|| (CurDistSqrAndDepth.X < MinDistSqrAndDepth.X))
+		{
+			MinDistSqrAndDepth = CurDistSqrAndDepth;
+			TargetSplinePoint = PointArray[i].Get<1>();
+		}
+	}
+
+	if (MinDistSqrAndDepth.X * 4.f <= FMath::Square(TargetSplinePoint->CollisionDiameter))
+	{
+		OutTracedComponent = TargetSplinePoint;
+		return true;
+	}
+
+	return false;
+}
+
+bool ARuntimeSplineGraph::TraceSpline(URuntimeCustomSplineBaseComponent*& OutTracedComponent, float& OutTracedParam, FVector& OutTracedWorldPos, APlayerController* PlayerController, const FVector2D& MousePosition)
+{
+	OutTracedComponent = nullptr;
+	OutTracedParam = -1.f;
+	OutTracedWorldPos = FVector::ZeroVector;
+	if (!PlayerController)
+	{
+		return false;
+	}
+	TMap<URuntimeCustomSplineBaseComponent*, TSharedPtr<FSpatialSplineBase3> > ScreenSpaceSplineMap;
+	TMap<URuntimeCustomSplineBaseComponent*, TSharedPtr<FSpatialSplineBase3> > ScreenSpaceSplinePlanarMap;
+	TMap<URuntimeCustomSplineBaseComponent*, FBox> ScreenSpaceBoxMap;
+	ScreenSpaceSplineMap.Reserve(SplineComponentMap.Num());
+	ScreenSpaceSplinePlanarMap.Reserve(SplineComponentMap.Num());
+	ScreenSpaceBoxMap.Reserve(SplineComponentMap.Num());
+	for (auto& SplinePair : SplineComponentMap)
+	{
+		auto* SplineComp = SplinePair.Get<1>();
+		//URoadEditorSplineComponent* SplineComp = Cast<URoadEditorSplineComponent>(SplinePair.Get<1>());
+		if (!IsValid(SplineComp) || SplineComp->IsBeingDestroyed() || !SplineComp->IsVisible())// || SplineComp->bIsOffset)
+		{
+			continue;
+		}
+
+		FBox& NewBox = ScreenSpaceBoxMap.Add(SplineComp, FBox(EForceInit::ForceInit));
+
+		auto* SplineProxy = SplineComp->GetSplineProxy();
+		TArray<TWeakPtr<FSpatialControlPoint3> > CPStructs;
+		SplineProxy->GetCtrlPointStructs(CPStructs);
+
+		FTransform SplineLocalToWorld = SplineComp->GetSplineLocalToWorldTransform();
+
+		switch (SplineProxy->GetType())
+		{
+		case ESplineType::ClampedBSpline:
+		{
+			TArray<FVector4> CPs;
+			TArray<FVector4> CPsPlanar;
+			TArray<double> Intervals;
+			CPs.Reserve(CPStructs.Num());
+			CPsPlanar.Reserve(CPStructs.Num());
+			static_cast<TSplineTraitByType<ESplineType::ClampedBSpline, 3, 3>::FSplineType*>(SplineProxy)->GetKnotIntervals(Intervals);
+			for (auto& CPStructWeakPtr : CPStructs)
+			{
+				FVector ScreenLocation = FVector::ZeroVector;
+				auto* CPStruct = static_cast<TSplineTraitByType<ESplineType::ClampedBSpline, 3, 3>::FControlPointType*>(CPStructWeakPtr.Pin().Get());
+				PlayerController->ProjectWorldLocationToScreenWithDistance(SplineLocalToWorld.TransformPosition(TVecLib<4>::Projection(CPStruct->Pos)), ScreenLocation, true);
+				CPs.Add(FVector4(ScreenLocation, 1.f));
+				CPsPlanar.Add(FVector4(ScreenLocation.X, ScreenLocation.Y, 0.f, 1.f));
+				NewBox += ScreenLocation;
+			}
+			auto* NewSplinePtr = new TSplineTraitByType<ESplineType::ClampedBSpline, 3, 3>::FSplineType();
+			NewSplinePtr->Reset(CPs, Intervals);
+			ScreenSpaceSplineMap.Add(SplineComp, MakeShareable(NewSplinePtr));
+
+			auto* NewSplinePlanarPtr = new TSplineTraitByType<ESplineType::ClampedBSpline, 3, 3>::FSplineType();
+			NewSplinePlanarPtr->Reset(CPsPlanar, Intervals);
+			ScreenSpaceSplinePlanarMap.Add(SplineComp, MakeShareable(NewSplinePlanarPtr));
+		}
+		break;
+		case ESplineType::BezierString:
+		{
+			TArray<FVector4> CPs;
+			TArray<FVector4> CPsPlanar;
+			TArray<FVector4> PCPs;
+			TArray<FVector4> PCPsPlanar;
+			TArray<FVector4> NCPs;
+			TArray<FVector4> NCPsPlanar;
+			TArray<double> Params;
+			TArray<EEndPointContinuity> Continuities;
+			CPs.Reserve(CPStructs.Num());
+			CPsPlanar.Reserve(CPStructs.Num());
+			PCPs.Reserve(CPStructs.Num());
+			PCPsPlanar.Reserve(CPStructs.Num());
+			NCPs.Reserve(CPStructs.Num());
+			NCPsPlanar.Reserve(CPStructs.Num());
+			Params.Reserve(CPStructs.Num());
+			Continuities.Reserve(CPStructs.Num());
+			for (auto& CPStructWeakPtr : CPStructs)
+			{
+				FVector ScreenLocation = FVector::ZeroVector;
+				auto* CPStruct = static_cast<TSplineTraitByType<ESplineType::BezierString, 3, 3>::FControlPointType*>(CPStructWeakPtr.Pin().Get());
+				PlayerController->ProjectWorldLocationToScreenWithDistance(SplineLocalToWorld.TransformPosition(TVecLib<4>::Projection(CPStruct->Pos)), ScreenLocation, true);
+				CPs.Add(FVector4(ScreenLocation, 1.f));
+				CPsPlanar.Add(FVector4(ScreenLocation.X, ScreenLocation.Y, 0.f, 1.f));
+				NewBox += ScreenLocation;
+
+				PlayerController->ProjectWorldLocationToScreenWithDistance(SplineLocalToWorld.TransformPosition(TVecLib<4>::Projection(CPStruct->PrevCtrlPointPos)), ScreenLocation, true);
+				PCPs.Add(FVector4(ScreenLocation, 1.f));
+				PCPsPlanar.Add(FVector4(ScreenLocation.X, ScreenLocation.Y, 0.f, 1.f));
+				NewBox += ScreenLocation;
+
+				PlayerController->ProjectWorldLocationToScreenWithDistance(SplineLocalToWorld.TransformPosition(TVecLib<4>::Projection(CPStruct->NextCtrlPointPos)), ScreenLocation, true);
+				NCPs.Add(FVector4(ScreenLocation, 1.f));
+				NCPsPlanar.Add(FVector4(ScreenLocation.X, ScreenLocation.Y, 0.f, 1.f));
+				NewBox += ScreenLocation;
+
+				Params.Add(CPStruct->Param);
+				Continuities.Add(CPStruct->Continuity);
+			}
+			auto* NewSplinePtr = new TSplineTraitByType<ESplineType::BezierString, 3, 3>::FSplineType();
+			NewSplinePtr->Reset(CPs, PCPs, NCPs, Params, Continuities);
+			ScreenSpaceSplineMap.Add(SplineComp, MakeShareable(NewSplinePtr));
+
+			auto* NewSplinePlanarPtr = new TSplineTraitByType<ESplineType::BezierString, 3, 3>::FSplineType();
+			NewSplinePlanarPtr->Reset(CPsPlanar, PCPsPlanar, NCPsPlanar, Params, Continuities);
+			ScreenSpaceSplinePlanarMap.Add(SplineComp, MakeShareable(NewSplinePlanarPtr));
+		}
+		break;
+		}
+	}
+
+	float NearestZ = TNumericLimits<float>::Max();
+	for (auto& ScreenSpaceSplinePair : ScreenSpaceSplineMap)
+	{
+		auto* SplineComp = ScreenSpaceSplinePair.Get<0>();
+		const FBox& ScreenSpaceBox = ScreenSpaceBoxMap[SplineComp];
+		if (ScreenSpaceBox.Max.Z >= 0.f && ScreenSpaceBox.IsInsideXY(FVector(MousePosition, 0.f)))
+		{
+			double Param = -1.;
+			auto* SplinePlanarProxy = ScreenSpaceSplinePlanarMap[SplineComp].Get();
+			if (SplinePlanarProxy->FindParamByPosition(Param, FVector(MousePosition, 0.f), FMath::Square(SplineComp->CollisionSegWidth)))
+			{
+				auto* SplineProxy = ScreenSpaceSplinePair.Get<1>().Get();
+				FVector ScreenSpaceWithDist = SplineProxy->GetPosition(Param);
+				if (ScreenSpaceWithDist.Z < NearestZ)
+				{
+					NearestZ = ScreenSpaceWithDist.Z;
+					OutTracedParam = Param;
+					OutTracedComponent = SplineComp;
+				}
+			}
+		}
+	}
+	if (OutTracedComponent)
+	{
+		OutTracedWorldPos = OutTracedComponent->ConvertPosition(
+			OutTracedComponent->GetSplineProxy()->GetPosition(OutTracedParam),
+			ECustomSplineCoordinateType::SplineGraphLocal,
+			ECustomSplineCoordinateType::World);
+		return true;
+	}
+	return false;
 }
 
 void ARuntimeSplineGraph::ClearAllSplines()
