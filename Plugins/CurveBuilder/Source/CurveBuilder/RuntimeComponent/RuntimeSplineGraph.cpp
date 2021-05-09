@@ -116,6 +116,16 @@ void ARuntimeSplineGraph::GetClusterSplinesWithoutSource(TMap<URuntimeCustomSpli
 bool ARuntimeSplineGraph::TraceSplinePoint(URuntimeSplinePointBaseComponent*& OutTracedComponent, APlayerController* PlayerController, const FVector2D& MousePosition)
 {
 	OutTracedComponent = nullptr;
+
+	if (!bCustomSelectCollisionForSpline)
+	{
+		UPrimitiveComponent* TempTracedComponent = nullptr;
+		FVector TempPosition = FVector::ZeroVector;
+		bool bReturnValue = TraceMesh(TempTracedComponent, TempPosition, PlayerController, MousePosition, URuntimeSplinePointBaseComponent::StaticClass());
+		OutTracedComponent = Cast<URuntimeSplinePointBaseComponent>(TempTracedComponent);
+		return bReturnValue;
+	}
+
 	if (!PlayerController)
 	{
 		return false;
@@ -187,6 +197,29 @@ bool ARuntimeSplineGraph::TraceSpline(URuntimeCustomSplineBaseComponent*& OutTra
 	OutTracedComponent = nullptr;
 	OutTracedParam = -1.f;
 	OutTracedWorldPos = FVector::ZeroVector;
+
+	if (!bCustomSelectCollisionForSpline)
+	{
+		UPrimitiveComponent* TempTracedComponent = nullptr;
+		bool bReturnValue = TraceMesh(TempTracedComponent, OutTracedWorldPos, PlayerController, MousePosition, URuntimeCustomSplineBaseComponent::StaticClass());
+		OutTracedComponent = Cast<URuntimeCustomSplineBaseComponent>(TempTracedComponent);
+		auto* SplineProxy = OutTracedComponent->GetSplineProxy();
+		if (!SplineProxy)
+		{
+			return false;
+		}
+		double OutParamDbl = -1.;
+		if (!SplineProxy->FindParamByPosition(
+			OutParamDbl,
+			OutTracedComponent->ConvertPosition(OutTracedWorldPos, ECustomSplineCoordinateType::World, ECustomSplineCoordinateType::SplineGraphLocal),
+			OutTracedComponent->CollisionSegWidth))
+		{
+			return false;
+		}
+		OutTracedParam = static_cast<float>(OutParamDbl);
+		return bReturnValue;
+	}
+
 	if (!PlayerController)
 	{
 		return false;
@@ -324,6 +357,46 @@ bool ARuntimeSplineGraph::TraceSpline(URuntimeCustomSplineBaseComponent*& OutTra
 			ECustomSplineCoordinateType::World);
 		return true;
 	}
+	return false;
+}
+
+
+bool ARuntimeSplineGraph::TraceMesh(UPrimitiveComponent*& OutTracedComponent, FVector& OutTracedWorldPos, APlayerController* PlayerController, const FVector2D& MousePosition, TSubclassOf<UPrimitiveComponent> FilterClass, float TraceDistance)
+{
+	UWorld* World = GetWorld();
+	if (!World || !PlayerController)
+	{
+		return false;
+	}
+
+	FVector WorldLocation = FVector::ZeroVector, WorldDirection = FVector::ZeroVector;
+	if (!PlayerController->DeprojectScreenPositionToWorld(MousePosition.X, MousePosition.Y, WorldLocation, WorldDirection))
+	{
+		return false;
+	}
+	TArray<FHitResult> HitResults;
+	bool bFoundObject = World->LineTraceMultiByObjectType(HitResults, WorldLocation, WorldLocation + WorldDirection * TraceDistance,
+		FCollisionObjectQueryParams::AllObjects);
+	if (!bFoundObject)
+	{
+		return false;
+	}
+
+	for (FHitResult& HitResult : HitResults)
+	{
+		auto* Component = HitResult.GetComponent();
+		if (!Component)
+		{
+			continue;
+		}
+		if (!FilterClass || Component->IsA(FilterClass))
+		{
+			OutTracedComponent = Component;
+			OutTracedWorldPos = HitResult.Location;
+			return true;
+		}
+	}
+
 	return false;
 }
 
@@ -678,6 +751,7 @@ URuntimeCustomSplineBaseComponent* ARuntimeSplineGraph::CreateSplineActorInterna
 	}
 
 	URuntimeCustomSplineBaseComponent* NewSpline = NewObject<URuntimeCustomSplineBaseComponent>(NewActor, CustomSplineClass);
+	NewSpline->bCreateCollisionForSelection = bCustomSelectCollisionForSpline;
 	NewSpline->AttachToComponent(NewActor->GetRootComponent(), FAttachmentTransformRules::KeepRelativeTransform);
 	NewActor->AddInstanceComponent(NewSpline);
 	NewSpline->RegisterComponent();

@@ -201,6 +201,9 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "RuntimeCustomSpline|Component")
 	ARuntimeSplineGraph* ParentGraph = nullptr;
 
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RuntimeCustomSpline|Collision")
+	bool bCreateCollisionForSelection = false;
+
 	UPROPERTY(Instanced)
 	UBodySetup* BodySetup = nullptr;
 

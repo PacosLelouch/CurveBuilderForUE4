@@ -21,6 +21,10 @@ URuntimeCustomSplineBaseComponent::URuntimeCustomSplineBaseComponent(const FObje
 	CustomSplinePointClass = URuntimeSplinePointBaseComponent::StaticClass();
 	bLastCreateCollisionByCurveLength = bCreateCollisionByCurveLength;
 	CollisionSegLength *= bCreateCollisionByCurveLength ? LengthFactor : 1.f;
+	if (bCreateCollisionForSelection)
+	{
+		DebugCollisionLineWidth = CollisionSegWidth;
+	}
 }
 
 void URuntimeCustomSplineBaseComponent::BeginPlay()
@@ -208,6 +212,12 @@ FBoxSphereBounds URuntimeCustomSplineBaseComponent::CalcBounds(const FTransform&
 void URuntimeCustomSplineBaseComponent::UpdateCollision()
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_RuntimeCustomSplineBaseComponent_UpdateCollision);
+
+	if (bCreateCollisionForSelection)
+	{
+		DestroyPhysicsState();
+		return;
+	}
 
 	UWorld* World = GetWorld();
 	if (!IsValid(World))
@@ -788,6 +798,7 @@ URuntimeSplinePointBaseComponent* URuntimeCustomSplineBaseComponent::AddPointInt
 			
 			NewPoint = NewObject<URuntimeSplinePointBaseComponent>(RealParent, CustomSplinePointClass);
 			NewPoint->Mobility = RealParent->Mobility;
+			NewPoint->bCreateCollisionForSelection = bCreateCollisionForSelection;
 			
 			PointComponents.Add(NewPoint);
 			NewPoint->SplinePointProxy = TWeakPtr<FSpatialControlPoint3>(PointRef);

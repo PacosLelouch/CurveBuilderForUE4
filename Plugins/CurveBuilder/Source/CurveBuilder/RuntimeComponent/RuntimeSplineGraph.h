@@ -82,6 +82,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "RuntimeCustomSpline|Query")
 	bool TraceSpline(URuntimeCustomSplineBaseComponent*& OutTracedComponent, float& OutTracedParam, FVector& OutTracedWorldPos, APlayerController* PlayerController, const FVector2D& MousePosition);
 
+	UFUNCTION(BlueprintCallable, Category = "RuntimeCustomSpline|Query")
+	bool TraceMesh(UPrimitiveComponent*& OutTracedComponent, FVector& OutTracedWorldPos, APlayerController* PlayerController, const FVector2D& MousePosition, TSubclassOf<UPrimitiveComponent> FilterClass, float TraceDistance = 1e6f);
+
 	UFUNCTION(BlueprintCallable, Category = "RuntimeCustomSpline|Update")
 	void ClearAllSplines();
 
@@ -162,6 +165,9 @@ public:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RuntimeCustomSpline|Component")
 	TArray<URuntimeCustomSplineBaseComponent*> SelectedSplines;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RuntimeCustomSpline|Settings")
+	bool bCustomSelectCollisionForSpline = false;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "RuntimeCustomSpline|Settings")
 	TSubclassOf<AActor> ActorWithSpline;

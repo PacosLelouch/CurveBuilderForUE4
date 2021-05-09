@@ -19,6 +19,10 @@ URuntimeSplinePointBaseComponent::URuntimeSplinePointBaseComponent(const FObject
 	{
 		bIsDuplicated = true;
 	}
+	if (bCreateCollisionForSelection)
+	{
+		CollisionDiameter = DrawPointSize;
+	}
 }
 
 void URuntimeSplinePointBaseComponent::BeginPlay()
@@ -218,6 +222,12 @@ FBoxSphereBounds URuntimeSplinePointBaseComponent::CalcBounds(const FTransform& 
 void URuntimeSplinePointBaseComponent::UpdateCollision()
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_RuntimeSplinePointBaseComponent_UpdateCollision);
+
+	if (bCreateCollisionForSelection)
+	{
+		DestroyPhysicsState();
+		return;
+	}
 
 	UWorld* World = GetWorld();
 	if (!IsValid(World))
