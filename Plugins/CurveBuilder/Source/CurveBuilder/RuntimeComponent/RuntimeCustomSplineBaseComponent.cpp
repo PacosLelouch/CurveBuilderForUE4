@@ -552,6 +552,154 @@ void URuntimeCustomSplineBaseComponent::GetHermiteForms(
 	}
 }
 
+ERuntimeSplineType URuntimeCustomSplineBaseComponent::GetType() const
+{
+	auto* SplineProxy = GetSplineProxy();
+	if (!SplineProxy)
+	{
+		return ERuntimeSplineType::Unknown;
+	}
+	return ARuntimeSplineGraph::GetExternalSplineType(SplineProxy->GetType());
+}
+
+float URuntimeCustomSplineBaseComponent::GetLength(float Parameter) const
+{
+	auto* SplineProxy = GetSplineProxy();
+	if (!SplineProxy)
+	{
+		return 0.f;
+	}
+	return SplineProxy->GetLength(Parameter);
+}
+
+float URuntimeCustomSplineBaseComponent::GetParameterAtLength(float Length) const
+{
+	auto* SplineProxy = GetSplineProxy();
+	if (!SplineProxy)
+	{
+		return 0.f;
+	}
+	return SplineProxy->GetParameterAtLength(Length);
+}
+
+int32 URuntimeCustomSplineBaseComponent::GetControlPointNum() const
+{
+	auto* SplineProxy = GetSplineProxy();
+	if (!SplineProxy)
+	{
+		return PointComponents.Num();
+	}
+	return SplineProxy->GetCtrlPointNum();
+}
+
+void URuntimeCustomSplineBaseComponent::GetSegmentParameters(TArray<float>& Parameters) const
+{
+	auto* SplineProxy = GetSplineProxy();
+	if (!SplineProxy)
+	{
+		return;
+	}
+	TArray<double> ParametersDbl;
+	SplineProxy->GetSegParams(ParametersDbl);
+	Parameters.SetNum(ParametersDbl.Num());
+	for (int32 i = 0; i < ParametersDbl.Num(); ++i)
+	{
+		Parameters[i] = ParametersDbl[i];
+	}
+}
+
+FVector URuntimeCustomSplineBaseComponent::GetPosition(float Parameter, ECustomSplineCoordinateType CoordinateType) const
+{
+	auto* SplineProxy = GetSplineProxy();
+	if (!SplineProxy)
+	{
+		return FVector::ZeroVector;
+	}
+	FVector SpLocalPosition = SplineProxy->GetPosition(Parameter);
+	return ConvertPosition(SpLocalPosition, ECustomSplineCoordinateType::SplineGraphLocal, CoordinateType);
+}
+
+FVector URuntimeCustomSplineBaseComponent::GetTangent(float Parameter, ECustomSplineCoordinateType CoordinateType) const
+{
+	auto* SplineProxy = GetSplineProxy();
+	if (!SplineProxy)
+	{
+		return FVector::ZeroVector;
+	}
+	FVector SpLocalTangent = SplineProxy->GetTangent(Parameter);
+	return ConvertPosition(SpLocalTangent, ECustomSplineCoordinateType::SplineGraphLocal, CoordinateType);
+}
+
+float URuntimeCustomSplineBaseComponent::GetCurvature(float Parameter) const
+{
+	auto* SplineProxy = GetSplineProxy();
+	if (!SplineProxy)
+	{
+		return 0.f;
+	}
+	return SplineProxy->GetCurvature(Parameter);
+}
+
+float URuntimeCustomSplineBaseComponent::GetPlanCurvature(float Parameter, int32 PlanIndex) const
+{
+	auto* SplineProxy = GetSplineProxy();
+	if (!SplineProxy)
+	{
+		return 0.f;
+	}
+	return SplineProxy->GetPlanCurvature(Parameter, PlanIndex);
+}
+
+FVector2D URuntimeCustomSplineBaseComponent::GetParameterRange() const
+{
+	auto* SplineProxy = GetSplineProxy();
+	if (!SplineProxy)
+	{
+		return FVector2D::ZeroVector;
+	}
+	auto ParamRange = SplineProxy->GetParamRange();
+	return FVector2D( ParamRange.Get<0>(), ParamRange.Get<1>() );
+}
+
+bool URuntimeCustomSplineBaseComponent::FindParameterByPosition(float& Param, const FVector& Position, float ToleranceSqr, ECustomSplineCoordinateType CoordinateType) const
+{
+	Param = -1.f;
+	auto* SplineProxy = GetSplineProxy();
+	if (!SplineProxy)
+	{
+		return false;
+	}
+	auto InPos = ConvertPosition(Position, CoordinateType, ECustomSplineCoordinateType::SplineGraphLocal);
+	double ParamDbl = -1.;
+	if (!SplineProxy->FindParamByPosition(ParamDbl, InPos, ToleranceSqr))
+	{
+		return false;
+	}
+	Param = ParamDbl;
+	return true;
+}
+
+bool URuntimeCustomSplineBaseComponent::FindParameterByComponentValue(TArray<float>& Params, float ComponentValue, int32 ComponentIndex, float ToleranceSqr) const
+{
+	Params.Empty();
+	auto* SplineProxy = GetSplineProxy();
+	if (!SplineProxy)
+	{
+		return false;
+	}
+	TArray<double> ParamsDbl;
+	if (!SplineProxy->FindParamsByComponentValue(ParamsDbl, ComponentValue, ComponentIndex, ToleranceSqr))
+	{
+		return false;
+	}
+	Params.SetNum(ParamsDbl.Num());
+	for (int32 i = 0; i < ParamsDbl.Num(); ++i)
+	{
+		Params[i] = ParamsDbl[i];
+	}
+	return true;
+}
+
 void URuntimeCustomSplineBaseComponent::Reverse()
 {
 	ReverseImpl();

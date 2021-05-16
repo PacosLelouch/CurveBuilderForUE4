@@ -150,6 +150,46 @@ public:
 		TArray<FVector>& OutPositions, TArray<FVector>& OutArriveTangents, TArray<FVector>& OutLeaveTangents,
 		ECustomSplineCoordinateType TargetCoordinateType = ECustomSplineCoordinateType::SplineGraphLocal);
 
+	//// Start interface of proxy.
+
+	UFUNCTION(BlueprintPure, Category = "RuntimeCustomSpline|Query")
+	ERuntimeSplineType GetType() const;
+
+	UFUNCTION(BlueprintPure, Category = "RuntimeCustomSpline|Query")
+	float GetLength(float Parameter) const;
+
+	UFUNCTION(BlueprintPure, Category = "RuntimeCustomSpline|Query")
+	float GetParameterAtLength(float Length) const;
+
+	UFUNCTION(BlueprintPure, Category = "RuntimeCustomSpline|Query")
+	int32 GetControlPointNum() const;
+
+	UFUNCTION(BlueprintPure, Category = "RuntimeCustomSpline|Query")
+	void GetSegmentParameters(TArray<float>& Parameters) const;
+
+	UFUNCTION(BlueprintPure, Category = "RuntimeCustomSpline|Query")
+	FVector GetPosition(float Parameter, ECustomSplineCoordinateType CoordinateType = ECustomSplineCoordinateType::SplineGraphLocal) const;
+	
+	UFUNCTION(BlueprintPure, Category = "RuntimeCustomSpline|Query")
+	FVector GetTangent(float Parameter, ECustomSplineCoordinateType CoordinateType = ECustomSplineCoordinateType::SplineGraphLocal) const;
+
+	UFUNCTION(BlueprintPure, Category = "RuntimeCustomSpline|Query")
+	float GetCurvature(float Parameter) const;
+
+	UFUNCTION(BlueprintPure, Category = "RuntimeCustomSpline|Query")
+	float GetPlanCurvature(float Parameter, int32 PlanIndex = 0) const;
+
+	UFUNCTION(BlueprintPure, Category = "RuntimeCustomSpline|Query")
+	FVector2D GetParameterRange() const;
+
+	UFUNCTION(BlueprintPure, Category = "RuntimeCustomSpline|Query")
+	bool FindParameterByPosition(float& Param, const FVector& Position, float ToleranceSqr = 1., ECustomSplineCoordinateType CoordinateType = ECustomSplineCoordinateType::SplineGraphLocal) const;
+	
+	UFUNCTION(BlueprintPure, Category = "RuntimeCustomSpline|Query")
+	bool FindParameterByComponentValue(TArray<float>& Params, float ComponentValue, int32 ComponentIndex, float ToleranceSqr = 1.) const;
+
+	//// End interface of proxy.
+
 	UFUNCTION(BlueprintCallable, Category = "RuntimeCustomSpline|Update")
 	void Reverse();
 
