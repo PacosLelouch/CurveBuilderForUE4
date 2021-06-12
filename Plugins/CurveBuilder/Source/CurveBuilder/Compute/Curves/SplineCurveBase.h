@@ -123,10 +123,7 @@ public:
 	}
 	FORCEINLINE void SetPoint(int32 i, const TVectorX<Dim>& P, double Weight = 1.) 
 	{
-		for (int32 j = 0; j < Dim; ++j) {
-			CtrlPoints[i][j] = P[j];
-		}
-		TVecLib<Dim+1>::Last(CtrlPoints[i]) = Weight;
+		CurveBuilderLinearAlgrebraUtils::SetPointInternal<Dim>(CtrlPoints[i], P, Weight);
 	}
 	FORCEINLINE TVectorX<Dim> GetPoint(int32 i) const { return TVecLib<Dim+1>::Projection(CtrlPoints[i]); }
 	FORCEINLINE void SetPointHomogeneous(int32 i, const TVectorX<Dim+1>& P)

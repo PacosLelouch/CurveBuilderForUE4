@@ -39,10 +39,10 @@ inline bool TSplineCurveBase<Dim, Degree>::FindParamsByComponentValue(TArray<dou
 	OutParams.Empty(Degree);
 	auto SegDbl = static_cast<double>(Degree - 1);
 	TFunction<double(double)> GetValue = [this, InComponentIndex](double T) {
-		return this->GetPosition(T)[InComponentIndex];
+		return TVecLib<Dim>::IndexOf(this->GetPosition(T), InComponentIndex);
 	};
 	TFunction<double(double)> GetDerivative = [this, InComponentIndex](double T) {
-		return this->GetTangent(T)[InComponentIndex];
+		return TVecLib<Dim>::IndexOf(this->GetTangent(T), InComponentIndex);
 	};
 	TNewton<1> Newton(GetValue, GetDerivative, 0., 1.);
 
@@ -50,7 +50,7 @@ inline bool TSplineCurveBase<Dim, Degree>::FindParamsByComponentValue(TArray<dou
 	for (int32 i = 0; i < Degree; ++i) {
 		double InitGuess = static_cast<double>(i) / SegDbl;
 		double NewParam = Newton.Solve(InValue, InitGuess, NumericalCalculationConst::NewtonOptionalClampScale);
-		double NewValue = GetPosition(NewParam)[InComponentIndex];
+		double NewValue = TVecLib<Dim>::IndexOf(GetPosition(NewParam), InComponentIndex);
 		double NewDistSqr = FMath::Square(NewValue - InValue);
 		if (NewDistSqr <= ToleranceSqr) {
 			if (!CurDistSqr || CurDistSqr.GetValue() > NewDistSqr) {

@@ -844,7 +844,7 @@ inline TVectorX<Dim> TBezierString3<Dim>::GetTangent(double T) const
 	Curve.CreateHodograph(Hodograph);
 	
 	TVectorX<Dim> Tangent = Hodograph.GetPosition(TN);
-	return Tangent.IsNearlyZero() ? Hodograph.GetTangent(TN) : Tangent;
+	return TVecLib<Dim>::IsNearlyZero(Tangent) ? Hodograph.GetTangent(TN) : Tangent;
 }
 
 template<int32 Dim>

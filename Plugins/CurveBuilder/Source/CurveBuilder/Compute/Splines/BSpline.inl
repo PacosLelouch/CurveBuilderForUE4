@@ -878,7 +878,7 @@ inline TVectorX<Dim> TClampedBSpline<Dim, Degree>::GetTangent(double T) const
 	TTuple<double, double> HParamRange = Hodograph.GetParamRange();
 	double TH = ConvertRange(T, ParamRange, HParamRange);
 	TVectorX<Dim> Tangent = Hodograph.GetPosition(TH);
-	return Tangent.IsNearlyZero() ? Hodograph.GetTangent(TH) : Tangent;
+	return TVecLib<Dim>::IsNearlyZero(Tangent) ? Hodograph.GetTangent(TH) : Tangent;
 }
 
 template<int32 Dim, int32 Degree>
@@ -1176,18 +1176,19 @@ inline int32 TClampedBSpline<Dim, Degree>::DetermineContinuity(TOptional<double>
 	auto SqrSize2 = TVecLib<Dim>::SizeSquared(Tangent2);
 	bool bSqr1NonZero = !FMath::IsNearlyZero(SqrSize1);
 	bool bSqr2NonZero = !FMath::IsNearlyZero(SqrSize2);
+	bool bSameRank = (bSqr1NonZero && bSqr2NonZero) || (!bSqr1NonZero && !bSqr2NonZero);
 	auto SqrCos = bSqr1NonZero && bSqr2NonZero ? (SqrDot / (SqrSize1 * SqrSize2)) : 1.;
 	//auto Diff = Tangent1 - Tangent2;
 	//if (TVecLib<Dim>::SizeSquared(Diff) <= FMath::Square(TOL))
-	if (FMath::Abs(SqrCos - 1.) <= FMath::Square(TOL) && bSqr1NonZero)
+	if (FMath::Abs(SqrCos - 1.) <= FMath::Square(TOL) && bSameRank)
 	{
 		if (!OutParamRatio)
 		{
-			OutParamRatio = FMath::Sqrt(SqrSize2 / SqrSize1);
+			OutParamRatio = bSameRank ? 1. : FMath::Sqrt(SqrSize2 / SqrSize1);
 		}
 		else
 		{
-			auto SqrQuotient = SqrSize2 / SqrSize1;
+			auto SqrQuotient = bSameRank ? 1. : SqrSize2 / SqrSize1;
 			auto SqrParamRatio = OutParamRatio.GetValue();
 			for (int32 i = Degree; i > SubDegree; --i)
 			{

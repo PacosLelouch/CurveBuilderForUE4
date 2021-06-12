@@ -10,6 +10,9 @@
 
 #define CLAMP_DEGREE(Degree,Minimum) ((Degree) > (Minimum) ? (Degree) : (Minimum))
 
+using F_Scalar = double;
+
+using F_Vec1 = F_Scalar;
 using F_Vec2 = FVector2D;
 using F_Vec3 = FVector;
 using F_Vec4 = FVector4;
@@ -22,9 +25,46 @@ using F_Transform2 = FTransform2D;
 using F_Transform3 = FTransform;
 
 // Start Vector
+#define GENERATED_SCALAR_LIBRARY_FUNCTIONS() \
+	FORCEINLINE static const auto& Zero() { static const FType ZeroVector = FType(0.); return ZeroVector; } \
+	FORCEINLINE static auto& IndexOf(FType& V, int32 Index) { return V; } \
+	FORCEINLINE static auto IndexOf(const FType& V, int32 Index) { return V; } \
+	FORCEINLINE static auto& Last(FType& V) { return V; } \
+	FORCEINLINE static auto Last(const FType& V) { return V; } \
+	FORCEINLINE static void WeightToOne(FType& V) {} \
+	FORCEINLINE static bool IsNearlyZero(const FType& V, double Tolerance = SMALL_NUMBER) \
+	{ \
+		return FMath::IsNearlyZero(static_cast<double>(V), Tolerance); \
+	} \
+	FORCEINLINE static double Dot(const FType& V1, const FType& V2) \
+	{ \
+		return V1 * V2; \
+	} \
+	FORCEINLINE static double SizeSquared(const FType& V) \
+	{ \
+		return V * V; \
+	} \
+	FORCEINLINE static double Size(const FType& V) \
+	{ \
+		return V; \
+	} \
+	FORCEINLINE static void SetArray(FType* Dst, uint8 Byte, SIZE_T Size) \
+		{ FMemory::Memset(Dst, Byte, Size * sizeof(FType)); } \
+	FORCEINLINE static void CopyArray(FType* Dst, const FType* Src, SIZE_T Size) \
+		{ FMemory::Memcpy(Dst, Src, Size * sizeof(FType)); } \
+	FORCEINLINE static double PlanCurvature(const FType& DP, const FType& DDP, int32 PlanIndex) \
+	{ \
+		return 0.;  \
+	} \
+	FORCEINLINE static double Curvature(const FType& DP, const FType& DDP) \
+	{ \
+		return 0.;  \
+	} 
 
 #define GENERATED_VECTOR_LIBRARY_FUNCTIONS(Dim) \
 	FORCEINLINE static const auto& Zero() { static const FType ZeroVector = FType(EForceInit::ForceInit); return ZeroVector; } \
+	FORCEINLINE static auto& IndexOf(FType& V, int32 Index) { return V[Index]; } \
+	FORCEINLINE static auto IndexOf(const FType& V, int32 Index) { return V[Index]; } \
 	FORCEINLINE static auto& Last(FType& V) { return V[Dim - 1]; } \
 	FORCEINLINE static auto Last(const FType& V) { return V[Dim - 1]; } \
 	FORCEINLINE static void WeightToOne(FType& V) \
@@ -88,7 +128,7 @@ using F_Transform3 = FTransform;
 		De = De * De * De; \
 		return Nu / De;  \
 	} \
-	/** https://www.zhihu.com/question/356547555?sort=created */ \
+	/** https://www.zhihu.com/question/356547555 */ \
 	FORCEINLINE static double Curvature(const FType& DP, const FType& DDP) \
 	{ \
 		double Nu = 0., De = 0.; \
@@ -110,9 +150,25 @@ template<int32 Dim>
 struct TVecLib;
 
 template<>
+struct TVecLib<1> {
+	using FType = F_Vec1;
+	using FTypeHomogeneous = F_Vec2;
+	GENERATED_SCALAR_LIBRARY_FUNCTIONS()
+
+	FORCEINLINE static FTypeHomogeneous Homogeneous(const FType& V, double Weight = 1.)
+	{
+		if (FMath::IsNearlyZero(Weight)) {
+			return FTypeHomogeneous(V, 0.);
+		}
+		return FTypeHomogeneous(V * Weight, Weight);
+	}
+};
+
+template<>
 struct TVecLib<2> {
 	using FType = F_Vec2;
 	using FTypeHomogeneous = F_Vec3;
+	using FTypeProjection = F_Vec1;
 	GENERATED_VECTOR_LIBRARY_FUNCTIONS(2)
 
 	FORCEINLINE static FTypeHomogeneous Homogeneous(const FType& V, double Weight = 1.)
@@ -121,6 +177,16 @@ struct TVecLib<2> {
 			return FTypeHomogeneous(V.X, V.Y, 0.);
 		}
 		return FTypeHomogeneous(V.X*Weight, V.Y*Weight, Weight);
+	}
+
+	FORCEINLINE static FTypeProjection Projection(const FType& V)
+	{
+		double Weight = V[1];
+		if (FMath::IsNearlyZero(Weight)) {
+			return FTypeProjection(V.X);
+		}
+		double InvWeight = 1. / Weight;
+		return FTypeProjection(V.X * InvWeight);
 	}
 };
 
@@ -169,6 +235,28 @@ struct TVecLib<4> {
 
 template<int32 Dim>
 using TVectorX = typename TVecLib<Dim>::FType;
+
+namespace CurveBuilderLinearAlgrebraUtils
+{
+	template<int32 Dim>
+	FORCEINLINE void SetPointInternal(TVectorX<Dim+1>& PTar, const TVectorX<Dim>& PSrc, double Weight = 1.0);
+}
+
+template<int32 Dim>
+inline void CurveBuilderLinearAlgrebraUtils::SetPointInternal(TVectorX<Dim+1>& PTar, const TVectorX<Dim>& PSrc, double Weight)
+{
+	for (int32 j = 0; j < Dim; ++j) {
+		PTar[j] = PSrc[j];
+	}
+	TVecLib<Dim+1>::Last(PTar) = Weight;
+}
+
+template<>
+inline void CurveBuilderLinearAlgrebraUtils::SetPointInternal<1>(TVectorX<2>& PTar, const TVectorX<1>& PSrc, double Weight)
+{
+	PTar[0] = PSrc;
+	TVecLib<2>::Last(PTar) = Weight;
+}
 
 // End Vector
 
@@ -246,7 +334,7 @@ protected:
 
 	void CalculateResult()
 	{
-
+		//TODO
 	}
 };
 
