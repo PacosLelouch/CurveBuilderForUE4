@@ -249,7 +249,10 @@ inline bool TClampedBSpline<Dim, Degree>::ToBezierCurves(TArray<TBezierCurve<Dim
 	auto AddBezier = [this, &BezierCurves, ParamRangesPtr](const TClampedBSpline<Dim, Degree>& Spline) {
 		TArray<TVectorX<Dim+1> > CtrlPoints;
 		Spline.GetCtrlPoints(CtrlPoints);
-		if (Spline.GetCtrlPointNum() < 2 || Spline.GetCtrlPointNum() > Degree + 1) { // Invalid
+		// CtrlPointNum may be greater than Degree + 1 if there are multiple repeated knots.
+		if (Spline.GetCtrlPointNum() < 2
+			//|| Spline.GetCtrlPointNum() > Degree + 1
+			) { // Invalid
 			return;
 		}
 		//else if (Spline.GetCtrlPointNum() == 2) { // Straight Line
@@ -279,7 +282,13 @@ inline bool TClampedBSpline<Dim, Degree>::ToBezierCurves(TArray<TBezierCurve<Dim
 	{
 		ParamRangesPtr->Empty(KnotIntervals.Num() - 1);
 	}
+
+	TOptional<double> LastKnot;
 	for (int32 i = 1; i + 1 < KnotIntervals.Num(); ++i) {
+		if (LastKnot && FMath::IsNearlyEqual(LastKnot.GetValue(), KnotIntervals[i])) {
+			continue;
+		}
+		LastKnot = KnotIntervals[i];
 		ToSplit.Split(SplitFirst, SplitSecond, KnotIntervals[i]);
 		AddBezier(SplitFirst);
 		ToSplit = SplitSecond;
@@ -1059,7 +1068,8 @@ inline TVectorX<Dim+1> TClampedBSpline<Dim, Degree>::DeBoor(
 	int32 ListNum = CtrlPointsList.Num();
 	int32 k = Params.Num() - 1 - Degree;
 	static constexpr double ErrorTolerance = SMALL_NUMBER;
-	for (int32 i = 0; i + 1 < Params.Num(); ++i) {
+	//for (int32 i = 0; i + 1 < Params.Num(); ++i) {
+	for (int32 i = Params.Num() - 2; i >= 0; --i) {
 		if (FMath::IsNearlyEqual(T, Params[i], ErrorTolerance) || (Params[i] < T && T < Params[i + 1])) {
 			k = i;
 			break;
